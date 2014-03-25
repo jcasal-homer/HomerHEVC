@@ -125,6 +125,8 @@ homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthx
 
 
 
+
+
 Contributors:
 
 Up to now all code has being developed by Juan Casal, an IT and Telecomunications engineer with more than 12 years of experience in video encoding and transmission.
