@@ -4,14 +4,14 @@ HOMER (Hevc Open Mpeg EncodeR) is an open-source HEVC encoder to encode YUV420 v
 
 It is published under the LPGLv2.1 license, and is therefore Free Software according to the Free Software Foundation.
 
-Homer is still under development and will improve in quality and performance while being developed.
+Homer is still under development and will improve in quality and performance during the development.
 
 Development is guided by three main aspects:
 - Easy portability.
 - Multiplatform (currently tested in Windows and Linux). 
 - Performance.
 
-Thus, code style of the development is C'99 and recursive functions have been implemented in a sequential manner to avoid the drawback of recursive calls to complex functions and to ease portability. OS dependant code is isolated in a very simple file, while low level optimizations are handled with an interface for low level functions. 
+Code style of the development is C'99 and recursive functions have been implemented in a sequential manner to avoid the drawback of recursive calls to complex functions and to ease portability. OS dependant code is isolated in a very simple file, while low level optimizations are handled with an interface for low level functions. 
 
 
 
@@ -23,7 +23,7 @@ Current Features:
 - All transform sizes (32,16,8,4).
 - Sign hiding bit enabled.
 - RDO.
-- Wpp parallelization (native pthread or win32, depending on OS).
+- Wpp parallelization (native pthread or win32 threads, depending on the OS).
 - Fast decision mode algorithm.
 
 Current SSE42 optimizations (intrinsics):
