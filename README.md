@@ -23,7 +23,7 @@ Current Features:
 - All transform sizes (32,16,8,4).
 - Sign hiding bit enabled.
 - RDO.
-- Wpp parallelization.
+- Wpp parallelization (native pthread or win32, depending on OS).
 - Fast decision mode algorithm.
 
 Current SSE42 optimizations (intrinsics):
