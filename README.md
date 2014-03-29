@@ -137,3 +137,7 @@ Find Juan Casal's personal linkedIn profile in https://www.linkedin.com/pub/juan
 
 Contact: jcasal.homer@gmail.com
 
+
+Please report bugs and different issues in https://github.com/jcasal-homer/HomerHEVC/issues
+
+
