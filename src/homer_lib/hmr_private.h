@@ -29,7 +29,7 @@
 #include "homer_hevc_enc_api.h"
 
 
-//#define COMPUTE_SSE_FUNCS				1
+#define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1
 #define COMPUTE_METRICS			1
 
