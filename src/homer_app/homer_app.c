@@ -84,6 +84,7 @@ void print_help()
 	printf("-sign_hiding: \t\t 0=off, 1=on, default = 1\r\n");
 	printf("-performance_mode: \t 0=full computation, 1=fast , 2= ultra fast\r\n");
 	printf("-rd: \t\t\t 0=off, 1=full rd , 2= fast rd\r\n");
+	printf("-num_frames: \t\t\t default 40\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
 	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2\r\n");
@@ -93,7 +94,8 @@ void print_help()
 
 
 
-void parse_args(int argc, char* argv[], HVENC_Cfg *cfg)
+
+void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 {
 	int args_parsed = 0;
 	args_parsed = 1;
@@ -129,7 +131,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg)
 		else if(strcmp(argv[args_parsed], "-cu_size")==0 && args_parsed+1<argc)//cu_size: 64, 32, 16
 		{
 			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &cfg->cu_size );
+			sscanf( argv[args_parsed++], "%d", &cfg->cu_size);
 		}
 		else if(strcmp(argv[args_parsed], "-qp")==0 && args_parsed+1<argc)//quant
 		{
@@ -176,7 +178,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg)
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->rd_mode);
 		}
-
+		else if(strcmp(argv[args_parsed], "-num_frames")==0 && args_parsed+1<argc)//num_frames
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", num_frames);
+		}
 	}
 }
 
@@ -189,6 +195,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile, *outfile;
+	int num_frames = 40;
 //	char file_filemetrics[256];
 
 	unsigned char *frame[3];
@@ -227,7 +234,7 @@ int main (int argc, char **argv)
 	HmrCfg.rd_mode = 1;//0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.performance_mode = 1;//0 full computation, 1 = fast decission (rd=1 or rd=2), 1 = ultra fast decission (rd=2)
 
-	parse_args(argc, argv, &HmrCfg);
+	parse_args(argc, argv, &HmrCfg, &num_frames);
 
 
 	if(!(infile = fopen(file_in_name, "rb")))
@@ -290,7 +297,7 @@ int main (int argc, char **argv)
 				totalbits+=out.stream.data_size[0];
 				encoded_frames++;
 			}
-			if(encoded_frames==40)
+			if(encoded_frames==num_frames)
 			{
 				msTotal += get_ms()-msInit;
 				printf("\r\n%d frames en %d milisegundos: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);

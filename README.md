@@ -117,6 +117,8 @@ options:
 
 -rd:                     		0=off, 1=full rd , 2= fast rd
 
+-num_frames              		default = 40
+
 Configuration examples:
 
 homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265  -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2
