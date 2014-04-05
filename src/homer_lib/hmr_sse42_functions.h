@@ -62,7 +62,7 @@ void sse_aligned_predict_16x16(uint8_t *  orig, int orig_stride, uint8_t*  pred,
 void sse_aligned_predict_32x32(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
 void sse_aligned_predict_64x64(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
 
-
+void sse_adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, int partition_size, int max_cu_size_shift, int intra_smooth_enable, int bit_depth);
 //------------------------------------------------------reconst -------------------------------------------------------------------------
 void sse_aligned_reconst(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride, int size);
 

@@ -44,7 +44,7 @@ ALIGN(16) static const int8_t shuffle_mask_prediction_16_4[16] ={ 14, 15, 14, 15
 void sse_create_intra_planar_prediction_4(uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
 	int j;
-	int16_t  *__restrict adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
+	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 
 	__m128_u16 shuffle_mask_reorder16 = sse_128_load_vector_u(shuffle_mask_prediction_16_0);
 
@@ -1182,4 +1182,68 @@ void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, uin
 		sse_create_intra_angular_prediction_8x8(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_mode, is_luma);
 	else
 		sse_create_intra_angular_prediction_nxn(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_size, cu_mode, is_luma);
+}
+
+
+ALIGN(16) static const int8_t shuffle_adi_filter_16_0[16] ={  0,  0,  1,  0,  2,  0,  3,  0,  4,  0,  5,  0,  6,  0,  7,  0};//
+ALIGN(16) static const int8_t shuffle_adi_filter_16_1[16] ={  7,  0,  6,  0,  5,  0,  4,  0,  3,  0,  2,  0,  1,  0,  0,  0};//
+
+
+void sse_adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, int partition_size, int max_cu_size_shift, int intra_smooth_enable, int bit_depth)
+{
+	int i;
+	int left_bottom = ptr[0];
+	int left_top = ptr[2*partition_size];
+	int top_right = ptr[adi_size-1];
+	int threshold = 1 << (bit_depth - 5);
+	int bilinear_left = abs(left_bottom+left_top-2*ptr[partition_size]) < threshold;
+	int bilinear_above  = abs(left_top+top_right-2*ptr[2*partition_size+partition_size]) < threshold;
+
+	if(intra_smooth_enable && (partition_size>=32 && (bilinear_left && bilinear_above)))
+	{
+		int16_t  *ptr_filter2 = ADI_POINTER_MIDDLE(ptr_filter, adi_size);
+		int size_shift = max_cu_size_shift-depth + 1;
+		__m128_i16 _128_eight = sse_128_vector_i16(8);
+		__m128_i16 _128_partition_size = sse_128_vector_i16(partition_size);
+		__m128_i16 _128_partition_size_x2 = sse_128_vector_i16(2*partition_size);
+		__m128_i16 _128_left_bottom = sse_128_vector_i16(left_bottom);
+		__m128_i16 _128_left_top = sse_128_vector_i16(left_top);
+		__m128_i16 _128_top_right = sse_128_vector_i16(top_right);
+		__m128_i16 _128_interpolator_up = sse_128_load_vector_a(shuffle_adi_filter_16_0);
+		__m128_i16 _128_interpolator_down = sse_128_sub_i16(_128_partition_size_x2, sse_128_load_vector_a(shuffle_adi_filter_16_0));
+
+
+		for (i = 0; i < 2*partition_size; i+=8)//left
+		{
+			__m128_i16 _128_aux = sse_128_mul_i16(_128_interpolator_down, _128_left_bottom);
+			__m128_i16 _128_aux1 = sse_128_mul_i16(_128_interpolator_up, _128_left_top);
+			_128_aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(_128_aux, _128_aux1),_128_partition_size),size_shift);
+			sse_128_store_vector_a(&ptr_filter[i], _128_aux);
+			_128_aux = sse_128_mul_i16(_128_interpolator_down, _128_left_top);
+			_128_aux1 = sse_128_mul_i16(_128_interpolator_up, _128_top_right);
+			_128_aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(_128_aux, _128_aux1),_128_partition_size),size_shift);
+			sse_128_store_vector_u(&ptr_filter2[i], _128_aux);
+
+			_128_interpolator_down = sse_128_sub_i16(_128_interpolator_down, _128_eight);
+			_128_interpolator_up = sse_128_add_i16(_128_interpolator_up, _128_eight);
+		}
+		ptr_filter[0] = ptr[0];
+		ptr_filter[2*partition_size] = ptr[2*partition_size];
+		ptr_filter[adi_size - 1] = ptr[adi_size - 1];
+	}
+	else
+	{
+		//filter [1,2,1]
+		int aux2, aux = ptr_filter[0] = ptr[0];
+		__m128_i16 _128_two = sse_128_vector_i16(2);
+
+		for(i=1;i<adi_size-1;i+=8)	//column + square + row
+		{
+			__m128_i16 _128_aux = sse_128_add_i16(sse_128_load_vector_u(&ptr[i-1]), sse_128_mul_i16(_128_two, sse_128_load_vector_u(&ptr[i])));
+			_128_aux = sse_128_add_i16(_128_aux,sse_128_load_vector_u(&ptr[i+1]));
+			_128_aux = sse_128_shift_r_i16(sse_128_add_i16(_128_aux,_128_two),2);//rounding
+			sse_128_store_vector_u(&ptr_filter[i], _128_aux);
+		}
+		ptr_filter[adi_size-1] = ptr[adi_size-1];
+	}
 }

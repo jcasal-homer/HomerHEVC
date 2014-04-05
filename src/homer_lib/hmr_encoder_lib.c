@@ -320,7 +320,7 @@ void HOMER_enc_close(void* h)
 	free(phvenc->inv_ang_table);
 
 
-	for(i=0;i<MAX_NUM_CTUs;i++)
+	for(i=0;i<phvenc->pict_total_cu;i++)
 	{
 		free(phvenc->ctu_info_t[i].cbf[Y_COMP]);
 		//intra mode
@@ -575,6 +575,29 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->pict_height_in_cu = (phvenc->pict_height[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_height[0]%phvenc->max_cu_size)!=0);
 
 			phvenc->pict_total_cu = phvenc->pict_width_in_cu*phvenc->pict_height_in_cu;
+
+			if(phvenc->ctu_info_t!=NULL)
+				free(phvenc->ctu_info_t);
+
+			phvenc->ctu_info_t = (ctu_info_t*)calloc (phvenc->pict_total_cu, sizeof(ctu_info_t));
+
+			for(i=0;i<phvenc->pict_total_cu;i++)
+			{
+				//------- ctu encoding info -------
+				//cbf
+				phvenc->ctu_info_t[i].cbf[Y_COMP] = (byte*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info_t[i].cbf[CHR_COMP] = phvenc->ctu_info_t[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info_t[i].cbf[V_COMP] = phvenc->ctu_info_t[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
+				//intra mode
+				phvenc->ctu_info_t[i].intra_mode[Y_COMP] = (byte*)calloc (2*MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info_t[i].intra_mode[CHR_COMP] = phvenc->ctu_info_t[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
+		//		phvenc->ctu_info_t[i].intra_mode[V_COMP] = phvenc->ctu_info_t[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
+				//tr_idx, pred_depth, part_size_type, pred_mode
+				phvenc->ctu_info_t[i].tr_idx = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info_t[i].pred_depth = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info_t[i].part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+		//		phvenc->ctu_info_t[i].pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+			}
 
 
 			phvenc->max_sublayers = 1;//TLayers en HM
@@ -844,7 +867,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.temporal_id_nesting_flag = (phvenc->max_sublayers == 1);
 			phvenc->num_long_term_ref_pic_sets = 0;
 			phvenc->sps.temporal_mvp_enable_flag = 1;
-			phvenc->sps.strong_intra_smooth_enabled_flag = 0;
+			phvenc->sps.strong_intra_smooth_enabled_flag = 1;
 			phvenc->sps.vui_parameters_present_flag = 0;
 			//----------------- end sps ------------------
 			
