@@ -47,7 +47,6 @@ Roadmap:
 
 HomerHEVC_V0.1 (April 2014)
 - Intra smooth filter (To be added)
-- Intra skipped (To be added)
 
 HomerHEVC_V1.0 (July 2014)
 - Inter prediction including interpolation filters.
@@ -115,17 +114,17 @@ options:
 -performance_mode:       	    	0=full computation, 1=fast , 2= ultra fast
 
 
--rd:                     		0=off, 1=full rd , 2= fast rd
+-rd:                     		    0=off, 1=full rd , 2= fast rd
 
--num_frames              		default = 40
+-n_frames                       default = 40
 
 Configuration examples:
 
-homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265  -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2
+homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265  -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2 -n_frames 40
 
-homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2
+homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2  -n_frames 40
 
-homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 1
+homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 1  -n_frames 40
 
 
 
