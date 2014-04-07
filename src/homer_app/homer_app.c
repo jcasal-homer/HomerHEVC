@@ -82,12 +82,12 @@ void print_help()
 	printf("-sign_hiding: \t\t 0=off, 1=on, default = 1\r\n");
 	printf("-performance_mode: \t 0=full computation, 1=fast , 2= ultra fast\r\n");
 	printf("-rd: \t\t\t 0=off, 1=full rd , 2= fast rd\r\n");
-	printf("-num_frames: \t\t\t default 40\r\n");
+	printf("-n_frames: \t\t\t default 40\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 1\r\n");
+	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2 -n_frames 40\r\n");
+	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 40\r\n");
+	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 1 -n_frames 40\r\n");
 }
 
 
@@ -176,7 +176,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->rd_mode);
 		}
-		else if(strcmp(argv[args_parsed], "-num_frames")==0 && args_parsed+1<argc)//num_frames
+		else if(strcmp(argv[args_parsed], "-n_frames")==0 && args_parsed+1<argc)//num_frames
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", num_frames);

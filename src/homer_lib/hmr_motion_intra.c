@@ -333,7 +333,7 @@ void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_inf
 		int16_t  *ptr_filter = et->adi_filtered_pred_buff;
 		ptr = et->adi_pred_buff;
 
-		sse_adi_filter(ptr, ptr_filter, partition_info->depth, adi_size, partition_size, et->max_cu_size_shift, et->sps->strong_intra_smooth_enabled_flag, et->bit_depth);
+		adi_filter(ptr, ptr_filter, partition_info->depth, adi_size, partition_size, et->max_cu_size_shift, et->sps->strong_intra_smooth_enabled_flag, et->bit_depth);
 	}
 
 }
