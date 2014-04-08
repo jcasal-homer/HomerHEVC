@@ -98,12 +98,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 	int args_parsed = 0;
 	args_parsed = 1;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\ntype -h for extended help");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -309,8 +309,6 @@ int main (int argc, char **argv)
 
 	fclose(infile);
 	fclose(outfile);
-
-	Sleep(1000000);
 
 	return 0;
 }
