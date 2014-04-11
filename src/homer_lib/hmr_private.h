@@ -30,7 +30,7 @@
 
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1
+#define COMPUTE_AS_HM			1
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1060,6 +1060,7 @@ struct hvenc_t
 	int				last_poc, last_idr, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
+	int				num_ref_frames;
 
 	int				pict_type, slice_type;		//264-tiene que desaparecer
 	int				pict_qp;					//264-tiene que desaparecer

@@ -35,13 +35,13 @@
 #endif
 
 //#define FILE_IN  "//home//juan//Patrones//720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-//#define FILE_IN  "C:\\Patrones\\demo_multiple64_384x256_v2.yuv"
+//#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\demo_multiple64_384x256_v2.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 #define FILE_OUT  "output.265"//"output_32_.265"
 
-#define HOR_SIZE	1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	384//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	256//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 
 
 #ifdef _MSC_VER
@@ -98,12 +98,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 	int args_parsed = 0;
 	args_parsed = 1;
 
-	if(argc==1)
+/*	if(argc==1)
 	{
 		printf ("\r\ntype -h for extended help");
 		exit(0);
 	}
-
+*/
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -197,7 +197,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile, *outfile;
-	int num_frames = 40;
+	int num_frames = 10;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -215,6 +215,28 @@ int main (int argc, char **argv)
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
 
+
+//#define P_FRAME_DEVELOPMENT
+#ifdef P_FRAME_DEVELOPMENT
+	HmrCfg.size = sizeof(HmrCfg);
+	HmrCfg.width = HOR_SIZE;
+	HmrCfg.height = VER_SIZE;
+	HmrCfg.profile = PROFILE_MAIN;
+	HmrCfg.M = 1;
+	HmrCfg.N = 4;
+	HmrCfg.qp = 32;
+	HmrCfg.frame_rate = 25;
+	HmrCfg.num_ref_frames = 1;
+	HmrCfg.cu_size = 64;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_inter_tr_depth = 2;
+	HmrCfg.wfpp_enable = 1;
+	HmrCfg.wfpp_num_threads = 1;
+	HmrCfg.sign_hiding = 1;
+	HmrCfg.rd_mode = 0;			//0 no rd, 1 similar to HM, 2 fast
+	HmrCfg.performance_mode = 0;//0 full computation(HM), 1 = fast decission (rd=1 or rd=2), 2 = ultra fast decission (rd=2)
+#else
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
@@ -225,14 +247,15 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 2;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 4;
-	HmrCfg.max_inter_tr_depth = 3;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.rd_mode = 2;			//0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.performance_mode = 2;//0 full computation(HM), 1 = fast decission (rd=1 or rd=2), 2 = ultra fast decission (rd=2)
+	HmrCfg.rd_mode = 0;			//0 no rd, 1 similar to HM, 2 fast
+	HmrCfg.performance_mode = 0;//0 full computation(HM), 1 = fast decission (rd=1 or rd=2), 2 = ultra fast decission (rd=2)
+#endif // DEBUG
 
 	parse_args(argc, argv, &HmrCfg, &num_frames);
 
