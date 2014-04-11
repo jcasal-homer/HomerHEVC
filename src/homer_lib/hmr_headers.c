@@ -104,9 +104,9 @@ void hmr_put_vps_header(hvenc_t* ed)
 
 	for(i=0; i <= ed->max_sublayers-1; i++)
 	{
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_dec_pic_buffering[i]);
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_num_reorder_pics[i]);
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_latency_increase[i]);
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_dec_pic_buffering[i]-1);//vps_max_dec_pic_buffering_minus1
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_num_reorder_pics[i]);//vps_max_num_reorder_pics
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_latency_increase[i]);//vps_max_latency_increase_plus1
 		if (!vps->sub_layer_ordering_info_present_flag)
 		{
 			break;
@@ -203,7 +203,7 @@ void hmr_put_seq_header(hvenc_t* ed)
 
 	for(i=0; i <= ed->max_sublayers-1; i++)
 	{
-		hmr_bitstream_write_bits_uvlc(bs, sps->max_dec_pic_buffering[i]);
+		hmr_bitstream_write_bits_uvlc(bs, sps->max_dec_pic_buffering[i]-1);//vps_max_dec_pic_buffering_minus1
 		hmr_bitstream_write_bits_uvlc(bs, sps->max_num_reorder_pics[i]);
 		hmr_bitstream_write_bits_uvlc(bs, sps->max_latency_increase[i]);
 	}

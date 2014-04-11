@@ -441,6 +441,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->profile = cfg->profile;
 			phvenc->gop_size = cfg->N;
 			phvenc->num_b = (cfg->M-1)>0?(cfg->M-1):0;
+			phvenc->num_ref_frames = phvenc->gop_size>1?cfg->num_ref_frames:0;
 			//conformance wnd
 			min_cu_size = phvenc->min_cu_size;
 			min_cu_size_mask = phvenc->min_cu_size-1;
@@ -801,8 +802,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			//reference picture_t lists
 			phvenc->num_ref_lists =2;
-			phvenc->num_refs_idx_active_list[0] = 4;
-			phvenc->num_refs_idx_active_list[1] = 4;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = 4;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = 4;
 
 			phvenc->num_short_term_ref_pic_sets = phvenc->num_ref_lists;
 			memset(phvenc->ref_pic_set_list,   0, sizeof(phvenc->ref_pic_set_list));
@@ -817,7 +818,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->vps.max_num_reorder_pics[i] = 0;
-				phvenc->vps.max_dec_pic_buffering[i] = 0;
+				phvenc->vps.max_dec_pic_buffering[i] = phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->vps.max_latency_increase[i] = 0;
 			}
 	
@@ -846,7 +847,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->sps.max_num_reorder_pics[i] = 0;
-				phvenc->sps.max_dec_pic_buffering[i] = 0;
+				phvenc->sps.max_dec_pic_buffering[i] = phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->sps.max_latency_increase[i] = 0;
 			}
 
