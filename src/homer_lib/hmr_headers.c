@@ -137,7 +137,7 @@ void hmr_put_vps_header(hvenc_t* ed)
 	hmr_bitstream_nalu_ebsp(bs, &ed->vps_nalu.bs);
 }
 
-void short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
+void hmr_short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 {
 	int j;
 	if (idx > 0)
@@ -150,11 +150,14 @@ void short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 	}
 	else
 	{
+		int prev = 0;
 		hmr_bitstream_write_bits_uvlc(bs, rps->num_negative_pics);
 		hmr_bitstream_write_bits_uvlc(bs, rps->num_positive_pics);
 		for(j=0;j<rps->num_negative_pics;j++)
 		{
-			//...................
+			hmr_bitstream_write_bits_uvlc(bs, prev - rps->delta_poc_s0[j]-1);//delta_poc_s0_minus1
+			prev = rps->delta_poc_s0[j];
+			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S0_flag[j], 1);//inter_ref_pic_set_prediction_flag
 		}
 		for(j=0;j<rps->num_positive_pics;j++)
 		{
@@ -239,7 +242,7 @@ void hmr_put_seq_header(hvenc_t* ed)
 	hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
 	for(i=0;i<ed->num_short_term_ref_pic_sets;i++)
 	{
-		short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
+		hmr_short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
 	}
 	
 	hmr_bitstream_write_bits(bs, ed->num_long_term_ref_pic_sets?1:0,1);//long_term_ref_pics_present_flag
@@ -287,8 +290,8 @@ void hmr_put_pic_header(hvenc_t* ed)
 	hmr_bitstream_write_bits(bs, pps->sign_data_hiding_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cabac_init_present_flag,1);
 
-	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[0]-1);//num_ref_idx_l0_default_active_minus1
-	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[1]-1);//num_ref_idx_l1_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
 	
 	hmr_bitstream_write_bits_svlc(bs, pps->pic_init_qp_minus26);
 
@@ -415,7 +418,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 			if(ed->ref_pic_set_index<0)
 			{
 				hmr_bitstream_write_bits(bs, 0, 1);//short_term_ref_pic_set_sps_flag
-				//short_term_ref_pic_set( num_short_term_ref_pic_sets )
+				//hmr_short_term_ref_pic_set( num_short_term_ref_pic_sets )
 			}
 			else
 			{
@@ -432,7 +435,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 /*				hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
 				for(i=0;i<ed->num_short_term_ref_pic_sets;i++)
 				{
-					short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
+					hmr_short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
 				}
 */
 			}

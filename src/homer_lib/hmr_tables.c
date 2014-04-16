@@ -309,20 +309,21 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
-void init_rd(hvenc_t* ed)
+void init_rd(hvenc_t* ed, slice_t *currslice)
 {
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;
-	double	qp_factor;
+	double	qp_factor = 0.4624;
 	double	qp_temp = (double) ed->pict_qp + bitdepth_luma_qp_scale - SHIFT_QP;//
-	double	lambda_scale = 1.0 - clip(0.05*(double)(ed->mb_interlaced ? ed->num_b/2 : ed->num_b), 0.0, 0.5);
+	double	lambda_scale = 1.0 - clip(0.05*(double)(ed->mb_interlaced ? (ed->gop_size-1)/2 : (ed->gop_size-1)), 0.0, 0.5);
 	double	lambda;
 
-	if (ed->pict_type==I_SLICE)
-    {
-      qp_factor=0.57*lambda_scale;
-    }
-    lambda = qp_factor*pow( 2.0, qp_temp/3.0 );
+	if(currslice->slice_type==I_SLICE)
+	{
+		qp_factor=0.57*lambda_scale;
+	}
+
+	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );
 
 	ed->rd.lambda = lambda;
 	ed->rd.sqrt_lambda = sqrt(lambda);

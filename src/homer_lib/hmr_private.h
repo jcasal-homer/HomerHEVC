@@ -487,7 +487,7 @@ struct sps_t
 	unsigned int pcm_loop_filter_disable_flag;		//u(1)
 	unsigned int temporal_id_nesting_flag;			//u(1)
 //	unsigned int num_short_term_ref_pic_sets;		//ue(v) - moved to ed
-	//short_term_ref_pic_set(i)								- moved to ed
+	//hmr_short_term_ref_pic_set(i)								- moved to ed
 //	unsigned int long_term_ref_pics_present_flag;	//u(1)	- moved to ed
 //	unsigned int num_long_term_ref_pic_sps;			//ue(v)	- moved to ed
 //	unsigned int lt_ref_pic_poc_lsb_sps;			//u(v)
@@ -784,8 +784,9 @@ struct rate_distortion_t
 };
 
 
+#define MAX_NUM_REF_PICS            16          ///< max. number of pictures used for reference
+#define MAX_NUM_REF                 16          ///< max. number of entries in picture reference list
 
-#define MAX_REF_PIC_SETS	4
 typedef struct ref_pic_set_t ref_pic_set_t;
 struct ref_pic_set_t
 {
@@ -793,6 +794,8 @@ struct ref_pic_set_t
 	//..................
 	int num_negative_pics;
 	int num_positive_pics;
+	int delta_poc_s0[MAX_NUM_REF_PICS];
+	int used_by_curr_pic_S0_flag[MAX_NUM_REF_PICS];
 };
 
 typedef struct slice_t slice_t;
@@ -1056,14 +1059,14 @@ struct hvenc_t
 	wnd_t			*curr_ref_wnd;
 	wnd_t			ref_wnds[NUM_REFF_WNDS];
 
-	void			*cont_empty_reference_wnds;//para la gestion de los frames libres sobre los que se decodifica y que despues se utilizan como referencia
+	void			*cont_empty_reference_wnds;//for decoding and reference frames
 	int				last_poc, last_idr, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
 	int				num_ref_frames;
 
-	int				pict_type, slice_type;		//264-tiene que desaparecer
-	int				pict_qp;					//264-tiene que desaparecer
+	int				slice_type;
+	int				pict_qp;
 
 //	int				mb_current, mb_next;
 //	int				mb_current_x, mb_current_y;
@@ -1120,7 +1123,7 @@ struct hvenc_t
 	//reference pictures
 	int					ref_pic_set_index;
 	int					num_short_term_ref_pic_sets;
-	ref_pic_set_t		ref_pic_set_list[MAX_REF_PIC_SETS];
+	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
 	int					num_long_term_ref_pic_sets;
 
 	//arithmetic coding

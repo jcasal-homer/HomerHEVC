@@ -134,7 +134,7 @@ void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t
 }
 
 
-void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size)
+void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *src, short *dst, int depth, int comp, int is_intra, int cu_size)
 {
 	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));//ed->max_cu_size_shift

@@ -802,11 +802,35 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			//reference picture_t lists
 			phvenc->num_ref_lists =2;
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = 4;
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = 4;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = 1;//4;//this will need to be a decission taken depending on configuration
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = 1;//4;
 
-			phvenc->num_short_term_ref_pic_sets = phvenc->num_ref_lists;
-			memset(phvenc->ref_pic_set_list,   0, sizeof(phvenc->ref_pic_set_list));
+			phvenc->num_short_term_ref_pic_sets = phvenc->gop_size+1;
+			if(phvenc->ref_pic_set_list)
+				free(phvenc->ref_pic_set_list);
+			phvenc->ref_pic_set_list = (ref_pic_set_t*)calloc (phvenc->num_short_term_ref_pic_sets, sizeof(ref_pic_set_t));
+			for(i=0;i<phvenc->num_short_term_ref_pic_sets-1;i++)
+			{
+				if(phvenc->gop_size==1)
+					phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->ref_pic_set_list[i].num_positive_pics = phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+				else if(phvenc->num_b == 0)
+				{
+					int j;
+					phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->num_ref_frames;
+					for(j=0;j<phvenc->ref_pic_set_list[i].num_negative_pics;j++)
+					{
+						phvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
+						phvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+					}
+					phvenc->ref_pic_set_list[i].num_positive_pics = 0;
+					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
+				}
+				else
+				{
+					phvenc->ref_pic_set_list[i].num_positive_pics = phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->num_ref_frames;
+					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+				}
+			}
 			phvenc->ref_pic_set_index = 0;
 
 			//----------------- start vps ------------------
@@ -863,7 +887,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.scaling_list_enabled_flag = 1;
 			phvenc->sps.scaling_list_data_present_flag = 0;
 
-			phvenc->sps.amp_enabled_flag = 1;
+			phvenc->sps.amp_enabled_flag = 0;
 			phvenc->sps.sample_adaptive_offset_enabled_flag = 0;//cfg->UseSAO;
 			phvenc->sps.temporal_id_nesting_flag = (phvenc->max_sublayers == 1);
 			phvenc->num_long_term_ref_pic_sets = 0;
@@ -918,8 +942,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			
 
 			//---------------- end slice -------------------
-			phvenc->run = 1;
-			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
+//			phvenc->run = 1;
+//			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
 		}	
 		break;
 
@@ -961,14 +985,23 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 
 	if((currslice->poc%ed->gop_size)==0)
 	{
-		ed->pict_type = I_SLICE;
 		currslice->slice_type = I_SLICE;
-		currslice->slice_temporal_layer_non_reference_flag = 1;
+		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;
 	}
+	else if(ed->num_b==0)
+	{
+		currslice->slice_type = P_SLICE;
+		currslice->slice_temporal_layer_non_reference_flag = 0;
+		currslice->is_dependent_slice = 0;
+		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
+		currslice->sublayer = 0;
+		currslice->depth = 0;	
+	}
+
 	if(ed->last_poc == 0)//first image?
 	{
 //		sublayer_non_reference = 0;		
@@ -977,6 +1010,7 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	switch(currslice->slice_type)
 	{
 		case I_SLICE:
+		case P_SLICE:
 		{
 			currslice->referenced = 1;
 		}
@@ -1225,7 +1259,7 @@ THREAD_RETURN encoder_thread(void *h)
 	slice_t *currslice = &currpict->slice;
 	int n, i;
 
-	while(ed->run)
+//	while(ed->run)
 	{
 		nalu_set_t* ouput_nalus = &ed->output_nalus[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
 		int		output_nalu_cnt = 0;
@@ -1275,7 +1309,7 @@ THREAD_RETURN encoder_thread(void *h)
 #endif
 
 		init_slice(ed, &ed->current_pict, &currpict->slice);
-		init_rd(ed);
+		init_rd(ed, &currpict->slice);
 
 		//get free img for decodede blocks
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_ref_wnd);

@@ -216,7 +216,7 @@ int main (int argc, char **argv)
 	strcpy(file_out_name, FILE_OUT);
 
 
-//#define P_FRAME_DEVELOPMENT
+#define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
@@ -309,7 +309,7 @@ int main (int argc, char **argv)
 			fflush(stdout);
 			input_frames++;
 
-//			encoder_thread(pEncoder);
+			encoder_thread(pEncoder);
 
 			HOMER_enc_get_coded_frame(pEncoder, nalu_out, &num_nalus);
 			if(num_nalus>0)

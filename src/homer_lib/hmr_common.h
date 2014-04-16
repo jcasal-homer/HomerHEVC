@@ -162,7 +162,7 @@ void init_quant_pyramids( hvenc_t* ed, int* quant_pyramid, int* dequant_pyramid,
 short* get_default_qtable(int size_mode, int list_index);
 void create_abs2raster_tables( unsigned short **zigzag, int total_depth, int depth, int start_value);
 void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigzag, int max_cu_width, int max_cu_height, int total_depth);
-void init_rd(hvenc_t* ed);
+void init_rd(hvenc_t* ed, slice_t *currslice);
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode);
 
 
