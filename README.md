@@ -49,8 +49,8 @@ homerHEVC_V0.1 (April 2014)
 - Intra smooth filter (To be added)
 
 homerHEVC_V1.0 (July 2014)
-- Inter prediction including interpolation filters.
-- Rate control (CBR, VBR, Capped VBR)
+- Inter prediction.
+- Rate control
 - Further SSE/AVX optimizations & quality improvements.
 
 homerHEVC_V2.0 (November 2014)
