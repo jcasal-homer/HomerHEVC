@@ -68,6 +68,9 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter_chroma.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\homer_lib\hmr_cabac_tables.h">

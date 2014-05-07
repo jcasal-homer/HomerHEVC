@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -26,8 +26,8 @@
 
 
 
-//handles up to 8 elements; has to be 2^n
-#define MAX_CONT_ELEMENTS		8
+//handles up to 32 elements; has to be 2^n
+#define MAX_CONT_ELEMENTS		32
 #define MAX_CONT_ELEMENTS_MASK	(MAX_CONT_ELEMENTS-1)
 
 //hmr_container without sync - not atomic. All functions must be called in the same threads
@@ -36,7 +36,7 @@ void	cont_delete(void* h);
 void	cont_reset(void* cont);
 void	cont_put(void* cont,void *ppelement);
 void	cont_get(void* cont,void **ppelement);
-int		is_data_avaliable(void* h);
+int		get_num_elements(void* h);
 
 //sync hmr_container - not atomic. Just one producer and one consumer
 void sync_cont_init(void** h);

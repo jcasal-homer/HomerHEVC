@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -135,32 +135,32 @@ void *HOMER_enc_init()
 
 #ifdef WRITE_REF_FRAMES
 	FILE *refs_file = fopen("refs.yuv","wb");
-	for(i=0;i<NUM_REFF_WNDS;i++)
+	for(i=0;i<MAX_NUM_REF;i++)
 	{
-		phvenc->ref_wnds[i].out_file = refs_file;
+		phvenc->ref_wnds[i].img.out_file = refs_file;
 	}
 #endif
 
-	phvenc->ctu_info_t = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
+/*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
 
 	for(i=0;i<MAX_NUM_CTUs;i++)
 	{
 		//------- ctu encoding info -------
 		//cbf
-		phvenc->ctu_info_t[i].cbf[Y_COMP] = (byte*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].cbf[CHR_COMP] = phvenc->ctu_info_t[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
-		phvenc->ctu_info_t[i].cbf[V_COMP] = phvenc->ctu_info_t[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].cbf[CHR_COMP] = phvenc->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].cbf[V_COMP] = phvenc->ctu_info[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
 		//intra mode
-		phvenc->ctu_info_t[i].intra_mode[Y_COMP] = (byte*)calloc (2*MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].intra_mode[CHR_COMP] = phvenc->ctu_info_t[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-//		phvenc->ctu_info_t[i].intra_mode[V_COMP] = phvenc->ctu_info_t[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
+//		phvenc->ctu_info[i].intra_mode[V_COMP] = phvenc->ctu_info[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
 		//tr_idx, pred_depth, part_size_type, pred_mode
-		phvenc->ctu_info_t[i].tr_idx = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].pred_depth = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-//		phvenc->ctu_info_t[i].pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+		phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 	}
-
+*/
 	phvenc->wfpp_enable = 0;
 	phvenc->num_sub_streams = 0;
 	phvenc->wfpp_num_threads = 0;
@@ -236,13 +236,25 @@ void HOMER_enc_close(void* h)
 			aligned_free(henc_th->intra_mode_buffs[U_COMP][i]);
 			aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
 			aligned_free(henc_th->tr_idx_buffs[i]);
+
+			aligned_free(henc_th->mv_ref0[Y_COMP][i]);
+			aligned_free(henc_th->mv_ref0[U_COMP][i]);
+			aligned_free(henc_th->mv_ref0[V_COMP][i]);
+
+			aligned_free(henc_th->mv_ref1[Y_COMP][i]);
+			aligned_free(henc_th->mv_ref1[U_COMP][i]);
+			aligned_free(henc_th->mv_ref1[V_COMP][i]);
+
+			aligned_free(henc_th->ref_idx[Y_COMP][i]);
+			aligned_free(henc_th->ref_idx[V_COMP][i]);
+			aligned_free(henc_th->ref_idx[U_COMP][i]);
 		}
 
 		aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
 		aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
 
 		free(henc_th->ctu_rd->part_size_type);
-//		free(henc_th->ctu_rd->pred_mode);
+		free(henc_th->ctu_rd->pred_mode);
 		free(henc_th->ctu_rd);
 
 		free(henc_th);
@@ -256,9 +268,9 @@ void HOMER_enc_close(void* h)
 	}
 
 
-	for(i=0;i<NUM_REFF_WNDS;i++)
+	for(i=0;i<2*MAX_NUM_REF;i++)
 	{
-		wnd_delete(&phvenc->ref_wnds[i]);
+		wnd_delete(&phvenc->ref_wnds[i].img);
 	}
 
 	//delete previous streams
@@ -319,21 +331,28 @@ void HOMER_enc_close(void* h)
 	free(phvenc->ang_table);
 	free(phvenc->inv_ang_table);
 
-
-	for(i=0;i<phvenc->pict_total_cu;i++)
+	if(phvenc->ctu_info!=NULL)
 	{
-		free(phvenc->ctu_info_t[i].cbf[Y_COMP]);
-		//intra mode
-		free(phvenc->ctu_info_t[i].intra_mode[Y_COMP]);
-		//tr_idx, pred_depth, part_size_type, pred_mode
-		free(phvenc->ctu_info_t[i].tr_idx);
-		free(phvenc->ctu_info_t[i].pred_depth);
-		free(phvenc->ctu_info_t[i].part_size_type);
-//		free(phvenc->ctu_info_t[i].pred_mode);
+		for(i=0;i<phvenc->pict_total_cu;i++)
+		{
+			free(phvenc->ctu_info[i].cbf[Y_COMP]);
+			//intra mode
+			free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+			//tr_idx, pred_depth, part_size_type, pred_mode
+			free(phvenc->ctu_info[i].tr_idx);
+			free(phvenc->ctu_info[i].pred_depth);
+			free(phvenc->ctu_info[i].part_size_type);
+			free(phvenc->ctu_info[i].pred_mode);
+			
+			//inter
+			free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
+			free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
+			free(phvenc->ctu_info[i].ref_idx[Y_COMP]);
+		}
+
+		free(phvenc->ctu_info);
+		phvenc->ctu_info = NULL;
 	}
-
-	free(phvenc->ctu_info_t);
-
 	hmr_bitstream_free(&phvenc->slice_bs);
 	hmr_bitstream_free(&phvenc->vps_nalu.bs);
 	hmr_bitstream_free(&phvenc->sps_nalu.bs);
@@ -351,9 +370,9 @@ void put_frame_to_encode(hvenc_t *ed, unsigned char *picture_t[])
 	video_frame_t	*p;
 	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
 
-	memcpy(WND_DATA_PTR(byte*, p->img, Y_COMP), picture_t[0], ed->pict_width[0]*ed->pict_height[0]);
-	memcpy(WND_DATA_PTR(byte*, p->img, U_COMP), picture_t[1], ed->pict_width[1]*ed->pict_height[1]);
-	memcpy(WND_DATA_PTR(byte*, p->img, V_COMP), picture_t[2], ed->pict_width[2]*ed->pict_height[2]);
+	memcpy(WND_DATA_PTR(uint8_t*, p->img, Y_COMP), picture_t[0], ed->pict_width[0]*ed->pict_height[0]);
+	memcpy(WND_DATA_PTR(uint8_t*, p->img, U_COMP), picture_t[1], ed->pict_width[1]*ed->pict_height[1]);
+	memcpy(WND_DATA_PTR(uint8_t*, p->img, V_COMP), picture_t[2], ed->pict_width[2]*ed->pict_height[2]);
 	sync_cont_put_filled(ed->input_hmr_container, p);
 }
 
@@ -466,16 +485,16 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			sync_cont_reset(phvenc->input_hmr_container);
 			for(i=0;i<NUM_INPUT_FRAMES;i++)
 			{
-				wnd_realloc(&phvenc->input_frames[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(byte));
+				wnd_realloc(&phvenc->input_frames[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(uint8_t));
 				sync_cont_put_empty(phvenc->input_hmr_container, &phvenc->input_frames[i]);
 			}
 
 			cont_reset(phvenc->output_hmr_container);
 
 			cont_reset(phvenc->cont_empty_reference_wnds);
-			for(i=0;i<NUM_REFF_WNDS;i++)
+			for(i=0;i<2*MAX_NUM_REF;i++)
 			{
-				wnd_realloc(&phvenc->ref_wnds[i], phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(byte));
+				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(uint8_t));
 				cont_put(phvenc->cont_empty_reference_wnds, &phvenc->ref_wnds[i]);
 			}
 
@@ -577,27 +596,58 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->pict_total_cu = phvenc->pict_width_in_cu*phvenc->pict_height_in_cu;
 
-			if(phvenc->ctu_info_t!=NULL)
-				free(phvenc->ctu_info_t);
+			if(phvenc->ctu_info!=NULL)
+			{
+				for(i=0;i<phvenc->pict_total_cu;i++)
+				{
+					free(phvenc->ctu_info[i].cbf[Y_COMP]);
+					//intra mode
+					free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+					//tr_idx, pred_depth, part_size_type, pred_mode
+					free(phvenc->ctu_info[i].tr_idx);
+					free(phvenc->ctu_info[i].pred_depth);
+					free(phvenc->ctu_info[i].part_size_type);
+					free(phvenc->ctu_info[i].pred_mode);
 
-			phvenc->ctu_info_t = (ctu_info_t*)calloc (phvenc->pict_total_cu, sizeof(ctu_info_t));
+					//inter
+					free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
+					free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
+					free(phvenc->ctu_info[i].ref_idx[Y_COMP]);
+				}
+				free(phvenc->ctu_info);
+			}
+			phvenc->ctu_info = (ctu_info_t*)calloc (phvenc->pict_total_cu, sizeof(ctu_info_t));
 
 			for(i=0;i<phvenc->pict_total_cu;i++)
 			{
 				//------- ctu encoding info -------
 				//cbf
-				phvenc->ctu_info_t[i].cbf[Y_COMP] = (byte*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].cbf[CHR_COMP] = phvenc->ctu_info_t[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info_t[i].cbf[V_COMP] = phvenc->ctu_info_t[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].cbf[U_COMP] = phvenc->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].cbf[V_COMP] = phvenc->ctu_info[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
 				//intra mode
-				phvenc->ctu_info_t[i].intra_mode[Y_COMP] = (byte*)calloc (2*MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].intra_mode[CHR_COMP] = phvenc->ctu_info_t[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-		//		phvenc->ctu_info_t[i].intra_mode[V_COMP] = phvenc->ctu_info_t[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
+		//		phvenc->ctu_info[i].intra_mode[V_COMP] = phvenc->ctu_info[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
 				//tr_idx, pred_depth, part_size_type, pred_mode
-				phvenc->ctu_info_t[i].tr_idx = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].pred_depth = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		//		phvenc->ctu_info_t[i].pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
+				//inter
+				phvenc->ctu_info[i].mv_ref0[Y_COMP] = (motion_vector_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_ref0[U_COMP] = phvenc->ctu_info[i].mv_ref0[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_ref0[V_COMP] = phvenc->ctu_info[i].mv_ref0[U_COMP]+MAX_NUM_PARTITIONS;
+
+				phvenc->ctu_info[i].mv_ref1[Y_COMP] = (motion_vector_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_ref1[U_COMP] = phvenc->ctu_info[i].mv_ref1[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_ref1[V_COMP] = phvenc->ctu_info[i].mv_ref1[U_COMP]+MAX_NUM_PARTITIONS;
+
+				phvenc->ctu_info[i].ref_idx[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].ref_idx[U_COMP] = phvenc->ctu_info[i].ref_idx[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].ref_idx[V_COMP] = phvenc->ctu_info[i].ref_idx[U_COMP]+MAX_NUM_PARTITIONS;
+				
 			}
 
 
@@ -729,12 +779,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
 
 
-				wnd_alloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(byte));
+				wnd_alloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 
 				henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//tama�o del buffer auxiliar
 				henc_th->pred_aux_buff = (short*) aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
-				wnd_alloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(byte));
+				wnd_alloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 				wnd_alloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
 
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
@@ -745,7 +795,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				wnd_alloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
-					wnd_alloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(byte));
+					wnd_alloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(uint8_t));
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
 				henc_th->cabac_aux_buff = (unsigned char*) aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));
@@ -753,21 +803,34 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//alloc buffers to gather and consolidate information
 				for(i=0;i<NUM_CBF_BUFFS;i++)
 				{
-					henc_th->cbf_buffs[Y_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->cbf_buffs[U_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->cbf_buffs[V_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[Y_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[U_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[V_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->tr_idx_buffs[i] = (byte*) aligned_alloc (256, sizeof(byte));
+					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+
+					//inter
+					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+
+					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+
+					henc_th->ref_idx[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->ref_idx[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->ref_idx[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
 				}
 
-				henc_th->cbf_buffs_chroma[U_COMP] = (byte*) aligned_alloc (256, sizeof(byte));
-				henc_th->cbf_buffs_chroma[V_COMP] = (byte*) aligned_alloc (256, sizeof(byte));
+				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
 
 				henc_th->ctu_rd = (ctu_info_t*)calloc (1, sizeof(ctu_info_t));
-				henc_th->ctu_rd->part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-//				henc_th->ctu_rd->pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->ctu_rd->pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
@@ -801,9 +864,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			memset(phvenc->ptl.subLayerLevelPresentFlag,   0, sizeof(phvenc->ptl.subLayerLevelPresentFlag  ));
 
 			//reference picture_t lists
-			phvenc->num_ref_lists =2;
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = 1;//4;//this will need to be a decission taken depending on configuration
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = 1;//4;
+			phvenc->num_ref_lists = 2;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc->gop_size==1?4:1;//this will need to be a consistent decission taken depending on the configuration
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc->gop_size==1?4:1;
 
 			phvenc->num_short_term_ref_pic_sets = phvenc->gop_size+1;
 			if(phvenc->ref_pic_set_list)
@@ -831,7 +894,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
 				}
 			}
-			phvenc->ref_pic_set_index = 0;
+//			phvenc->ref_pic_set_index = 0;
 
 			//----------------- start vps ------------------
 			phvenc->vps.video_parameter_set_id = 0;
@@ -966,6 +1029,46 @@ int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
 }
 
 
+//TEncTop::selectReferencePictureSet
+void hmr_select_reference_picture_set(hvenc_t* ed, slice_t *currslice)
+{
+	currslice->ref_pic_set_index = 0;
+	
+	currslice->ref_pic_set = &ed->ref_pic_set_list[currslice->ref_pic_set_index];
+	currslice->ref_pic_set->num_pics = currslice->ref_pic_set->num_negative_pics+currslice->ref_pic_set->num_positive_pics;
+}
+
+void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
+{
+	int i, j;
+	video_frame_t *refpic;
+
+	currslice->ref_pic_list_cnt[REF_PIC_LIST_0] = currslice->ref_pic_list_cnt[REF_PIC_LIST_1] = 0;
+
+	for(i=0;i<MAX_NUM_REF;i++)
+	{
+		refpic = ed->reference_picture_buffer[(ed->reference_list_index-1-i)&MAX_NUM_REF_MASK];
+		if(refpic!=NULL)
+		{
+			refpic->is_reference = FALSE;
+			for(j=0;j<currslice->ref_pic_set->num_pics;j++)
+			{
+				if(currslice->poc + currslice->ref_pic_set->delta_poc_s0[j] == refpic->temp_info.poc )
+				{
+					refpic->is_reference = currslice->ref_pic_set->used_by_curr_pic_S0_flag[j];
+
+					if(refpic->is_reference)
+					{
+						if(currslice->ref_pic_set->delta_poc_s0[j] < 0)
+							currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic;
+						else
+							currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic;
+					}
+				}
+			}
+		}
+	}
+}
 
 void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 {
@@ -1000,9 +1103,17 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;	
+
 	}
 
-	if(ed->last_poc == 0)//first image?
+	hmr_select_reference_picture_set(ed, currslice);
+
+	if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL || currslice->nalu_type == NALU_CODED_SLICE_IDR_N_LP)
+	{
+		ed->last_idr = currslice->poc;
+	}
+
+	if(currslice->poc == 0)//if(ed->last_poc == 0)//first image?
 	{
 //		sublayer_non_reference = 0;		
 	}
@@ -1016,7 +1127,6 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		}
 		break;
 	}
-
 }
 
 
@@ -1027,7 +1137,7 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 		ctu->ctu_left = NULL;
 	else
 	{
-		ctu->ctu_left = &et->ed->ctu_info_t[ctu->ctu_number-1];
+		ctu->ctu_left = &et->ed->ctu_info[ctu->ctu_number-1];
 	}
 	ctu->ctu_left_bottom = NULL;//en raster order este no existe. En wavefront si
 
@@ -1038,13 +1148,13 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 	}
 	else
 	{
-		ctu->ctu_top = &et->ed->ctu_info_t[ctu->ctu_number-et->pict_width_in_cu];	
+		ctu->ctu_top = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu];	
 
 		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_cu) == (et->pict_width_in_cu-1)))
 			ctu->ctu_top_right = NULL;
 		else
 		{
-			ctu->ctu_top_right = &et->ed->ctu_info_t[ctu->ctu_number-et->pict_width_in_cu+1];
+			ctu->ctu_top_right = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu+1];
 		}
 	}
 }
@@ -1054,7 +1164,7 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout)
 {
 	int nalu_idx, bytes_written=0;
-	byte code[4] = {0x0,0x0,0x0,0x1};
+	uint8_t code[4] = {0x0,0x0,0x0,0x1};
 
 	for (nalu_idx=0;nalu_idx<num_nalus;nalu_idx++)
 	{
@@ -1086,13 +1196,15 @@ int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, e
 
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu)
 {
-	byte *part_size_type = dst_ctu->part_size_type;
+	uint8_t *part_size_type = dst_ctu->part_size_type;
+	uint8_t *pred_mode = dst_ctu->pred_mode;
 	memcpy(dst_ctu, src_ctu, sizeof(ctu_info_t));
 	dst_ctu->part_size_type = part_size_type;
+	dst_ctu->pred_mode = pred_mode;
 }
 
 
-THREAD_RETURN intra_encode_thread(void *h)
+THREAD_RETURN_TYPE intra_encode_thread(void *h)
 {
 	henc_thread_t* et = (henc_thread_t*)h;
 	int gcnt=0;
@@ -1106,7 +1218,7 @@ THREAD_RETURN intra_encode_thread(void *h)
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
 
-	ctu = &et->ed->ctu_info_t[et->cu_current_y*et->pict_width_in_cu];
+	ctu = &et->ed->ctu_info[et->cu_current_y*et->pict_width_in_cu];
 
 
 	if(et->index==0)
@@ -1117,7 +1229,7 @@ THREAD_RETURN intra_encode_thread(void *h)
 		hmr_bitstream_init(et->ee->bs);
 
 		//resetEntropy
-		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp);//Init CABAC contexts
+		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp, et->pps->cabac_init_flag);//Init CABAC contexts
 		//cabac - reset binary encoder and entropy
 		et->ee->ee_start(et->ee->b_ctx);
 		et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&ed->ee);
@@ -1155,8 +1267,8 @@ THREAD_RETURN intra_encode_thread(void *h)
 //		for(et->cu_current;et->cu_current<et->cu_next;et->cu_current++)
 		{
 			//init ctu
-			et->curr_ctu_group_info = &et->ed->ctu_info_t[et->cu_current];
-			ctu = &et->curr_ctu_group_info[0];
+//			et->curr_ctu_group_info = &et->ed->ctu_info[et->cu_current];
+			ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
 			ctu->ctu_number = et->cu_current;
 			ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
 			ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
@@ -1175,6 +1287,13 @@ THREAD_RETURN intra_encode_thread(void *h)
 			copy_ctu(ctu, et->ctu_rd);
 
 			PROFILER_RESET(intra)
+
+			//map spatial features and neighbours in recursive partition structure
+			create_partition_neighbours(et, ctu, ctu->partition_list);
+			if(currslice->slice_type != I_SLICE)
+			{
+				motion_inter(et, ctu, gcnt);
+			}
 			//make ctu intra prediction
 			motion_intra(et, ctu, gcnt);
 			PROFILER_ACCUMULATE(intra)
@@ -1218,7 +1337,7 @@ THREAD_RETURN intra_encode_thread(void *h)
 	if(!et->wfpp_enable)
 		ee_end_slice(et->ee, currslice, ctu);
 
-	return 0;
+	return THREAD_RETURN;
 }
 
 
@@ -1236,7 +1355,7 @@ int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *na
 	hvenc_t* ed = (hvenc_t*)handle;
 	*nalu_list_size = 0;
 
-	if(is_data_avaliable(ed->output_hmr_container))
+	if(get_num_elements(ed->output_hmr_container))
 	{
 		nalu_set_t* ouput_nalus;
 		cont_get(ed->output_hmr_container, (void**)&ouput_nalus);
@@ -1252,7 +1371,7 @@ int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *na
 		et->rd = ed->rd;
 
 //encodes a frame
-THREAD_RETURN encoder_thread(void *h)
+THREAD_RETURN_TYPE encoder_thread(void *h)
 {
 	hvenc_t* ed = (hvenc_t*)h;
 	picture_t *currpict = &ed->current_pict;
@@ -1290,6 +1409,7 @@ THREAD_RETURN encoder_thread(void *h)
 
 		//get next image
 		get_frame_to_encode(ed, &ed->current_pict.img2encode);//get next image to encode and init type
+		ed->num_pictures++;
 
 #ifdef COMPUTE_METRICS
 		if(ed->num_encoded_frames == 0)
@@ -1311,9 +1431,10 @@ THREAD_RETURN encoder_thread(void *h)
 		init_slice(ed, &ed->current_pict, &currpict->slice);
 		init_rd(ed, &currpict->slice);
 
-		//get free img for decodede blocks
+		//get free img for decoded blocks
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_ref_wnd);
-	
+		ed->curr_ref_wnd->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+
 		if(currslice->poc==0)//if(ed->pict_type == I_SLICE)
 		{
 			hmr_bitstream_init(&ed->vps_nalu.bs);
@@ -1336,11 +1457,8 @@ THREAD_RETURN encoder_thread(void *h)
 			hmr_put_pic_header(ed);//pic header
 		}
 
-		//init Entropy Coder Context Models
-
-		ed->last_poc++;
-		ed->num_pictures++;
-
+		apply_reference_picture_set(ed, currslice);
+		
 		for(n = 0; n<ed->wfpp_num_threads;n++)
 		{
 			SYNC_THREAD_CONTEXT(ed, ed->thread[n]);
@@ -1351,8 +1469,6 @@ THREAD_RETURN encoder_thread(void *h)
 		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
-
-		cont_put(ed->cont_empty_reference_wnds,ed->curr_ref_wnd);
 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
@@ -1401,7 +1517,7 @@ THREAD_RETURN encoder_thread(void *h)
 
 			profiler_accumulate(&frame_metrics);
 
-			homer_psnr(&ed->current_pict, ed->curr_ref_wnd, ed->pict_width, ed->pict_height, ed->current_psnr); 
+			homer_psnr(&ed->current_pict, &ed->curr_ref_wnd->img, ed->pict_width, ed->pict_height, ed->current_psnr); 
 			ed->accumulated_psnr[0] += ed->current_psnr[Y_COMP];
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
@@ -1427,12 +1543,19 @@ THREAD_RETURN encoder_thread(void *h)
 */
 		}
 #endif
+		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
+			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
+		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_ref_wnd;
+		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
+		ed->last_poc++;
+
+
 		put_avaliable_frame(ed, ed->current_pict.img2encode);
 
 		ouput_nalus->num_nalus = output_nalu_cnt;
 		cont_put(ed->output_hmr_container, ouput_nalus);
 	}
 
-	return 0;
+	return THREAD_RETURN;
 }
 

@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -415,7 +415,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 
 			hmr_bitstream_write_bits(bs, poc_lsb, bits_for_poc);
 
-			if(ed->ref_pic_set_index<0)
+			if(currslice->ref_pic_set_index<0)
 			{
 				hmr_bitstream_write_bits(bs, 0, 1);//short_term_ref_pic_set_sps_flag
 				//hmr_short_term_ref_pic_set( num_short_term_ref_pic_sets )
@@ -430,7 +430,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 				}
 
 				if(num_bits)
-					hmr_bitstream_write_bits(bs, ed->ref_pic_set_index, num_bits);//short_term_ref_pic_set_sps_flag
+					hmr_bitstream_write_bits(bs, currslice->ref_pic_set_index, num_bits);//short_term_ref_pic_set_sps_flag
 
 /*				hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
 				for(i=0;i<ed->num_short_term_ref_pic_sets;i++)

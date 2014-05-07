@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -133,7 +133,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
 //	int l;//, i;
 	wnd_t *decoded_src_wnd = &et->decoded_mbs_wnd[0];
-	wnd_t *decoded_dst_wnd = et->ed->curr_ref_wnd;
+	wnd_t *decoded_dst_wnd = &et->ed->curr_ref_wnd->img;
 	int component = Y_COMP;
 	int src_stride;
 	int dst_stride;
@@ -160,7 +160,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 {
 	int l, j;
-	wnd_t *decoded_src_wnd = et->ed->curr_ref_wnd;
+	wnd_t *decoded_src_wnd = &et->ed->curr_ref_wnd->img;
 	wnd_t *decoded_dst_wnd = &et->decoded_mbs_wnd[0];
 	int component = Y_COMP;
 	int src_stride = et->pict_width[component];

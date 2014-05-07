@@ -28,6 +28,7 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_mem_transfer.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_metics.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter_chroma.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_intra.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_intra_chroma.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_profiler.c" />

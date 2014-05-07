@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -168,11 +168,12 @@ int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_le
 
 //encodelib.cpp
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu);
-THREAD_RETURN encoder_thread(void *h);//void encoder_thread(void* ed);
+THREAD_RETURN_TYPE encoder_thread(void *h);//void encoder_thread(void* ed);
 
 //hmr_motion_intra.c
 #define ADI_POINTER_MIDDLE(ptr_adi_orig, size)  (ptr_adi_orig+(size>>1))	//points to the top left square
 void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list);
+void create_partition_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info);
 int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size);
 uint32_t sad(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
@@ -186,7 +187,9 @@ void create_intra_recursive_stop_info(henc_thread_t* et, int gcnt);
 void predict(byte * orig_auxptr, int orig_buff_stride, byte* pred_auxptr, int pred_buff_stride, short * residual_auxptr, int residual_buff_stride, int curr_part_size);
 void reconst(byte* pred_auxptr, int pred_buff_stride, short * residual_auxptr, int residual_buff_stride, byte * decoded_auxptr, int decoded_buff_stride, int curr_part_size);
 
-
+//hmr_motion_inter.c
+int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
+void hmr_motion_inter_uni(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride,  int curr_part_global_x, int curr_part_global_y, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv);
 
 //hmr_motion_intra_chroma.c
 void create_chroma_dir_list(int* list, int luma_mode);
@@ -194,6 +197,9 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
 int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
 void homer_update_cand_list( uint uiMode, double Cost, uint uiFastCandNum, int CandModeList[3], double CandCostList[3] );
+
+//hmr_motion_inter_chroma.c
+int encode_inter_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type);
 
 //hmr_transform.c
 void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
@@ -207,7 +213,7 @@ void iquant(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int de
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);
-void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp);
+void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag);
 void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst);
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* cu, int gcnt);
 void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt);

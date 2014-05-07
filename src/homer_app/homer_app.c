@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -210,11 +210,8 @@ int main (int argc, char **argv)
 
 	HVENC_Cfg	HmrCfg;
 
-
-
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-
 
 #define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
@@ -275,8 +272,6 @@ int main (int argc, char **argv)
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));
 	memset(&stream, 0, sizeof(stream));
-
-
 
 	stream.streams[0] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height, 1);
 	stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);

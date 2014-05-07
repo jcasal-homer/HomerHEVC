@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -94,19 +94,19 @@ INIT_MERGE_IDX_EXT[3][NUM_MERGE_IDX_EXT_CTX] =
 static const byte 
 INIT_PART_SIZE[3][NUM_PART_SIZE_CTX] =  
 {
-  { 154,  139,  CNU,  CNU, }, 
-  { 154,  139,  CNU,  CNU, }, 
-  { 184,  CNU,  CNU,  CNU, }, 
+  { 154,  139,  154,  154 },
+  { 154,  139,  154,  154 },
+  { 184,  CNU,  CNU,  CNU },
 };
 
-static const byte 
+/*static const byte 
 INIT_CU_AMP_POS[3][NUM_CU_AMP_CTX] =  
 {
   { 154, }, 
   { 154, }, 
   { CNU, }, 
 };
-
+*/
 static const byte 
 INIT_PRED_MODE[3][NUM_PRED_MODE_CTX] = 
 {
@@ -166,9 +166,9 @@ INIT_DQP[3][NUM_DELTA_QP_CTX] =
 static const byte 
 INIT_QT_CBF[3][2*NUM_QT_CBF_CTX] =  
 {
-  { 153,  111,  CNU,  CNU,  CNU,  149,   92,  167,  CNU,  CNU, }, 
-  { 153,  111,  CNU,  CNU,  CNU,  149,  107,  167,  CNU,  CNU, }, 
-  { 111,  141,  CNU,  CNU,  CNU,   94,  138,  182,  CNU,  CNU, }, 
+  { 153,  111,  CNU,  CNU,   149,   92,  167,  154 },
+  { 153,  111,  CNU,  CNU,   149,  107,  167,  154 },
+  { 111,  141,  CNU,  CNU,    94,  138,  182,  154 },
 };
 
 static const byte 
@@ -234,9 +234,9 @@ INIT_ABS_FLAG[3][NUM_ABS_FLAG_CTX] =
 static const byte 
 INIT_MVP_IDX[3][NUM_MVP_IDX_CTX] =  
 {
-  { 168,  CNU, }, 
-  { 168,  CNU, }, 
-  { CNU,  CNU, }, 
+  { 168 },
+  { 168 },
+  { CNU }, 
 };
 
 static const byte 
@@ -253,9 +253,6 @@ INIT_SAO_TYPE_IDX[3][NUM_SAO_TYPE_IDX_CTX] =
   { 160, },
   { 185, },
   { 200, },
-/*  { 200, }, 
-  { 185, }, 
-  { 160, }, */
 };
 
 static const byte
@@ -264,9 +261,6 @@ INIT_TRANS_SUBDIV_FLAG[3][NUM_TRANS_SUBDIV_FLAG_CTX] =
   { 224,  167,  122, },
   { 124,  138,   94, },
   { 153,  138,  138, },
-/*  { 153,  138,  138, },
-  { 124,  138,   94, },
-  { 224,  167,  122, },*/
 };
 
 static const byte

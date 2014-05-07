@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -100,7 +100,7 @@ void ee_init_contexts(enc_env_t *ee)
 	curr_ctx+=init_context(&entropy_models->cu_merge_flag_model, curr_ctx, 1, NUM_MERGE_FLAG_EXT_CTX, &INIT_MERGE_FLAG_EXT[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_merge_idx_model, curr_ctx, 1, NUM_MERGE_IDX_EXT_CTX, &INIT_MERGE_IDX_EXT[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_part_size_model, curr_ctx, 1, NUM_PART_SIZE_CTX, &INIT_PART_SIZE[0][0]);
-	curr_ctx+=init_context(&entropy_models->cu_amp_model, curr_ctx, 1, NUM_CU_AMP_CTX, &INIT_CU_AMP_POS[0][0]);
+//	curr_ctx+=init_context(&entropy_models->cu_amp_model, curr_ctx, 1, NUM_CU_AMP_CTX, &INIT_CU_AMP_POS[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_pred_mode_flag_model, curr_ctx, 1, NUM_PRED_MODE_CTX, &INIT_PRED_MODE[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_intra_pred_model, curr_ctx, 1, NUM_ADI_CTX, &INIT_INTRA_PRED_MODE[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_chroma_pred_model, curr_ctx, 1, NUM_CHROMA_PRED_CTX, &INIT_CHROMA_PRED_MODE[0][0]);
@@ -150,15 +150,19 @@ void start_context(context_model_buff_t *cm, int init_type, int qp)
 }
 
 
-
-void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp)
+//TEncSbac::resetEntropy
+void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag)
 {
 	entropy_model_t		*entropy_models = ee->e_ctx;
 	int init_type;
 
 	if(slice_type == I_SLICE)//this is done as in HM where data is reorganized to match slice type definitions, not as in draft 
 		init_type = I_SLICE;//init_type = 0			
-
+	else if(slice_type == P_SLICE)
+		init_type = cabac_init_flag ? B_SLICE:P_SLICE;//init_type = cabac_init_flag ? 2 : 1;
+/*	else
+		init_type = cabac_init_flag ? P_SLICE:B_SLICE;//init_type = cabac_init_flag ? 1 : 2;
+*/
 	start_context(&entropy_models->cu_split_flag_model, init_type, qp);
 	start_context(&entropy_models->cu_skip_flag_model, init_type, qp);
 	start_context(&entropy_models->cu_merge_flag_model, init_type, qp);
@@ -293,11 +297,13 @@ int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_part
 	// Get intra direction of left PU
 	ctu_left = get_pu_left(ctu, curr_partition_info, &aux_part_idx);//ctu->ctu_left;
 
-	left_intra_dir  = ctu_left ? ((ctu_left->pred_mode == INTRA_MODE) ? ctu_left->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
+	left_intra_dir  = ctu_left ? ((ctu_left->pred_mode[aux_part_idx] == INTRA_MODE) ? ctu_left->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
+//	left_intra_dir  = ctu_left ? ((ctu_left->pred_mode == INTRA_MODE) ? ctu_left->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
 
 	ctu_top = get_pu_top(ctu, curr_partition_info, &aux_part_idx, TRUE);//ctu->ctu_top;//getPUAbove( aux_part_idx, m_uiAbsIdxInLCU + abs_index, TRUE, TRUE );
 
-	top_intra_dir = ctu_top ? ((ctu_top->pred_mode == INTRA_MODE) ? ctu_top->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
+	top_intra_dir = ctu_top ? ((ctu_top->pred_mode[aux_part_idx] == INTRA_MODE) ? ctu_top->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
+//	top_intra_dir = ctu_top ? ((ctu_top->pred_mode == INTRA_MODE) ? ctu_top->intra_mode[Y_COMP][aux_part_idx] : DC_IDX ) : DC_IDX;
 
 	pred_num = 3;
 	if(left_intra_dir == top_intra_dir)
@@ -597,7 +603,7 @@ void encode_residual(henc_thread_t* et, enc_env_t *ee, ctu_info_t *ctu, cu_parti
 	int curr_part_size_shift = is_luma?et->max_cu_size_shift-curr_partition_info->depth:et->max_cu_size_shift_chroma-curr_partition_info->depth;
 	short*__restrict coeff_buff = WND_POSITION_1D(short  *__restrict, *ctu->coeff_wnd, component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<(et->num_partitions_in_cu_shift-(is_luma?0:2))));
 	int num_part_in_pred_cu = ctu->num_part_in_ctu>>(ctu->pred_depth[abs_index]*2);
-	int scan_mode = find_scan_mode(ctu->pred_mode==INTRA_MODE, is_luma, curr_part_size, ctu->intra_mode[(component==Y_COMP)?Y_COMP:CHR_COMP][curr_partition_info->abs_index], ctu->intra_mode[Y_COMP][(abs_index/num_part_in_pred_cu)*num_part_in_pred_cu]);
+	int scan_mode = find_scan_mode(ctu->pred_mode[curr_partition_info->abs_index]==INTRA_MODE, is_luma, curr_part_size, ctu->intra_mode[(component==Y_COMP)?Y_COMP:CHR_COMP][curr_partition_info->abs_index], ctu->intra_mode[Y_COMP][(abs_index/num_part_in_pred_cu)*num_part_in_pred_cu]);
 	uint *scan = et->ed->scan_pyramid[scan_mode][curr_part_size_shift-1], *scan_cg;
 	byte *coeff_flag_buff = (byte *)et->cabac_aux_buff;
 	int scan_position, scan_position_last, last_scan_set, raster_pos_last = 0;
@@ -891,7 +897,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		tr_depth = curr_depth-pred_depth;//trafoDepth
 		is_first_part_of_cu = (tr_depth==0);
 		tr_idx = ctu->tr_idx[abs_index];
-		is_intra = ctu->pred_mode == INTRA_MODE;
+		is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;
 		part_size_type = ctu->part_size_type[abs_index];
 		split_flag = ((tr_idx + pred_depth) > curr_depth );
 		log2_tr_size = et->max_cu_size_shift-(curr_depth);
@@ -934,7 +940,8 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		}
 		else 
 		{
-			if( ctu->pred_mode==INTRA_MODE || tr_depth != 0 || CBF(ctu, abs_index, U_COMP, tr_depth) || 
+			//if( ctu->pred_mode==INTRA_MODE || tr_depth != 0 || CBF(ctu, abs_index, U_COMP, tr_depth) || 
+			if( ctu->pred_mode[abs_index]==INTRA_MODE || tr_depth != 0 || CBF(ctu, abs_index, U_COMP, tr_depth) || 
 				CBF(ctu, abs_index, V_COMP, tr_depth) ) 
 			{
 				encode_qt_cbf(ee, curr_partition_info, Y_COMP, tr_depth, CBF(ctu, abs_index, Y_COMP, tr_depth));
@@ -988,7 +995,7 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 {
 	slice_t *currslice = &et->ed->current_pict.slice;
 	int abs_index = curr_partition_info->abs_index;
-	int is_intra = ctu->pred_mode==INTRA_MODE;
+	int is_intra = ctu->pred_mode[abs_index]==INTRA_MODE;
 	int part_size_type =	ctu->part_size_type[abs_index];
 
 	encode_part_size(et, ee, curr_partition_info, part_size_type, is_intra);
@@ -1175,7 +1182,7 @@ void rd_est_intra_header( henc_thread_t* et, enc_env_t* ec, ctu_info_t* ctu, cu_
 	uint abs_index = partition_info->abs_index;
 
 	slice_t *currslice = &et->ed->current_pict.slice;
-	int is_intra = ctu->pred_mode == INTRA_MODE;//ctu->intra_mode[abs_index];
+	int is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;//ctu->intra_mode[abs_index];
 	PartSize part_size_type = (PartSize)ctu->part_size_type[abs_index];
 
 	if( luma )
@@ -1210,7 +1217,7 @@ void rd_transform_tree(henc_thread_t* et, enc_env_t* ec, ctu_info_t* ctu, cu_par
 	int tu_log_min_size = et->min_tu_size_shift;
 	int tu_log_max_size = et->max_tu_size_shift;
 	int tu_log_min_size_in_cu;
-	int is_intra_ctu = (ctu->pred_mode==INTRA_MODE);
+	int is_intra_ctu = (ctu->pred_mode[curr_partition_info->abs_index]==INTRA_MODE);
 	int split_flag, is_intra, part_size_type, pred_depth;
 	
 	while(curr_depth!=depth || depth_state[curr_depth]!=1)
@@ -1222,7 +1229,7 @@ void rd_transform_tree(henc_thread_t* et, enc_env_t* ec, ctu_info_t* ctu, cu_par
 		tr_depth = curr_depth-pred_depth;
 		is_first_part_of_cu = (tr_depth==0);
 		tr_idx = ctu->tr_idx[abs_index];
-		is_intra = ctu->pred_mode == INTRA_MODE;
+		is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;
 		part_size_type = ctu->part_size_type[abs_index];
 		split_flag = ((tr_idx + pred_depth) > curr_depth );
 		log2_tr_size = et->max_cu_size_shift-(curr_depth);

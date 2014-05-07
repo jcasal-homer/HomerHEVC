@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -1141,7 +1141,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int max_tr_depth, max_tr_processing_depth;
 	int initial_state, end_state;
-	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+//	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int bitcost_cu_mode;
 	int log2cu_size;
@@ -1337,8 +1337,8 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 		curr_partition_info->distortion = encode_intra_cu(et, ctu, curr_partition_info, depth, cu_mode, part_size_type, &curr_sum, gcnt);//depth = prediction depth
 
 		//cbf
-		if(curr_depth == max_tr_depth)
-			cbf_split[curr_depth] |= (curr_sum ? 1 : 0);
+//		if(curr_depth == max_tr_depth)
+//			cbf_split[curr_depth] |= (curr_sum ? 1 : 0);
 
 		curr_partition_info->cost = curr_partition_info->distortion;
 
@@ -1390,7 +1390,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 					acc_cost[parent_part_info->depth]+= cost - parent_part_info->cost;
 					parent_part_info->cost = cost;
 					parent_part_info->distortion = distortion;
-					parent_part_info->mode = cu_mode;
+//					parent_part_info->mode = cu_mode;
 
 					//consolidate in parent
 					memcpy(&et->cbf_buffs[Y_COMP][parent_part_info->depth][parent_part_info->abs_index], &et->cbf_buffs[Y_COMP][curr_depth][parent_part_info->abs_index], parent_part_info->num_part_in_cu*sizeof(cbf_buff[0]));
@@ -1406,8 +1406,8 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 				}
 
 
-				cbf_split[curr_depth-1] |= (et->cbf_buffs[Y_COMP][parent_part_info->depth][parent_part_info->abs_index]>>((curr_depth-depth+(part_size_type==SIZE_NxN))-1))&1;
-				cbf_split[curr_depth] = 0;
+//				cbf_split[curr_depth-1] |= (et->cbf_buffs[Y_COMP][parent_part_info->depth][parent_part_info->abs_index]>>((curr_depth-depth+(part_size_type==SIZE_NxN))-1))&1;
+//				cbf_split[curr_depth] = 0;
 
 				acc_cost[curr_depth] = 0;
 				curr_depth--;
@@ -1551,10 +1551,11 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	if(et->rd_mode==1)
 	{
 		copy_ctu(ctu, ctu_rd);
-		ctu_rd->pred_mode = INTRA_MODE;
+		memset(ctu_rd->pred_mode, INTRA_MODE, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->pred_mode[0]));//indicamos que todas las codificaciones son intra
+//		ctu_rd->pred_mode = INTRA_MODE;
 	}
 	//map spatial features and neighbours in recursive partition structure
-	create_partition_neighbours(et, ctu, curr_partition_info);
+	//create_partition_neighbours(et, ctu, curr_partition_info);
 
 #ifndef COMPUTE_AS_HM
 	if(et->performance_mode != 0)
@@ -1801,9 +1802,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	memcpy(&ctu->intra_mode[Y_COMP][abs_index], &et->intra_mode_buffs[Y_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->intra_mode[Y_COMP][0]));
 	memcpy(&ctu->intra_mode[CHR_COMP][abs_index], &et->intra_mode_buffs[CHR_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->intra_mode[CHR_COMP][0]));
 	memcpy(&ctu->tr_idx[abs_index], &et->tr_idx_buffs[curr_depth][abs_index], num_part_in_cu*sizeof(ctu->tr_idx[0]));
-
-//	memset(&ctu->pred_mode[abs_index], INTRA_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//indicamos que todas las codificaciones son intra
-	ctu->pred_mode = INTRA_MODE;
+	memset(&ctu->pred_mode[abs_index], INTRA_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//indicamos que todas las codificaciones son intra
 	return best_cost;
 }
 
