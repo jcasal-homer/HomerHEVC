@@ -1,7 +1,9 @@
-homerHEVC
+HomerHEVC
 =========
 
-HOMER (Hevc Open Mpeg EncodeR) is an open-source HEVC encoder to encode YUV420 video sequences to the new HEVC(H.265) stream format.
+See www.homerhevc.com. 
+
+HOMER (Hevc Open Mpeg EncodeR) is an open-source HEVC encoder to encode YUV420 video sequences to the new HEVC(H.265) stream format. 
 
 It is published under the LPGLv2.1 license, and is therefore Free Software according to the Free Software Foundation.
 
@@ -12,7 +14,7 @@ Development is guided by three main aspects:
 
 Code style of the development is C'99 and recursive functions have been implemented in a sequential manner to avoid the drawback of recursive calls to complex functions and to ease portability. OS dependant code is isolated in a very simple file, while low level optimizations are handled with an interface for low level functions. 
 
-Homer is still under development and will improve in quality and performance during the development.
+HomerHEVC is still under development and will improve in quality and performance during the development.
 
 Current Features
 ----------------
@@ -120,6 +122,7 @@ Find Juan Casal's personal linkedIn profile in https://www.linkedin.com/pub/juan
 
 Contact: jcasal.homer@gmail.com
 
+Web page: www.homerhevc.com
 
 Please report bugs and different issues in https://github.com/jcasal-homer/HomerHEVC/issues
 
