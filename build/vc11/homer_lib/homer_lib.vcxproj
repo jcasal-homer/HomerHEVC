@@ -23,6 +23,7 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_binary_encoding.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_bitstream.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_container.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_deblocking_filter.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_encoder_lib.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_headers.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_mem_transfer.c" />

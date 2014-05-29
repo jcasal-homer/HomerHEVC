@@ -90,7 +90,7 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 	wnd_alloc(wnd, size_x, size_y, offset_x, offset_y, pix_size);
 }
 
-#ifdef WRITE_REF_FRAMES
+//#ifdef WRITE_REF_FRAMES
 void wnd_write2file(wnd_t *wnd)
 {
 	byte * __restrict src;
@@ -102,7 +102,7 @@ void wnd_write2file(wnd_t *wnd)
 		fwrite(src, sizeof(byte), (wnd->window_size_x[component]*wnd->window_size_y[component]), wnd->out_file); 
 	}
 }
-#endif
+//#endif
 
 
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are cu indexes
@@ -133,7 +133,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
 //	int l;//, i;
 	wnd_t *decoded_src_wnd = &et->decoded_mbs_wnd[0];
-	wnd_t *decoded_dst_wnd = &et->ed->curr_ref_wnd->img;
+	wnd_t *decoded_dst_wnd = &et->ed->curr_reference_frame->img;
 	int component = Y_COMP;
 	int src_stride;
 	int dst_stride;
@@ -160,7 +160,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 {
 	int l, j;
-	wnd_t *decoded_src_wnd = &et->ed->curr_ref_wnd->img;
+	wnd_t *decoded_src_wnd = &et->ed->curr_reference_frame->img;
 	wnd_t *decoded_dst_wnd = &et->decoded_mbs_wnd[0];
 	int component = Y_COMP;
 	int src_stride = et->pict_width[component];

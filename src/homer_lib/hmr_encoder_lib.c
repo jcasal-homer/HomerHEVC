@@ -121,7 +121,13 @@ void *HOMER_enc_init()
 		}
 		size <<= 1;
 	}
-	
+
+	//deblocking filter
+	phvenc->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
 	//angular intra table
 	phvenc->ang_table = (ushort*)calloc (9, sizeof(ushort));//number of elements in CU
 	phvenc->inv_ang_table = (ushort*)calloc (9, sizeof(ushort));//number of elements in CU
@@ -134,10 +140,12 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
 #ifdef WRITE_REF_FRAMES
-	FILE *refs_file = fopen("refs.yuv","wb");
-	for(i=0;i<MAX_NUM_REF;i++)
 	{
-		phvenc->ref_wnds[i].img.out_file = refs_file;
+		FILE *refs_file = fopen("C:\\Patrones\\refs.yuv","wb");
+		for(i=0;i<MAX_NUM_REF;i++)
+		{
+			phvenc->ref_wnds[i].img.out_file = refs_file;
+		}
 	}
 #endif
 
@@ -990,6 +998,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 */
 			phvenc->pps.loop_filter_across_slices_enabled_flag = 1;
 			phvenc->pps.deblocking_filter_control_present_flag = 0;
+			phvenc->pps.beta_offset_div2 = 0;
+			phvenc->pps.tc_offset_div2 = 0;
 /*			if(phvenc->pps.deblocking_filter_control_present_flag)
 				//.......................
 */			phvenc->pps.pps_scaling_list_data_present_flag = 0;
@@ -1085,6 +1095,8 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->slice_temporal_mvp_enable_flag = ed->sps.temporal_mvp_enable_flag;
 	currslice->disable_deblocking_filter_flag = 0;//enabled
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
+	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
+	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
 
 	if((currslice->poc%ed->gop_size)==0)
 	{
@@ -1432,8 +1444,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		init_rd(ed, &currpict->slice);
 
 		//get free img for decoded blocks
-		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_ref_wnd);
-		ed->curr_ref_wnd->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
+		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
 
 		if(currslice->poc==0)//if(ed->pict_type == I_SLICE)
 		{
@@ -1469,6 +1481,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
+
+		hmr_deblock_filter(ed, currslice);
 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
@@ -1506,7 +1520,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		PROFILER_PRINT(intra_luma_recon_ssd)//("intra_luma.recon+ssd");
 
 #ifdef WRITE_REF_FRAMES
-		wnd_write2file(ed->curr_ref_wnd);
+		wnd_write2file(&ed->curr_reference_frame->img);
 #endif
 		
 		ed->num_encoded_frames++;
@@ -1517,7 +1531,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 			profiler_accumulate(&frame_metrics);
 
-			homer_psnr(&ed->current_pict, &ed->curr_ref_wnd->img, ed->pict_width, ed->pict_height, ed->current_psnr); 
+			homer_psnr(&ed->current_pict, &ed->curr_reference_frame->img, ed->pict_width, ed->pict_height, ed->current_psnr); 
 			ed->accumulated_psnr[0] += ed->current_psnr[Y_COMP];
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
@@ -1545,7 +1559,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 #endif
 		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
 			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
-		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_ref_wnd;
+		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_reference_frame;
 		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
 		ed->last_poc++;
 

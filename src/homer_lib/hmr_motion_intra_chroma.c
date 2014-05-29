@@ -150,11 +150,11 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	int initial_state, end_state;
 	int luma_mode;
 
-	ctu->qp = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
-	ctu->per = ctu->qp/6;
-	ctu->rem = ctu->qp%6;
+	ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+	ctu->per = ctu->qp_chroma/6;
+	ctu->rem = ctu->qp_chroma%6;
 
-	weight = pow( 2.0, (currslice->qp-ctu->qp)/3.0 ); 
+	weight = pow( 2.0, (currslice->qp-ctu->qp_chroma)/3.0 ); 
 
 	if(depth==0 && et->max_cu_size == MAX_CU_SIZE)
 	{

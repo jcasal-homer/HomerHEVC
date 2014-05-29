@@ -208,7 +208,8 @@ int encode_inter_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		memset(depth_state, 0, sizeof(depth_state));
 
 		PROFILER_RESET(inter_luma_bucle1)
-		hmr_motion_inter_uni(et, ctu, curr_partition_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_global_x, curr_part_global_y, curr_part_size, curr_part_size_shift, &mv);
+		hmr_motion_inter_uni(et, ctu, curr_partition_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride,  curr_part_global_x, curr_part_global_y, curr_part_size, curr_part_size_shift, &mv);
+		//hmr_motion_search_uni(et, ctu, curr_partition_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_global_x, curr_part_global_y, curr_part_size, curr_part_size_shift, &mv);
 		PROFILER_ACCUMULATE(inter_luma_bucle1)
 
 		PROFILER_RESET(inter_luma_predict)

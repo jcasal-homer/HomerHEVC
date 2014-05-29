@@ -28,6 +28,7 @@
 #include "hmr_os_primitives.h"
 #include "homer_hevc_enc_api.h"
 
+#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
 #define COMPUTE_AS_HM			1
@@ -48,6 +49,11 @@
 ********************************************************************/
 
 #define DOUBLE_MAX              (1.7e+308)    
+
+
+#define MIN_QP                      0
+#define MAX_QP                      51
+
 
 #define MAX_NUM_CTUs				8160	//1920*1088 resolution
 #define MAX_MB_GROUP_SIZE		1
@@ -97,6 +103,12 @@
 #define MAX_TR_DYNAMIC_RANGE				15 // Maximum transform dynamic range (excluding sign bit)
 
 
+//deblock filter
+#define   EDGE_VER    0
+#define   EDGE_HOR    1
+
+#define DEBLOCK_SMALLEST_BLOCK  8
+#define DEFAULT_INTRA_TC_OFFSET 2
 
 //-------------------------init binary encode-------------------------------------
 #define NUM_SPLIT_FLAG_CTX            3       ///< number of context models for split flag
@@ -538,11 +550,15 @@ struct pps_t
 //	...........................
 	unsigned int loop_filter_across_slices_enabled_flag;		// u(1)
 	unsigned int deblocking_filter_control_present_flag;		// u(1)
+	unsigned int deblocking_filter_override_enabled_flag;		// u(1)
+	unsigned int deblocking_filter_disabled_flag;				// u(1)
+	unsigned int beta_offset_div2;								// u(1)
+	unsigned int tc_offset_div2;								// u(1)
 	//.......................
 	unsigned int pps_scaling_list_data_present_flag;			// u(1)
 	unsigned int lists_modification_present_flag;				// u(1)
-	unsigned int log2_parallel_merge_level_minus2;				// u(1)
-	unsigned int slice_header_extension_present_flag;			// u(1)
+	unsigned int log2_parallel_merge_level_minus2;				// se(v)
+	unsigned int slice_header_extension_present_flag;			// se(v)
 };
 
 
@@ -557,9 +573,9 @@ struct wnd_t
 	int		window_orig_x;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
 	int		window_orig_y;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
 	int		pix_size;
-#ifdef WRITE_REF_FRAMES
+//#ifdef WRITE_REF_FRAMES
 	FILE	*out_file;//for debug porposes
-#endif
+//#endif
 };
 
 typedef union temporal_info_t temporal_info_t;
@@ -684,7 +700,7 @@ struct ctu_info_t
 	int				left;
 	
 	//quant
-	int				qp/*, prev_qp, prev_dqp*/;
+	int				qp, qp_chroma;/*, prev_qp, prev_dqp*/
     int				per;
     int				rem;
 //    int				qpbits;
@@ -835,6 +851,8 @@ struct slice_t
 	unsigned int slice_temporal_mvp_enable_flag;
 	unsigned int disable_deblocking_filter_flag;
 	unsigned int slice_loop_filter_across_slices_enabled_flag;
+	unsigned int slice_beta_offset_div2;
+	unsigned int slice_tc_offset_div2;
 
 	sps_t		*sps;
 	pps_t		*pps;
@@ -1066,7 +1084,7 @@ struct hvenc_t
 
 	//current picture_t Config
 	picture_t		current_pict;
-	video_frame_t	*curr_ref_wnd;
+	video_frame_t	*curr_reference_frame;
 	video_frame_t	ref_wnds[MAX_NUM_REF*2];
 
 	void			*cont_empty_reference_wnds;//for decoding and reference frames
@@ -1076,6 +1094,10 @@ struct hvenc_t
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
 	int				num_ref_frames;
+
+	//deblock filter
+	uint8_t			*deblock_edge_filter[2];
+	uint8_t			*deblock_filter_strength_bs[2];
 
 	int				slice_type;
 	int				pict_qp;

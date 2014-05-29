@@ -137,9 +137,7 @@ void aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
-#ifdef WRITE_REF_FRAMES
 void wnd_write2file(wnd_t *wnd_t);
-#endif
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu);
@@ -211,6 +209,9 @@ void quant(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int sca
 void iquant(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int depth, int comp, int is_intra, int cu_size);
 
 
+//hmr_deblocking_filter.c
+void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice);
+
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);
 void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag);
@@ -222,6 +223,8 @@ int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_part
 uint fast_rd_estimate_bits_intra_luma_mode( henc_thread_t* et, cu_partition_info_t* partition_info, uint pred_depth, int dir, int *preds, int num_preds);
 uint rd_estimate_bits_intra_mode( henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, uint pred_depth, int is_luma);
 uint rd_get_intra_bits_qt( henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, uint pred_depth, int is_luma, int gcnt);
+ctu_info_t *get_pu_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
+ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary);
 
 
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
