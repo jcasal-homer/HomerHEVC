@@ -36,7 +36,7 @@
 
 //#define FILE_IN  "//home//juan//Patrones//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\Prueba_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+#define FILE_IN  "C:\\Patrones\\Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 #define FILE_OUT  "C:\\Patrones\\Homer_output.265"//"output_32_.265"
 
@@ -244,8 +244,8 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 2;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 2;
-	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_pred_partition_depth = 4;
+	HmrCfg.max_intra_tr_depth = 4;
 	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;

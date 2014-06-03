@@ -139,15 +139,15 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-#ifdef WRITE_REF_FRAMES
+//#ifdef WRITE_REF_FRAMES
 	{
-		FILE *refs_file = fopen("C:\\Patrones\\refs.yuv","wb");
+		FILE *refs_file = fopen("C:\\Patrones\\refs.bin","wb");//refs.yuv","wb");
 		for(i=0;i<MAX_NUM_REF;i++)
 		{
 			phvenc->ref_wnds[i].img.out_file = refs_file;
 		}
 	}
-#endif
+//#endif
 
 /*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
 
@@ -982,10 +982,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->pps.transform_skip_enabled_flag = 0;
 			phvenc->pps.cu_qp_delta_enabled_flag = 0;
 
-			phvenc->pps.pic_cb_qp_offset = 0;
-			phvenc->pps.pic_cr_qp_offset = 0;
+			phvenc->pps.cb_qp_offset = 0;
+			phvenc->pps.cr_qp_offset = 0;
 
-			phvenc->pps.pic_slice_level_chroma_qp_offsets_present_flag = 0;
+			phvenc->pps.slice_chroma_qp_offsets_present_flag = 0;
 			phvenc->pps.weighted_pred_flag = 0;
 			phvenc->pps.weighted_bipred_flag = 0;
 			phvenc->pps.output_flag_present_flag = 0;
@@ -1093,7 +1093,7 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->num_ref_idx[REF_PIC_LIST_0] = ed->num_refs_idx_active_list[REF_PIC_LIST_0];
 	currslice->num_ref_idx[REF_PIC_LIST_1] = ed->num_refs_idx_active_list[REF_PIC_LIST_1];
 	currslice->slice_temporal_mvp_enable_flag = ed->sps.temporal_mvp_enable_flag;
-	currslice->disable_deblocking_filter_flag = 0;//enabled
+	currslice->deblocking_filter_disabled_flag = 0;//enabled
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
@@ -1382,7 +1382,6 @@ int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *na
 #define SYNC_THREAD_CONTEXT(ed, et)									\
 		et->rd = ed->rd;
 
-//encodes a frame
 THREAD_RETURN_TYPE encoder_thread(void *h)
 {
 	hvenc_t* ed = (hvenc_t*)h;

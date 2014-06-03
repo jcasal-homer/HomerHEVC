@@ -96,10 +96,11 @@ void wnd_write2file(wnd_t *wnd)
 	byte * __restrict src;
 	int component;
 
-	for(component=Y_COMP;component<=V_COMP;component++)
+	for(component=Y_COMP;component<=V_COMP;component++)//for(component=Y_COMP;component<=V_COMP;component++)
 	{
 		src = WND_DATA_PTR(byte*, *wnd, component);
 		fwrite(src, sizeof(byte), (wnd->window_size_x[component]*wnd->window_size_y[component]), wnd->out_file); 
+		fflush(wnd->out_file);
 	}
 }
 //#endif

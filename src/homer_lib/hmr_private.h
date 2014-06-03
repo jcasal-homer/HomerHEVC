@@ -28,7 +28,7 @@
 #include "hmr_os_primitives.h"
 #include "homer_hevc_enc_api.h"
 
-#define WRITE_REF_FRAMES		1
+//#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
 #define COMPUTE_AS_HM			1
@@ -533,10 +533,10 @@ struct pps_t
 	unsigned int transform_skip_enabled_flag;					// u(1)
 	unsigned int cu_qp_delta_enabled_flag;						// u(1)
 	unsigned int diff_cu_qp_delta_depth;						// ue(v)
-	unsigned int pic_cb_qp_offset;								// se(v)
-	unsigned int pic_cr_qp_offset;								// se(v)
+	unsigned int cb_qp_offset;								// se(v)
+	unsigned int cr_qp_offset;								// se(v)
 
-	unsigned int pic_slice_level_chroma_qp_offsets_present_flag;// u(1)
+	unsigned int slice_chroma_qp_offsets_present_flag;			// u(1)
 	unsigned int weighted_pred_flag;							// u(1)
 	unsigned int weighted_bipred_flag;							// u(1)
 	unsigned int transquant_bypass_enable_flag;					// u(1)
@@ -849,7 +849,7 @@ struct slice_t
 	unsigned int is_dependent_slice;//
 	unsigned int slice_temporal_layer_non_reference_flag;//
 	unsigned int slice_temporal_mvp_enable_flag;
-	unsigned int disable_deblocking_filter_flag;
+	unsigned int deblocking_filter_disabled_flag;
 	unsigned int slice_loop_filter_across_slices_enabled_flag;
 	unsigned int slice_beta_offset_div2;
 	unsigned int slice_tc_offset_div2;

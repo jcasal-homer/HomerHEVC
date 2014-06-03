@@ -301,10 +301,10 @@ void hmr_put_pic_header(hvenc_t* ed)
 	if(pps->cu_qp_delta_enabled_flag)
 		hmr_bitstream_write_bits(bs, pps->diff_cu_qp_delta_depth,1);
 	
-	hmr_bitstream_write_bits_svlc(bs, pps->pic_cb_qp_offset);
-	hmr_bitstream_write_bits_svlc(bs, pps->pic_cr_qp_offset);
+	hmr_bitstream_write_bits_svlc(bs, pps->cb_qp_offset);
+	hmr_bitstream_write_bits_svlc(bs, pps->cr_qp_offset);
 
-	hmr_bitstream_write_bits(bs, pps->pic_slice_level_chroma_qp_offsets_present_flag,1);
+	hmr_bitstream_write_bits(bs, pps->slice_chroma_qp_offsets_present_flag,1);
 	hmr_bitstream_write_bits(bs, pps->weighted_pred_flag,1);
 	hmr_bitstream_write_bits(bs, pps->weighted_bipred_flag,1);
 	hmr_bitstream_write_bits(bs, pps->transquant_bypass_enable_flag,1);
@@ -494,7 +494,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 		
 		hmr_bitstream_write_bits_svlc(bs, ed->pict_qp - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
 		
-		if(pps->pic_slice_level_chroma_qp_offsets_present_flag)
+		if(pps->slice_chroma_qp_offsets_present_flag)
 		{
 			//hmr_bitstream_write_bits_svlc(slice_qp_delta_cb
 			//hmr_bitstream_write_bits_svlc(slice_qp_delta_cr
@@ -508,11 +508,11 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 			}
 			if(currslice->deblocking_filter_override_flag)
 			{
-//				hmr_bitstream_write_bits(bs, currslice->disable_deblocking_filter_flag, 1);
+//				hmr_bitstream_write_bits(bs, currslice->deblocking_filter_disabled_flag, 1);
 			}
 			//............
 */		}
-		if(pps->loop_filter_across_slices_enabled_flag && ( /*slice_sao_luma_flag || slice_sao_chroma_flag ||*/ !currslice->disable_deblocking_filter_flag))
+		if(pps->loop_filter_across_slices_enabled_flag && ( /*slice_sao_luma_flag || slice_sao_chroma_flag ||*/ !currslice->deblocking_filter_disabled_flag))
 		{
 			hmr_bitstream_write_bits(bs, currslice->slice_loop_filter_across_slices_enabled_flag, 1);
 		}
