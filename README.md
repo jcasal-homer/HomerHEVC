@@ -120,7 +120,7 @@ Up to now all code has being developed by Juan Casal, an IT and Telecomunication
 
 Find Juan Casal's personal linkedIn profile in https://www.linkedin.com/pub/juan-casal/47/373/8a6.
 
-Contact: jcasal.homer@gmail.com
+Contact: jcasal@homerhevc.com
 
 Web page: www.homerhevc.com
 
