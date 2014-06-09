@@ -97,6 +97,32 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_s
 }
 
 
+uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
+{
+	unsigned int ssd = 0;
+	int  aux;
+	int subblock_x, subblock_y;
+
+
+	src_stride-=size;
+	pred_stride-=size;
+
+	for(subblock_y=0;subblock_y<size;subblock_y++)
+	{
+		for(subblock_x=0;subblock_x<size;subblock_x+=4)
+		{
+			aux = *src++ - *pred++;ssd +=aux*aux; 
+			aux = *src++ - *pred++;ssd +=aux*aux; 
+			aux = *src++ - *pred++;ssd +=aux*aux;
+			aux = *src++ - *pred++;ssd +=aux*aux; 
+		}
+		src+=src_stride;
+		pred+=pred_stride;
+	}	
+	return ssd;
+}
+
+
 static uint8_t intra_filter[5] =
 {
   10, //4x4
@@ -1312,8 +1338,8 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	else
 	{
 		cu_min_tu_size_shift = log2cu_size - (max_tr_depth - 1 + (part_size_type==SIZE_NxN));
-		if(cu_min_tu_size_shift<MIN_TU_SIZE_SHIFT)
-			cu_min_tu_size_shift=MIN_TU_SIZE_SHIFT;
+		if(cu_min_tu_size_shift>MAX_TU_SIZE_SHIFT)
+			cu_min_tu_size_shift=MAX_TU_SIZE_SHIFT;
 	}
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 

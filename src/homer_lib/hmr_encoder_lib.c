@@ -122,6 +122,14 @@ void *HOMER_enc_init()
 		size <<= 1;
 	}
 
+	for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
+	{
+		phvenc->quant_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->quant_pyramid[SCALING_MODE_32x32][1][qp];
+		phvenc->dequant_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->dequant_pyramid[SCALING_MODE_32x32][1][qp];
+		phvenc->scaling_error_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->scaling_error_pyramid[SCALING_MODE_32x32][1][qp];
+	}  
+
+
 	//deblocking filter
 	phvenc->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 	phvenc->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
@@ -222,6 +230,7 @@ void HOMER_enc_close(void* h)
 
 		wnd_delete(&henc_th->prediction_wnd);
 		wnd_delete(&henc_th->residual_wnd);
+		wnd_delete(&henc_th->residual_dec_wnd);
 
 		for(i=0;i<NUM_QUANT_WNDS;i++)
 			wnd_delete(&henc_th->transform_quant_wnd[i]);
@@ -253,9 +262,13 @@ void HOMER_enc_close(void* h)
 			aligned_free(henc_th->mv_ref1[U_COMP][i]);
 			aligned_free(henc_th->mv_ref1[V_COMP][i]);
 
-			aligned_free(henc_th->ref_idx[Y_COMP][i]);
-			aligned_free(henc_th->ref_idx[V_COMP][i]);
-			aligned_free(henc_th->ref_idx[U_COMP][i]);
+			aligned_free(henc_th->ref_idx0[Y_COMP][i]);
+			aligned_free(henc_th->ref_idx0[V_COMP][i]);
+			aligned_free(henc_th->ref_idx0[U_COMP][i]);
+
+			aligned_free(henc_th->ref_idx1[Y_COMP][i]);
+			aligned_free(henc_th->ref_idx1[V_COMP][i]);
+			aligned_free(henc_th->ref_idx1[U_COMP][i]);
 		}
 
 		aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
@@ -355,7 +368,8 @@ void HOMER_enc_close(void* h)
 			//inter
 			free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
 			free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
-			free(phvenc->ctu_info[i].ref_idx[Y_COMP]);
+			free(phvenc->ctu_info[i].ref_idx0[Y_COMP]);
+			free(phvenc->ctu_info[i].ref_idx1[Y_COMP]);
 		}
 
 		free(phvenc->ctu_info);
@@ -620,7 +634,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					//inter
 					free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
 					free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
-					free(phvenc->ctu_info[i].ref_idx[Y_COMP]);
+					free(phvenc->ctu_info[i].ref_idx0[Y_COMP]);
+					free(phvenc->ctu_info[i].ref_idx1[Y_COMP]);
 				}
 				free(phvenc->ctu_info);
 			}
@@ -652,10 +667,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->ctu_info[i].mv_ref1[U_COMP] = phvenc->ctu_info[i].mv_ref1[Y_COMP]+MAX_NUM_PARTITIONS;
 				phvenc->ctu_info[i].mv_ref1[V_COMP] = phvenc->ctu_info[i].mv_ref1[U_COMP]+MAX_NUM_PARTITIONS;
 
-				phvenc->ctu_info[i].ref_idx[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-				phvenc->ctu_info[i].ref_idx[U_COMP] = phvenc->ctu_info[i].ref_idx[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].ref_idx[V_COMP] = phvenc->ctu_info[i].ref_idx[U_COMP]+MAX_NUM_PARTITIONS;
-				
+				phvenc->ctu_info[i].ref_idx0[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].ref_idx0[U_COMP] = phvenc->ctu_info[i].ref_idx0[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].ref_idx0[V_COMP] = phvenc->ctu_info[i].ref_idx0[U_COMP]+MAX_NUM_PARTITIONS;
+
+				phvenc->ctu_info[i].ref_idx1[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].ref_idx1[U_COMP] = phvenc->ctu_info[i].ref_idx1[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].ref_idx1[V_COMP] = phvenc->ctu_info[i].ref_idx1[U_COMP]+MAX_NUM_PARTITIONS;
+
 			}
 
 
@@ -794,6 +813,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				wnd_alloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 				wnd_alloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_alloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
 
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
@@ -811,30 +831,34 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//alloc buffers to gather and consolidate information
 				for(i=0;i<NUM_CBF_BUFFS;i++)
 				{
-					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 					//inter
-					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
-					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
-					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 
-					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
-					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
-					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) aligned_alloc (256, sizeof(motion_vector_t));
+					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 
-					henc_th->ref_idx[Y_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->ref_idx[V_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-					henc_th->ref_idx[U_COMP][i] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+					henc_th->ref_idx0[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
+					henc_th->ref_idx1[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				}
 
-				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
-				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (256, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ctu_rd = (ctu_info_t*)calloc (1, sizeof(ctu_info_t));
 				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));

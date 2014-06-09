@@ -176,6 +176,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size);
 uint32_t sad(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
 uint32_t ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t modified_variance(uint8_t *p, int size, int stride, int modif);
 void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, byte* decoded_buff, int decoded_buff_stride, int partition_size, int is_luma, int is_filtered);
 void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, byte *ref_wnd, int ref_wnd_stride_2D, short  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
@@ -184,6 +185,8 @@ void synchronize_reference_buffs_luma(henc_thread_t* et, cu_partition_info_t* cu
 void create_intra_recursive_stop_info(henc_thread_t* et, int gcnt);
 void predict(byte * orig_auxptr, int orig_buff_stride, byte* pred_auxptr, int pred_buff_stride, short * residual_auxptr, int residual_buff_stride, int curr_part_size);
 void reconst(byte* pred_auxptr, int pred_buff_stride, short * residual_auxptr, int residual_buff_stride, byte * decoded_auxptr, int decoded_buff_stride, int curr_part_size);
+uint32_t sad(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+
 
 //hmr_motion_inter.c
 int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt);

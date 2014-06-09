@@ -30,7 +30,7 @@
 
 //#define WRITE_REF_FRAMES		1
 
-#define COMPUTE_SSE_FUNCS		1
+//#define COMPUTE_SSE_FUNCS		1
 #define COMPUTE_AS_HM			1
 #define COMPUTE_METRICS			1
 
@@ -667,6 +667,13 @@ struct cu_partition_info_t
 	uint distortion, cost;
 	uint variance, variance_chroma;
 	uint recursive_split;
+
+	//inter prediction. Trying to avoid buffer consolidation
+	uint inter_distortion, inter_distortion_chroma;
+	uint inter_cost, inter_cost_chroma;
+	int inter_cbf, inter_tr_idx;
+	motion_vector_t	inter_mv[2];
+	int		inter_ref_index[2];
 };
 
 typedef struct ctu_info_t ctu_info_t ;
@@ -690,7 +697,8 @@ struct ctu_info_t
 	//inter
 	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS];
 	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS];
-	uint8_t				*ref_idx[NUM_PICT_COMPONENTS];
+	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS];
+	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS];
 
 	ctu_info_t		*ctu_left;
 	ctu_info_t		*ctu_left_bottom;
@@ -967,6 +975,7 @@ struct henc_thread_t
 	wnd_t			curr_mbs_wnd;									//original MBs to be coded
 	wnd_t			prediction_wnd;									//prediction applied to original MBs
 	wnd_t			residual_wnd;									//residual after substracting prediction
+	wnd_t			residual_dec_wnd;								//decoded residual. output of inverse transform
 	wnd_t			transform_quant_wnd[NUM_QUANT_WNDS];			//for transform coefficients and quantification 
 	wnd_t			itransform_iquant_wnd;							//for itransform coefficients and iquantification
 	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
@@ -993,7 +1002,8 @@ struct henc_thread_t
 	//inter
 	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	uint8_t				*ref_idx[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 
 	//rd
 	ctu_info_t			*ctu_rd;//[MAX_MB_GROUP_SIZE];
