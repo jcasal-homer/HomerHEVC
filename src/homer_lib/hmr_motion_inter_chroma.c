@@ -32,12 +32,14 @@
 #include "hmr_sse42_functions.h"
 
 
+#ifdef ENABLE___
+
 int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int component, int depth, int cu_mode, PartSize part_size_type, int *curr_sum, motion_vector_t *mv, int gcnt)//depth = prediction depth
 {		
 	int ssd_;
-	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
+	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
 	uint8_t *pred_buff, *orig_buff, *decoded_buff;
-	int16_t*residual_buff, *quant_buff, *iquant_buff;
+	int16_t*residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
 	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth, diff;//, is_filtered;
@@ -61,6 +63,8 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, component);
 	residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	residual_dec_buff_stride = WND_STRIDE_2D(et->residual_dec_wnd, Y_COMP);
+	residual_dec_buff = WND_POSITION_2D(int16_t *, et->residual_dec_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
 	iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, component);
@@ -76,27 +80,25 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	PROFILER_ACCUMULATE(inter_luma_tr)
 
 	PROFILER_RESET(inter_luma_q)
-	et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 1, curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 	curr_partition_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(inter_luma_q)
 
-	memset(&et->cbf_buffs[component][curr_depth][curr_partition_info->abs_index], (( curr_partition_info->sum ? 1 : 0 ) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[0]));//(width*width)>>4 num parts of 4x4 in partition
-	memset(&et->tr_idx_buffs[curr_depth][curr_partition_info->abs_index], (curr_depth-depth+(part_size_type==SIZE_NxN)), curr_partition_info->num_part_in_cu*sizeof(et->tr_idx_buffs[0][0]));//(width*width)>>4 num parts of 4x4 in partition
+
+	curr_partition_info->inter_cbf[component] = (( curr_partition_info->sum ? 1 : 0 ) << (curr_depth-depth+(part_size_type==SIZE_NxN)));
+	curr_partition_info->inter_tr_idx[component]  = (curr_depth-depth+(part_size_type==SIZE_NxN));
+//	memset(&et->cbf_buffs[component][curr_depth][curr_partition_info->abs_index], (( curr_partition_info->sum ? 1 : 0 ) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[0]));//(width*width)>>4 num parts of 4x4 in partition
+//	memset(&et->tr_idx_buffs[curr_depth][curr_partition_info->abs_index], (curr_depth-depth+(part_size_type==SIZE_NxN)), curr_partition_info->num_part_in_cu*sizeof(et->tr_idx_buffs[0][0]));//(width*width)>>4 num parts of 4x4 in partition
 //	memset(&et->intra_mode_buffs[component][curr_depth][curr_partition_info->abs_index], cu_mode, curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[component][0][0]));//(width*width)>>4 num parts of 4x4 in partition
 
-	PROFILER_RESET(inter_luma_iq)
-	et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, component, 1, curr_part_size);
-	PROFILER_ACCUMULATE(inter_luma_iq)
+	et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, component, 0, curr_part_size);
 
 	//1D ->2D buffer
-	et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
-	PROFILER_RESET(inter_luma_itr)
-	PROFILER_ACCUMULATE(inter_luma_itr)
+	et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
+	ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-	PROFILER_RESET(inter_luma_recon_ssd)
-	et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
-	ssd_ = et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
-	PROFILER_ACCUMULATE(inter_luma_recon_ssd)
+	et->funcs->reconst(pred_buff, pred_buff_stride, residual_dec_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+//	ssd_ = et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
 	return ssd_;
 }
 
@@ -319,4 +321,4 @@ int encode_inter_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	return curr_partition_info->cost;
 }
 
-
+#endif

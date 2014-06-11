@@ -1172,8 +1172,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	int bitcost_cu_mode;
 	int log2cu_size;
 
-	//rate-control - en motion_intra_chroma se modifica
-	ctu->qp = currslice->qp;
+//	ctu->qp = currslice->qp;
 	ctu->per = ctu->qp/6;
 	ctu->rem = ctu->qp%6;
 

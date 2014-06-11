@@ -105,13 +105,6 @@ void create_chroma_dir_list(int* list, int luma_mode)
 	}
 }	
 
-const uint8_t chroma_scale_conversion_table[58]=
-{
-   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,
-  17,18,19,20,21,22,23,24,25,26,27,28,29,29,30,31,32,
-  33,33,34,34,35,35,36,36,37,37,38,39,40,41,42,43,44,
-  45,46,47,48,49,50,51
-};
 
 int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
@@ -150,7 +143,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	int initial_state, end_state;
 	int luma_mode;
 
-	ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+//	ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
 	ctu->per = ctu->qp_chroma/6;
 	ctu->rem = ctu->qp_chroma%6;
 

@@ -583,7 +583,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 
 				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
 
-				chr_qp = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+				chr_qp = chroma_scale_conversion_table[clip(qp,0,57)];
 
 				bit_depth_scale = 1<<(ed->bit_depth-8);			
 

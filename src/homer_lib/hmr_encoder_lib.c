@@ -1240,6 +1240,14 @@ void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu)
 }
 
 
+const uint8_t chroma_scale_conversion_table[58]=
+{
+   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,
+  17,18,19,20,21,22,23,24,25,26,27,28,29,29,30,31,32,
+  33,33,34,34,35,35,36,36,37,37,38,39,40,41,42,43,44,
+  45,46,47,48,49,50,51
+};
+
 THREAD_RETURN_TYPE intra_encode_thread(void *h)
 {
 	henc_thread_t* et = (henc_thread_t*)h;
@@ -1313,6 +1321,9 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			ctu->size = et->max_cu_size;
 			ctu->num_part_in_ctu = et->num_partitions_in_cu;
 			ctu->partition_list = &et->partition_info[0];
+			ctu->qp = currslice->qp;
+			ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+
 
 			CuGetNeighbors(et, ctu);//raster order
 			

@@ -671,7 +671,7 @@ struct cu_partition_info_t
 	//inter prediction. Trying to avoid buffer consolidation
 	uint inter_distortion, inter_distortion_chroma;
 	uint inter_cost, inter_cost_chroma;
-	int inter_cbf, inter_tr_idx;
+	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx[NUM_PICT_COMPONENTS];
 	motion_vector_t	inter_mv[2];
 	int		inter_ref_index[2];
 };
@@ -709,8 +709,8 @@ struct ctu_info_t
 	
 	//quant
 	int				qp, qp_chroma;/*, prev_qp, prev_dqp*/
-    int				per;
-    int				rem;
+    int				per;//, per_chroma;
+    int				rem;//, rem_chroma;
 //    int				qpbits;
 //	uint			variance;
 };
