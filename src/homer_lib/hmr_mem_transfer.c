@@ -46,30 +46,35 @@ void aligned_free(void *ptr) {
 //Alignes by increasing offset_x and size_x to match the boundary. 
 void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, int pix_size)
 {
-	int i=0;
-	int offset_aligment = ((offset_x*pix_size)%16)?16:0;//((16-((offset_x*pix_size)%16))&0xf);//left boundary
-
+	int comp=0;
+	//aligment - we want the boundaries of ctus alingned to 16 bytes for SSE4
 	wnd->pix_size = pix_size;
 
-	//aligment - we want the boundaries of ctus alingned to 16 bytes for SSE2-4
-	offset_aligment = offset_aligment/wnd->pix_size;//Normalize
-
-
-	wnd->data_offset_x = offset_aligment;
-	wnd->data_offset_y = offset_y;
-
-	for(i=0;i<3;i++)
+	for(comp=0;comp<3;comp++)
 	{
-		int width = (i==Y_COMP)?size_x:(size_x>>1);//420
-		int height = (i==Y_COMP)?size_y:(size_y>>1);//420
-		int data_aligment = ((width*pix_size)%16)?16:0;//((16-((size_x*pix_size)%16))&0xf);//right boundary - depends on chroma subsampling type
-		data_aligment = data_aligment/wnd->pix_size;
+		int width = (comp==Y_COMP)?size_x:(size_x>>1);//420
+		int height = (comp==Y_COMP)?size_y:(size_y>>1);//420
+		int aligned_width = ((width*pix_size)%16)?(((width*pix_size)/16 + 1)*16):(width*pix_size);//((16-((size_x*pix_size)%16))&0xf);//right boundary - depends on chroma subsampling type
+		int padding_size_x = (comp==Y_COMP)?(offset_x):(((offset_x)>>1)+(offset_x&0x1));//420
+		int aligned_padding_x = ((padding_size_x*pix_size)%16)?(((padding_size_x*pix_size)/16 + 1)*16):(padding_size_x*pix_size);
+		int padding_size_y = (comp==Y_COMP)?(offset_y):(((offset_y)>>1)+(offset_y&0x1));//420
 
-		wnd->window_size_x[i] = wnd->data_offset_x+width+data_aligment;
-		wnd->window_size_y[i] = height+wnd->data_offset_y;
+		aligned_width = aligned_width/wnd->pix_size;
+		aligned_padding_x = aligned_padding_x/wnd->pix_size;//Normalize
 
-		if((wnd->pwnd[i] = (void*)aligned_alloc(wnd->window_size_x[i]*wnd->window_size_y[i]*pix_size, sizeof(byte)))==NULL)
-			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", i);
+		wnd->window_size_x[comp] = aligned_padding_x+aligned_width+aligned_padding_x;
+		wnd->window_size_y[comp] = padding_size_y+height+padding_size_y;
+
+		if((wnd->palloc[comp] = (void*)aligned_alloc(wnd->window_size_x[comp]*wnd->window_size_y[comp]*pix_size, sizeof(byte)))==NULL)
+			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
+
+		wnd->pwnd[comp]=(void*)((uint8_t*)wnd->palloc[comp]+(padding_size_y*wnd->window_size_x[comp]+padding_size_x)*wnd->pix_size);
+
+		wnd->data_padding_x[comp] = padding_size_x;//aligned_padding_x;
+		wnd->data_padding_y[comp] = padding_size_y;
+
+		wnd->data_width[comp] = width;
+		wnd->data_height[comp] = height;
 	}
 }
 
@@ -79,7 +84,7 @@ void wnd_delete(wnd_t *wnd)
 	for(i=0;i<3;i++)
 	{
 		if(wnd->pwnd[i] != NULL)
-			aligned_free(wnd->pwnd[i]);
+			aligned_free(wnd->palloc[i]);
 	}
 }
 
@@ -94,12 +99,17 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 void wnd_write2file(wnd_t *wnd)
 {
 	byte * __restrict src;
-	int component;
+	int stride, component, j;
 
 	for(component=Y_COMP;component<=V_COMP;component++)//for(component=Y_COMP;component<=V_COMP;component++)
 	{
 		src = WND_DATA_PTR(byte*, *wnd, component);
-		fwrite(src, sizeof(byte), (wnd->window_size_x[component]*wnd->window_size_y[component]), wnd->out_file); 
+		stride  = WND_STRIDE_2D(*wnd, component);
+		for(j=0;j<wnd->data_height[component];j++)
+		{
+			fwrite(src, sizeof(byte), (wnd->data_width[component]), wnd->out_file); 
+			src+=stride;
+		}
 		fflush(wnd->out_file);
 	}
 }
@@ -149,8 +159,8 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 		src_stride =  WND_STRIDE_2D(*decoded_src_wnd, component);
 		dst_stride =  WND_STRIDE_2D(*decoded_dst_wnd, component);
 
-		decoded_frame_width = decoded_dst_wnd->window_size_x[component];
-		decoded_frame_height = decoded_dst_wnd->window_size_y[component];
+		decoded_frame_width = decoded_dst_wnd->data_width[component];
+		decoded_frame_height = decoded_dst_wnd->data_height[component];
 		copy_width = ((ctu->x[component]+et->ctu_width[component]*et->ctu_group_size)<decoded_frame_width)?(et->ctu_width[component]*et->ctu_group_size):(decoded_frame_width-ctu->x[component]);
 		copy_height = ((ctu->y[component]+et->ctu_height[component])<decoded_frame_height)?(et->ctu_height[component]):(decoded_frame_height-(ctu->y[component]));
 		mem_transfer_2d2d(decoded_buff_src, decoded_buff_dst, copy_width, copy_height, src_stride, dst_stride);

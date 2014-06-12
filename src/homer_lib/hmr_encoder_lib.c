@@ -516,7 +516,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cont_reset(phvenc->cont_empty_reference_wnds);
 			for(i=0;i<2*MAX_NUM_REF;i++)
 			{
-				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(uint8_t));
+				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(uint8_t));
 				cont_put(phvenc->cont_empty_reference_wnds, &phvenc->ref_wnds[i]);
 			}
 
@@ -806,24 +806,24 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
 
 
-				wnd_alloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
+				wnd_realloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 
 				henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//tama�o del buffer auxiliar
 				henc_th->pred_aux_buff = (short*) aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
-				wnd_alloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
-				wnd_alloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
-				wnd_alloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
+				wnd_realloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
 
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
 				for(i=0;i<NUM_QUANT_WNDS;i++)
-					wnd_alloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));		
+					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));		
 
-				wnd_alloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
-					wnd_alloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(uint8_t));
+					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(uint8_t));
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
 				henc_th->cabac_aux_buff = (unsigned char*) aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));

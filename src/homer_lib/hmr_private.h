@@ -565,13 +565,14 @@ struct pps_t
 typedef struct wnd_t wnd_t;
 struct wnd_t
 {
-	void	*pwnd[3];
+	void	*palloc[3];//allocated pointer
+	void	*pwnd[3];//valid data pointer
 	int		window_size_x[3];
 	int		window_size_y[3];
-	int		data_offset_x;//indica el desplazamiento de la ventana respecto a los macrobloques a predecir
-	int		data_offset_y;//indica el desplazamiento de la ventana respecto a los macrobloques a predecir
-	int		window_orig_x;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
-	int		window_orig_y;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
+	int		data_padding_x[3];//left and right padding due to data pading or memory aligment
+	int		data_padding_y[3];//top and bottom padding due to data pading or memory aligment
+	int		data_width[3];//wnd data horizontal size
+	int		data_height[3];//wnd data vertical size
 	int		pix_size;
 //#ifdef WRITE_REF_FRAMES
 	FILE	*out_file;//for debug porposes
