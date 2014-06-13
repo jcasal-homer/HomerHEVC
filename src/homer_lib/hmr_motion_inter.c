@@ -463,18 +463,18 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 		//horizontal filter 
 		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, TRUE, !is_bi_predict);	
 	}
-	else //if(x_fraction!=0 && y_fraction!=0)
+/*	else //if(x_fraction!=0 && y_fraction!=0)
 	{
 		int filter_size = NTAPS_CHROMA;
 		int half_filter_size = filter_size>>1;
-		uint8_t* temp_buff = WND_DATA_PTR(uint8_t*, et->filtered_blocks_temp_wnd[0], Y_COMP);
+		int16_t *temp_buff = WND_DATA_PTR(int16_t *, et->filtered_blocks_temp_wnd[0], Y_COMP);
 		int temp_buff_stride = WND_STRIDE_2D(et->filtered_blocks_temp_wnd[0], Y_COMP);
 		//horizontal
 		hmr_motion_filter_chroma(reference_buff-(half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
 		//vertical filter 
 		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
 	}
-
+*/
 }
 
 
@@ -651,11 +651,6 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	memset(depth_state, 0, sizeof(depth_state));
 
 	depth_state[curr_depth] = initial_state;
-
-	if(part_size_type==SIZE_NxN)
-	{
-		int iiii=0;
-	}
 
 	PROFILER_RESET(intra_luma_bucle3)
 	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)

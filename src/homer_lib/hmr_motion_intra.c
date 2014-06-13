@@ -1246,14 +1246,6 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 		cost = 0;
 		depth_state[curr_depth] = initial_state;
 
-		if(et->ed->num_encoded_frames == 4 && ctu->ctu_number== 22 && cu_mode==5)
-		{
-			int iiii=0;
-		}
-
-
-
-		depth_state[curr_depth] = initial_state;
 		while(depth_state[curr_depth]!=end_state)
 		{
 			curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition

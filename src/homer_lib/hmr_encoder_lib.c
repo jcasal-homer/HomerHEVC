@@ -516,7 +516,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cont_reset(phvenc->cont_empty_reference_wnds);
 			for(i=0;i<2*MAX_NUM_REF;i++)
 			{
-				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(uint8_t));
+				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(int16_t));
 				cont_put(phvenc->cont_empty_reference_wnds, &phvenc->ref_wnds[i]);
 			}
 
@@ -1089,11 +1089,11 @@ void reference_picture_border_padding(wnd_t *wnd)
 		int padding_y = wnd->data_padding_y[component];
 		int data_width = wnd->data_width[component];
 		int data_height = wnd->data_height[component];
-		uint8_t *ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
-		uint8_t *ptr_left = ptr-padding_x;
-		uint8_t *ptr_right = ptr+data_width;
-		uint8_t *ptr_top;// = ptr_left-stride;
-		uint8_t *ptr_bottom;// = ptr_left+(data_height)*stride;
+		int16_t *ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		int16_t *ptr_left = ptr-padding_x;
+		int16_t *ptr_right = ptr+data_width;
+		int16_t *ptr_top;// = ptr_left-stride;
+		int16_t *ptr_bottom;// = ptr_left+(data_height)*stride;
 		for(j=0;j<data_height;j++)
 		{
 			memset(ptr_left, ptr[0], padding_x);
@@ -1103,7 +1103,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 			ptr+=stride;
 		}
 
-		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
 		ptr += (data_height-1)*stride-padding_x;
 		ptr_bottom = ptr+stride;
 		
@@ -1113,7 +1113,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 			ptr_bottom+=stride;
 		}
 
-		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
 		ptr -= padding_x;
 		ptr_top = ptr-padding_y*stride;
 		for(j=0;j<padding_y;j++)
