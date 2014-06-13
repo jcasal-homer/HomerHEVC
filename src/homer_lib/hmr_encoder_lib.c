@@ -737,7 +737,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
 			{
 				int depth_aux;
+				int j;
 				henc_thread_t* henc_th = (henc_thread_t*)calloc(1, sizeof(henc_thread_t));
+				int filter_buff_width, filter_buff_height;
+
 //				henc_th = &phvenc->_thread;
 				phvenc->thread[ithreads] = henc_th;
 				henc_th->ed = phvenc;
@@ -824,6 +827,18 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
 					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(uint8_t));
+
+
+				filter_buff_width = MAX_CU_SIZE	+ 16;
+				filter_buff_height = MAX_CU_SIZE + 1;
+				for(j=0;j<4;j++)
+				{
+					wnd_realloc(&henc_th->filtered_blocks_temp_wnd[j], filter_buff_width, filter_buff_height+7, 0, 0, sizeof(uint8_t));				
+					for(i=0;i<4;i++)
+					{
+						wnd_realloc(&henc_th->filtered_block_wnd[j][i], filter_buff_width, filter_buff_height, 0, 0, sizeof(uint8_t));				
+					}
+				}
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
 				henc_th->cabac_aux_buff = (unsigned char*) aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));
@@ -1062,6 +1077,52 @@ int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
 	return NALU_CODED_SLICE_TRAIL_R;
 }
 
+
+void reference_picture_border_padding(wnd_t *wnd)
+{
+	int   component, j;
+
+	for(component = Y_COMP; component <= V_COMP; component++)
+	{
+		int stride = WND_STRIDE_2D(*wnd, component);
+		int padding_x = wnd->data_padding_x[component];
+		int padding_y = wnd->data_padding_y[component];
+		int data_width = wnd->data_width[component];
+		int data_height = wnd->data_height[component];
+		uint8_t *ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		uint8_t *ptr_left = ptr-padding_x;
+		uint8_t *ptr_right = ptr+data_width;
+		uint8_t *ptr_top;// = ptr_left-stride;
+		uint8_t *ptr_bottom;// = ptr_left+(data_height)*stride;
+		for(j=0;j<data_height;j++)
+		{
+			memset(ptr_left, ptr[0], padding_x);
+			memset(ptr_right, ptr[data_width-1], padding_x);
+			ptr_left+=stride;
+			ptr_right+=stride;
+			ptr+=stride;
+		}
+
+		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		ptr += (data_height-1)*stride-padding_x;
+		ptr_bottom = ptr+stride;
+		
+		for(j=0;j<padding_y;j++)
+		{
+			memcpy(ptr_bottom, ptr, stride);
+			ptr_bottom+=stride;
+		}
+
+		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		ptr -= padding_x;
+		ptr_top = ptr-padding_y*stride;
+		for(j=0;j<padding_y;j++)
+		{
+			memcpy(ptr_top, ptr, stride);
+			ptr_top+=stride;
+		}
+	}
+}
 
 //TEncTop::selectReferencePictureSet
 void hmr_select_reference_picture_set(hvenc_t* ed, slice_t *currslice)
@@ -1413,7 +1474,6 @@ int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *na
 	return 0;
 }
 
-
 #define SYNC_THREAD_CONTEXT(ed, et)									\
 		et->rd = ed->rd;
 
@@ -1591,8 +1651,12 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 */
 		}
 #endif
+		//prunning of references must be done in a selective way
 		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
 			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
+
+		//fill padding in reference picture
+		reference_picture_border_padding(&ed->curr_reference_frame->img);
 		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_reference_frame;
 		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
 		ed->last_poc++;

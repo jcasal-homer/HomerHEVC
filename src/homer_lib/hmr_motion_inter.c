@@ -291,7 +291,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 	best_sad = curr_best_sad;
 	best_x = (curr_best_x & 0xfffffffe)+1;
-	best_y = (curr_best_y & 0xfffffffe);
+	best_y = (curr_best_y & 0xfffffffe)+1;
 //	curr_best_x = 0;
 //	curr_best_y = 0;
 
@@ -420,7 +420,7 @@ void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride
 			pred_buff[col] = val;
 		}
 
-		reference_buff += ref_stride;
+		reference_buff += reference_buff_stride;
 		pred_buff += pred_buff_stride;
 	}
 
@@ -431,7 +431,7 @@ void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride
 
 
 
-void hmr_motion_compensation_chroma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
+void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int is_bi_predict = 0;
 	int x_fraction = mv->hor_vector&0x7;
@@ -453,22 +453,26 @@ void hmr_motion_compensation_chroma(henc_thread_t *et, ctu_info_t *ctu, cu_parti
 			pred_buff+=pred_buff_stride;
 		}
 	}
-	else if(y_fraction!=0)
+	else if(x_fraction == 0)
 	{
 		//vertical filter 
-		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, 1, !is_bi_predict);
+		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
 	}
-	else if(x_fraction!=0)
+	else if(y_fraction == 0)
 	{
 		//horizontal filter 
-		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, 1, !is_bi_predict);	
+		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, TRUE, !is_bi_predict);	
 	}
 	else //if(x_fraction!=0 && y_fraction!=0)
 	{
+		int filter_size = NTAPS_CHROMA;
+		int half_filter_size = filter_size>>1;
+		uint8_t* temp_buff = WND_DATA_PTR(uint8_t*, et->filtered_blocks_temp_wnd[0], Y_COMP);
+		int temp_buff_stride = WND_STRIDE_2D(et->filtered_blocks_temp_wnd[0], Y_COMP);
 		//horizontal
-//		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, 1, !is_bi_predict);
+		hmr_motion_filter_chroma(reference_buff-(half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
 		//vertical filter 
-//		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, 1, !is_bi_predict);
+		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
 	}
 
 }
@@ -592,8 +596,8 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	hmr_motion_compensation_luma(et, ctu, curr_partition_info, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_size, curr_part_size_shift, &mv);
 	et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
 
-	hmr_motion_compensation_chroma(et, ctu, curr_partition_info, reference_buff_cu_position_u, reference_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);
-	hmr_motion_compensation_chroma(et, ctu, curr_partition_info, reference_buff_cu_position_v, reference_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);	
+	hmr_motion_compensation_chroma(et, reference_buff_cu_position_u, reference_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);
+	hmr_motion_compensation_chroma(et, reference_buff_cu_position_v, reference_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);	
 	et->funcs->predict(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, residual_buff_u, residual_buff_stride_chroma, curr_part_size_chroma);
 	et->funcs->predict(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, residual_buff_v, residual_buff_stride_chroma, curr_part_size_chroma);
 

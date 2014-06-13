@@ -213,7 +213,7 @@ int main (int argc, char **argv)
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
 
-//#define P_FRAME_DEVELOPMENT
+#define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;

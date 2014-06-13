@@ -981,6 +981,8 @@ struct henc_thread_t
 	wnd_t			itransform_iquant_wnd;							//for itransform coefficients and iquantification
 	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
 
+	wnd_t			filtered_block_wnd[4][4];
+	wnd_t			filtered_blocks_temp_wnd[4];
 	//intra predicition
 	short				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
 	short				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
