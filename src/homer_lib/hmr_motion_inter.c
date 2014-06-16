@@ -190,7 +190,7 @@ static const int diamond_big[][2] = {{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{
 
 //static int MPGVENC_SPC_diamondsearch(const unsigned char *__restrict refImg,const unsigned char *__restrict srcImg, int x_pitch, int y_pitch, int i0, int j0, int sx, int sy,int *iminp,int *jminp, int *v0, MvStream *general_MV, int Niteraciones, int TH0, int pict_type, int M)
 
-uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
+uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
 						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
 {
 	int i,j; 
@@ -326,7 +326,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 //uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
 //							int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
-void hmr_motion_compensation_luma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info, uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
+void hmr_motion_compensation_luma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info, int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int x_fraction = mv->hor_vector&0x3;
 	int y_fraction = mv->ver_vector&0x3;
@@ -370,7 +370,7 @@ int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
   { -2, 10, 58, -2 }
 };
 
-void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int16_t* coeffs, int width, int height, int is_vertical, int is_first, int is_last)
+void hmr_motion_filter_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int16_t* coeffs, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	int bit_depth = 8;
 	int num_taps = NTAPS_CHROMA;//argument
@@ -434,7 +434,7 @@ void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride
 
 
 
-void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
+void hmr_motion_compensation_chroma(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int is_bi_predict = 0;
 	int x_fraction = mv->hor_vector&0x7;
@@ -478,9 +478,9 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 		int16_t *temp_buff = WND_DATA_PTR(int16_t *, et->filtered_blocks_temp_wnd[0], Y_COMP);
 		int temp_buff_stride = WND_STRIDE_2D(et->filtered_blocks_temp_wnd[0], Y_COMP);
 		//horizontal
-		hmr_motion_filter_chroma(reference_buff-(half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
+		hmr_motion_filter_chroma(reference_buff - (half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
 		//vertical filter 
-		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
+		hmr_motion_filter_chroma(temp_buff + (half_filter_size-1)*temp_buff_stride, temp_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, FALSE, !is_bi_predict);
 	}
 
 }
@@ -510,9 +510,8 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, reference_buff_stride, residual_buff_stride;
 	int pred_buff_stride_chroma, orig_buff_stride_chroma, reference_buff_stride_chroma, residual_buff_stride_chroma;
-	uint8_t  *orig_buff, *reference_buff_cu_position;
-	uint8_t *orig_buff_u, *reference_buff_cu_position_u;
-	uint8_t *orig_buff_v, *reference_buff_cu_position_v;
+	uint8_t  *orig_buff, *orig_buff_u, *orig_buff_v;
+	int16_t  *reference_buff_cu_position, *reference_buff_cu_position_u, *reference_buff_cu_position_v;
 	int16_t *pred_buff, *pred_buff_u, *pred_buff_v, *residual_buff, *residual_buff_u, *residual_buff_v;
 	wnd_t *reference_wnd=NULL;//, *resi_wnd = NULL;
 	uint8_t *cbf_buff = NULL;
@@ -583,10 +582,10 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 
 	reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]->img;//[0] up to now we only use one reference	
 	reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
-	reference_buff_cu_position = WND_POSITION_2D(uint8_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
+	reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
 	reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
-	reference_buff_cu_position_u = WND_POSITION_2D(uint8_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
-	reference_buff_cu_position_v = WND_POSITION_2D(uint8_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
+	reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
+	reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
 
 	best_cost = INT_MAX;

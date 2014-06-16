@@ -1080,7 +1080,7 @@ int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
 
 void reference_picture_border_padding(wnd_t *wnd)
 {
-	int   component, j;
+	int   component, j, i;
 
 	for(component = Y_COMP; component <= V_COMP; component++)
 	{
@@ -1096,8 +1096,13 @@ void reference_picture_border_padding(wnd_t *wnd)
 		int16_t *ptr_bottom;// = ptr_left+(data_height)*stride;
 		for(j=0;j<data_height;j++)
 		{
-			memset(ptr_left, ptr[0], padding_x);
-			memset(ptr_right, ptr[data_width-1], padding_x);
+			for(i=0;i<padding_x;i++)
+			{
+				ptr_left[i] = ptr[0];
+				ptr_right[i]  = ptr[data_width-1];
+			}
+//			memset(ptr_left, ptr[0], padding_x);
+//			memset(ptr_right, ptr[data_width-1], padding_x);
 			ptr_left+=stride;
 			ptr_right+=stride;
 			ptr+=stride;
@@ -1109,7 +1114,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 		
 		for(j=0;j<padding_y;j++)
 		{
-			memcpy(ptr_bottom, ptr, stride);
+			memcpy(ptr_bottom, ptr, stride*sizeof(ptr[0]));
 			ptr_bottom+=stride;
 		}
 
@@ -1118,7 +1123,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 		ptr_top = ptr-padding_y*stride;
 		for(j=0;j<padding_y;j++)
 		{
-			memcpy(ptr_top, ptr, stride);
+			memcpy(ptr_top, ptr, stride*sizeof(ptr[0]));
 			ptr_top+=stride;
 		}
 	}

@@ -801,5 +801,5 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
 	}
-//	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 
+	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 
 }
