@@ -894,17 +894,17 @@ typedef struct hvenc_t hvenc_t;
 typedef struct low_level_funcs_t low_level_funcs_t;
 struct low_level_funcs_t
 {
-	uint32_t (*sad)(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+	uint32_t (*sad)(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	uint32_t (*ssd)(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
-	void (*predict)(uint8_t * __restrict orig, int orig_stride, uint8_t* __restrict pred, int pred_stride, int16_t * __restrict residual, int residual_stride, int size);
-	void (*reconst)(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride, int size);
-	uint32_t (*modified_variance)(uint8_t *__restrict p, int size, int stride, int modif);
+	void (*predict)(uint8_t * orig, int orig_stride, int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int size);
+	void (*reconst)(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride, int size);
+	uint32_t (*modified_variance)(uint8_t *p, int size, int stride, int modif);
 
-	void (*create_intra_planar_prediction)(henc_thread_t* et, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
-	void (*create_intra_angular_prediction)(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
+	void (*create_intra_planar_prediction)(henc_thread_t* et, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
+	void (*create_intra_angular_prediction)(henc_thread_t* et, ctu_info_t* ctu, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 
 	void (*quant)(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
-	void (*inv_quant)(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size);
+	void (*inv_quant)(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int depth, int comp, int is_intra, int cu_size);
 
 	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
 	void (*itransform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);

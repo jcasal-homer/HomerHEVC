@@ -114,8 +114,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	uint8_t * pred_buff, * orig_buff, * decoded_buff;
-	int16_t* residual_buff, * quant_buff, * iquant_buff;
+	uint8_t * orig_buff, * decoded_buff;
+	int16_t *pred_buff, *residual_buff, * quant_buff, * iquant_buff;
 	uint8_t *cbf_buff[3] = {NULL,NULL,NULL};
 	int num_candidates = 3;
 	int best_pred_index = 0;
@@ -183,7 +183,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				curr_part_size_shift = et->max_cu_size_shift-(curr_depth+1);
 				curr_adi_size = 2*2*curr_part_size+1;
 
-				pred_buff = WND_POSITION_2D(uint8_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
 				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
@@ -307,7 +307,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
-				pred_buff = WND_POSITION_2D(uint8_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
 				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, ch_component);

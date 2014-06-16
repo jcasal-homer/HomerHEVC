@@ -36,8 +36,8 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
-	uint8_t *pred_buff, *orig_buff, *decoded_buff;
-	int16_t*residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
+	uint8_t *orig_buff, *decoded_buff;
+	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
 	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth;//, diff;//, is_filtered;
@@ -57,7 +57,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-	pred_buff = WND_POSITION_2D(uint8_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, Y_COMP);
@@ -102,8 +102,8 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
-	uint8_t *pred_buff, *orig_buff, *decoded_buff;
-	int16_t*residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
+	uint8_t *orig_buff, *decoded_buff;
+	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
 	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth, diff;//, is_filtered;
@@ -124,7 +124,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	cbf_buff = et->cbf_buffs[component][curr_depth];
 
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, component);
-	pred_buff = WND_POSITION_2D(uint8_t *, et->prediction_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, component);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, component);
@@ -367,7 +367,7 @@ int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
   { -2, 10, 58, -2 }
 };
 
-void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride, int16_t* coeffs, int width, int height, int is_vertical, int is_first, int is_last)
+void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int16_t* coeffs, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	int bit_depth = 8;
 	int num_taps = NTAPS_CHROMA;//argument
@@ -431,7 +431,7 @@ void hmr_motion_filter_chroma(uint8_t *reference_buff, int reference_buff_stride
 
 
 
-void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
+void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int is_bi_predict = 0;
 	int x_fraction = mv->hor_vector&0x7;
@@ -463,7 +463,7 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 		//horizontal filter 
 		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, TRUE, !is_bi_predict);	
 	}
-/*	else //if(x_fraction!=0 && y_fraction!=0)
+	else //if(x_fraction!=0 && y_fraction!=0)
 	{
 		int filter_size = NTAPS_CHROMA;
 		int half_filter_size = filter_size>>1;
@@ -474,7 +474,7 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 		//vertical filter 
 		hmr_motion_filter_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
 	}
-*/
+
 }
 
 
@@ -502,10 +502,10 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, reference_buff_stride, residual_buff_stride;
 	int pred_buff_stride_chroma, orig_buff_stride_chroma, reference_buff_stride_chroma, residual_buff_stride_chroma;
-	uint8_t *pred_buff, *orig_buff, *reference_buff_cu_position;
-	uint8_t *pred_buff_u, *orig_buff_u, *reference_buff_cu_position_u;
-	uint8_t *pred_buff_v, *orig_buff_v, *reference_buff_cu_position_v;
-	int16_t *residual_buff, *residual_buff_u, *residual_buff_v;
+	uint8_t  *orig_buff, *reference_buff_cu_position;
+	uint8_t *orig_buff_u, *reference_buff_cu_position_u;
+	uint8_t *orig_buff_v, *reference_buff_cu_position_v;
+	int16_t *pred_buff, *pred_buff_u, *pred_buff_v, *residual_buff, *residual_buff_u, *residual_buff_v;
 	wnd_t *reference_wnd=NULL;//, *resi_wnd = NULL;
 	uint8_t *cbf_buff = NULL;
 	int curr_part_size, curr_part_size_shift;
@@ -555,10 +555,10 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 //	curr_adi_size = 2*2*curr_part_size+1;
 
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-	pred_buff = WND_POSITION_2D(uint8_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	pred_buff_stride_chroma = WND_STRIDE_2D(et->prediction_wnd, CHR_COMP);
-	pred_buff_u = WND_POSITION_2D(uint8_t *, et->prediction_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
-	pred_buff_v = WND_POSITION_2D(uint8_t *, et->prediction_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+	pred_buff_u = WND_POSITION_2D(int16_t *, et->prediction_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+	pred_buff_v = WND_POSITION_2D(int16_t *, et->prediction_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
@@ -651,6 +651,11 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	memset(depth_state, 0, sizeof(depth_state));
 
 	depth_state[curr_depth] = initial_state;
+
+	if(part_size_type==SIZE_NxN)
+	{
+		int iiii=0;
+	}
 
 	PROFILER_RESET(intra_luma_bucle3)
 	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)

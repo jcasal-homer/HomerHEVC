@@ -516,7 +516,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cont_reset(phvenc->cont_empty_reference_wnds);
 			for(i=0;i<2*MAX_NUM_REF;i++)
 			{
-				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(int16_t));
+				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(uint8_t));
 				cont_put(phvenc->cont_empty_reference_wnds, &phvenc->ref_wnds[i]);
 			}
 
@@ -696,7 +696,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(cpu_info[2] & 0x100000)
+/*			if(cpu_info[2] & 0x100000)
 			{
 				printf("tenemos SSE42!!");
 
@@ -715,7 +715,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.itransform = sse_itransform;
 			}
 			else
-			{
+*/			{
 				phvenc->funcs.sad = sad;
 				phvenc->funcs.ssd = ssd;
 				phvenc->funcs.modified_variance = modified_variance;
@@ -814,9 +814,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//tama�o del buffer auxiliar
 				henc_th->pred_aux_buff = (short*) aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
-				wnd_realloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
-				wnd_realloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
-				wnd_realloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+				wnd_realloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+				wnd_realloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
@@ -833,10 +833,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				filter_buff_height = MAX_CU_SIZE + 1;
 				for(j=0;j<4;j++)
 				{
-					wnd_realloc(&henc_th->filtered_blocks_temp_wnd[j], filter_buff_width, filter_buff_height+7, 0, 0, sizeof(uint8_t));				
+					wnd_realloc(&henc_th->filtered_blocks_temp_wnd[j], filter_buff_width, filter_buff_height+7, 0, 0, sizeof(int16_t));				
 					for(i=0;i<4;i++)
 					{
-						wnd_realloc(&henc_th->filtered_block_wnd[j][i], filter_buff_width, filter_buff_height, 0, 0, sizeof(uint8_t));				
+						wnd_realloc(&henc_th->filtered_block_wnd[j][i], filter_buff_width, filter_buff_height, 0, 0, sizeof(int16_t));				
 					}
 				}
 
@@ -1089,11 +1089,11 @@ void reference_picture_border_padding(wnd_t *wnd)
 		int padding_y = wnd->data_padding_y[component];
 		int data_width = wnd->data_width[component];
 		int data_height = wnd->data_height[component];
-		int16_t *ptr = WND_DATA_PTR(int16_t *, *wnd, component);
-		int16_t *ptr_left = ptr-padding_x;
-		int16_t *ptr_right = ptr+data_width;
-		int16_t *ptr_top;// = ptr_left-stride;
-		int16_t *ptr_bottom;// = ptr_left+(data_height)*stride;
+		uint8_t *ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
+		uint8_t *ptr_left = ptr-padding_x;
+		uint8_t *ptr_right = ptr+data_width;
+		uint8_t *ptr_top;// = ptr_left-stride;
+		uint8_t *ptr_bottom;// = ptr_left+(data_height)*stride;
 		for(j=0;j<data_height;j++)
 		{
 			memset(ptr_left, ptr[0], padding_x);
@@ -1103,7 +1103,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 			ptr+=stride;
 		}
 
-		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
 		ptr += (data_height-1)*stride-padding_x;
 		ptr_bottom = ptr+stride;
 		
@@ -1113,7 +1113,7 @@ void reference_picture_border_padding(wnd_t *wnd)
 			ptr_bottom+=stride;
 		}
 
-		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		ptr = WND_DATA_PTR(uint8_t *, *wnd, component);
 		ptr -= padding_x;
 		ptr_top = ptr-padding_y*stride;
 		for(j=0;j<padding_y;j++)

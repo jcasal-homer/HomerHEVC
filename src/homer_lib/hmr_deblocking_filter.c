@@ -250,18 +250,18 @@ void get_boundary_strength_single(hvenc_t* ed, ctu_info_t *ctu, cu_partition_inf
 //	m_aapucBS[dir][uiAbsPartIdx] = uiBs;
 }
 
-__inline int calc_dp( int16_t* src, int offset)
+__inline int calc_dp( uint8_t* src, int offset)
 {
   return abs( src[-offset*3] - 2*src[-offset*2] + src[-offset] ) ;
 }
   
-__inline int calc_dq( int16_t* src, int offset)
+__inline int calc_dq( uint8_t* src, int offset)
 {
   return abs( src[0] - 2*src[offset] + src[offset*2] );
 }
 
 
-__inline int use_strong_filter( int offset, int d, int beta, int tc, int16_t* src)
+__inline int use_strong_filter( int offset, int d, int beta, int tc, uint8_t* src)
 {
   uint8_t m4  = src[0];
   uint8_t m3  = src[-offset];
@@ -273,7 +273,7 @@ __inline int use_strong_filter( int offset, int d, int beta, int tc, int16_t* sr
   return ( (d_strong < (beta>>3)) && (d<(beta>>2)) && ( abs(m3-m4) < ((tc*5+1)>>1)) );
 }
 
-__inline void filter_luma( int16_t* src, int offset, int tc , int sw, int bPartPNoFilter, int bPartQNoFilter, int iThrCut, int bFilterSecondP, int bFilterSecondQ)
+__inline void filter_luma( uint8_t* src, int offset, int tc , int sw, int bPartPNoFilter, int bPartQNoFilter, int iThrCut, int bFilterSecondP, int bFilterSecondQ)
 {
 	int delta;
 
@@ -346,8 +346,8 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	int partition_p_no_filter = 0;
 	int partition_q_no_filter = 0; 
 	int num_peels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
-	int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
-	int16_t *aux_decoded_buff = decoded_buff;
+	uint8_t *decoded_buff  = WND_POSITION_2D(uint8_t *, *decoded_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
+	uint8_t *aux_decoded_buff = decoded_buff;
 //	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
 	int	idx;
 	int num_partitions;
@@ -461,7 +461,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 
 
 //__inline Void TComLoopFilter::xPelFilterChroma( Pel* piSrc, Int iOffset, Int tc, Bool bPartPNoFilter, Bool bPartQNoFilter)
-__inline void filter_chroma( int16_t* src, int offset, int tc , int bPartPNoFilter, int bPartQNoFilter)
+__inline void filter_chroma( uint8_t* src, int offset, int tc , int bPartPNoFilter, int bPartQNoFilter)
 {
   int delta;
   
@@ -497,7 +497,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 	int partition_q_no_filter = 0; 
 	int num_peels_in_partition = (ed->max_cu_size>>(ed->max_cu_depth+1));
 //	uint8_t *decoded_buff[3]  = {0,WND_POSITION_2D(uint8_t *, *decoded_wnd, U_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width), WND_POSITION_2D(uint8_t *, *decoded_wnd, V_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width)};
-	int16_t *aux_decoded_buff;
+	uint8_t *aux_decoded_buff;
 //	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
 	int	idx;
 	int num_partitions;
@@ -578,7 +578,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 			{
 				int chr_qp_offset = (ch_component == U_COMP)?ed->pps.cb_qp_offset:ed->pps.cr_qp_offset;
 				int chr_qp;
-				aux_decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
+				aux_decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, ch_component, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
 				aux_decoded_buff += edge*num_peels_in_partition*offset;
 
 				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
@@ -751,6 +751,11 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 		{	
 			int l;
 
+			if(ctu->ctu_number==0 && curr_cu_info->abs_index == 20)//== 128)//if(ctu->ctu_number==1)
+			{
+				int iiii=0;
+			}
+
 			abs_index = curr_cu_info->abs_index;
 			num_elements = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
 			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements, max_cu_width_units);
@@ -796,6 +801,11 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 		for(ctu_num = 0;ctu_num < ed->pict_total_cu;ctu_num++)
 		{	
 			ctu = &ed->ctu_info[ctu_num];
+
+			if(ctu_num==1)
+			{
+				int iiii=0;
+			}
 
 			create_partition_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
