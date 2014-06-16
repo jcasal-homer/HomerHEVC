@@ -72,10 +72,9 @@ void homer_psnr(picture_t *orig, wnd_t* decoded, int pic_width[3], int pic_heigh
 
 	for (component = 0; component < NUM_PICT_COMPONENTS; component++)
 	{
-
 		//===== calculate PSNR =====
 		uint8_t*  src = WND_DATA_PTR(byte*, orig->img2encode->img, component);
-		uint8_t*  dec = WND_DATA_PTR(byte*, *decoded, component);
+		int16_t*  dec = WND_DATA_PTR(int16_t*, *decoded, component);
 		int   dec_stride = WND_STRIDE_2D(*decoded, component);
 		int   src_stride;// = width;
 

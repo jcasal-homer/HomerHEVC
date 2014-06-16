@@ -326,21 +326,24 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 //uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
 //							int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
-void hmr_motion_compensation_luma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
+void hmr_motion_compensation_luma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info, uint8_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int x_fraction = mv->hor_vector&0x3;
 	int y_fraction = mv->ver_vector&0x3;
 
 	if(x_fraction==0 && y_fraction==0)
 	{
-		int j;
+		int j, i;
 		int x_vect = mv->hor_vector>>2;
 		int y_vect = mv->ver_vector>>2;
 		reference_buff+= y_vect*reference_buff_stride+x_vect;
 
-		for(j=0 ; j<curr_part_size ; j++)
+		for(j=0;j<curr_part_size;j++)
 		{
-			memcpy(pred_buff, reference_buff, curr_part_size);
+			for(i=0;i<curr_part_size;i++)
+			{	
+				pred_buff[i] = reference_buff[i];
+			}
 			reference_buff+=reference_buff_stride;
 			pred_buff+=pred_buff_stride;
 		}
@@ -437,7 +440,6 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 	int x_fraction = mv->hor_vector&0x7;
 	int y_fraction = mv->ver_vector&0x7;
 
-	int j;
 	int x_vect = mv->hor_vector>>3;
 	int y_vect = mv->ver_vector>>3;
 	reference_buff+= y_vect*reference_buff_stride+x_vect;
@@ -445,10 +447,16 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, uint8_t *reference_buff, 
 
 	if(x_fraction==0 && y_fraction==0)
 	{
+		int j, i;
 		//copy samples
 		for(j=0 ; j<curr_part_size ; j++)
 		{
-			memcpy(pred_buff, reference_buff, curr_part_size);
+
+			for(i=0 ; i<curr_part_size ; i++)
+			{
+				pred_buff[i] = reference_buff[i];
+			}
+//			memcpy(pred_buff, reference_buff, curr_part_size);
 			reference_buff+=reference_buff_stride;
 			pred_buff+=pred_buff_stride;
 		}
