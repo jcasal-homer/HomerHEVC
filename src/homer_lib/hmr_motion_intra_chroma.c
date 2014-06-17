@@ -312,8 +312,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, ch_component);
 				residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-				quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);
-				iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);
+				quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
+				iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
 				decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 

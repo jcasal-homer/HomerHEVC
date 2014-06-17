@@ -672,7 +672,7 @@ struct cu_partition_info_t
 	//inter prediction. Trying to avoid buffer consolidation
 	uint inter_distortion, inter_distortion_chroma;
 	uint inter_cost, inter_cost_chroma;
-	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx[NUM_PICT_COMPONENTS];
+	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
 	motion_vector_t	inter_mv[2];
 	int		inter_ref_index[2];
 };
