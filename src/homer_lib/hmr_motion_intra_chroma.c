@@ -333,10 +333,17 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				memset(&cbf_buff[ch_component][curr_partition_info->abs_index], ((curr_sum ? 1 : 0) << (original_depth-depth+(part_size_type==SIZE_NxN)))|((curr_sum ? 1 : 0) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[ch_component][0]));//(width*width)>>4 num parts of 4x4 in partition
 				cbf_split[ch_component-1][curr_depth] |= (curr_sum ? 1 : 0);
 
-				//intra decode 
-				et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size);
-				et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, REG_DCT, et->pred_aux_buff);
-				et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+				if(curr_sum)
+				{
+					//intra decode 
+					et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size);
+					et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, REG_DCT, et->pred_aux_buff);
+					et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+				}
+				else
+				{
+					et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);
+				}
 				partition_cost[depth_state[curr_depth]] += (int)(weight*et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size));//R-D
 			}//for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 

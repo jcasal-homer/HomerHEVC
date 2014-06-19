@@ -254,7 +254,7 @@ void HOMER_enc_close(void* h)
 			aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
 			aligned_free(henc_th->tr_idx_buffs[i]);
 
-			aligned_free(henc_th->mv_ref0[Y_COMP][i]);
+/*			aligned_free(henc_th->mv_ref0[Y_COMP][i]);
 			aligned_free(henc_th->mv_ref0[U_COMP][i]);
 			aligned_free(henc_th->mv_ref0[V_COMP][i]);
 
@@ -269,7 +269,7 @@ void HOMER_enc_close(void* h)
 			aligned_free(henc_th->ref_idx1[Y_COMP][i]);
 			aligned_free(henc_th->ref_idx1[V_COMP][i]);
 			aligned_free(henc_th->ref_idx1[U_COMP][i]);
-		}
+*/		}
 
 		aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
 		aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
@@ -366,10 +366,10 @@ void HOMER_enc_close(void* h)
 			free(phvenc->ctu_info[i].pred_mode);
 			
 			//inter
-			free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
-			free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
-			free(phvenc->ctu_info[i].ref_idx0[Y_COMP]);
-			free(phvenc->ctu_info[i].ref_idx1[Y_COMP]);
+			free(phvenc->ctu_info[i].mv_ref0);
+			free(phvenc->ctu_info[i].mv_ref1);
+			free(phvenc->ctu_info[i].ref_idx0);
+			free(phvenc->ctu_info[i].ref_idx1);
 		}
 
 		free(phvenc->ctu_info);
@@ -632,10 +632,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					free(phvenc->ctu_info[i].pred_mode);
 
 					//inter
-					free(phvenc->ctu_info[i].mv_ref0[Y_COMP]);
-					free(phvenc->ctu_info[i].mv_ref1[Y_COMP]);
-					free(phvenc->ctu_info[i].ref_idx0[Y_COMP]);
-					free(phvenc->ctu_info[i].ref_idx1[Y_COMP]);
+					free(phvenc->ctu_info[i].mv_ref0);
+					free(phvenc->ctu_info[i].mv_ref1);
+					free(phvenc->ctu_info[i].ref_idx0);
+					free(phvenc->ctu_info[i].ref_idx1);
 				}
 				free(phvenc->ctu_info);
 			}
@@ -659,21 +659,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				//inter
-				phvenc->ctu_info[i].mv_ref0[Y_COMP] = (motion_vector_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-				phvenc->ctu_info[i].mv_ref0[U_COMP] = phvenc->ctu_info[i].mv_ref0[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].mv_ref0[V_COMP] = phvenc->ctu_info[i].mv_ref0[U_COMP]+MAX_NUM_PARTITIONS;
-
-				phvenc->ctu_info[i].mv_ref1[Y_COMP] = (motion_vector_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-				phvenc->ctu_info[i].mv_ref1[U_COMP] = phvenc->ctu_info[i].mv_ref1[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].mv_ref1[V_COMP] = phvenc->ctu_info[i].mv_ref1[U_COMP]+MAX_NUM_PARTITIONS;
-
-				phvenc->ctu_info[i].ref_idx0[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				phvenc->ctu_info[i].ref_idx0[U_COMP] = phvenc->ctu_info[i].ref_idx0[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].ref_idx0[V_COMP] = phvenc->ctu_info[i].ref_idx0[U_COMP]+MAX_NUM_PARTITIONS;
-
-				phvenc->ctu_info[i].ref_idx1[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				phvenc->ctu_info[i].ref_idx1[U_COMP] = phvenc->ctu_info[i].ref_idx1[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].ref_idx1[V_COMP] = phvenc->ctu_info[i].ref_idx1[U_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_ref0 = (motion_vector_t*)calloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_ref1 = (motion_vector_t*)calloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].ref_idx0 = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].ref_idx1 = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 			}
 
@@ -855,7 +844,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 					//inter
-					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+/*					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 
@@ -870,7 +859,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->ref_idx1[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->ref_idx1[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->ref_idx1[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				}
+*/				}
 
 				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
@@ -1407,8 +1396,11 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			{
 				motion_inter(et, ctu, gcnt);
 			}
-			//make ctu intra prediction
-			motion_intra(et, ctu, gcnt);
+			else
+			{
+				//make ctu intra prediction
+				motion_intra(et, ctu, gcnt);
+			}
 			PROFILER_ACCUMULATE(intra)
 			mem_transfer_decoded_blocks(et, ctu);
 
@@ -1580,6 +1572,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
+
+		if(currslice->slice_type != I_SLICE)
+		{
+			int iiiii=0;
+		}
 
 		hmr_deblock_filter(ed, currslice);
 

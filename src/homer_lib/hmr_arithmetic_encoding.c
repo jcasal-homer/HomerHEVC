@@ -76,9 +76,6 @@ const uint g_auiGoRicePrefixLen[5] =
 };
 
 
-
-#define CBF(ctu, abs_index, comp, tr_depth) ((ctu->cbf[comp][abs_index]>>(tr_depth))&1)
-
 int init_context(context_model_buff_t *cm, context_model_t *ctx, int size_y, int size_x, const byte *ref_ctx_model)
 {
 	cm->ctx = ctx;

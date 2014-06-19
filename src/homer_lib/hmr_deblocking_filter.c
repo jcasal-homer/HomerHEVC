@@ -63,15 +63,12 @@ __inline uint bx_index(hvenc_t* ed, cu_partition_info_t* curr_cu_info, int deblo
 void set_edge_filter_0(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int num_elements, int max_cu_width_units)
 {
 	int i;
-//	int num_elements = (max(cu_width, cu_height)>>2);
-//	int max_cu_width_units = (ed->max_cu_size>>2);
 	int aux0, aux1;
 
 	if(deblock_dir==EDGE_VER)
 		aux0 = max_cu_width_units;
 	else
 		aux0 = 1;
-
 	for( i = 0; i < num_elements; i++ )
 	{
 //			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
@@ -80,6 +77,34 @@ void set_edge_filter_0(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *
 		bs_buff[bs_idx] = deblock_internal_edge;
 	}
 }
+
+void set_edge_filter_0_subdiv(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int num_elements, int max_cu_width_units, int edge_idx)
+{
+	if(deblock_dir==EDGE_VER)
+	{
+		int i;
+		for( i = 0; i < num_elements; i++ )
+		{
+			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+edge_idx];
+			edge_buff[bs_idx] = deblock_internal_edge;
+			if(edge_idx==0)
+				bs_buff[bs_idx] = deblock_internal_edge;
+		}
+	}
+	else
+	{
+		int i;		
+		for( i = 0; i < num_elements; i++ )
+		{
+			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+edge_idx*max_cu_width_units+i];
+			edge_buff[bs_idx] = deblock_internal_edge;
+			if(edge_idx==0)
+				bs_buff[bs_idx] = deblock_internal_edge;
+		}
+	}
+
+}
+
 
 
 void set_edge_filter(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
@@ -127,12 +152,18 @@ void set_edge_filter(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *ed
 }
 
 //xGetBoundaryStrengthSingle
-void get_boundary_strength_single(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, cu_partition_info_t *sub_cu_info, slice_t *currslice, int dir)
+void get_boundary_strength_single(hvenc_t* ed, slice_t *currslice, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, cu_partition_info_t *sub_cu_info, int dir)
 {
 	int bs;
 	ctu_info_t	*ctu_aux;
 	uint		abs_idx, aux_abs_idx = 0;
-	
+
+	if(currslice->slice_type != I_SLICE)
+	{
+		int iiiii=0;
+	}
+
+
 	abs_idx = sub_cu_info->abs_index;
 	//-- Calculate Block Index
 	if (dir == EDGE_VER)
@@ -151,24 +182,26 @@ void get_boundary_strength_single(hvenc_t* ed, ctu_info_t *ctu, cu_partition_inf
 	}
 
 	//-- Set BS for not Intra MB : BS = 2 or 1 or 0
-/*	if(ctu_aux->pred_mode[aux_abs_idx] != INTRA_MODE && ctu->pred_mode[curr_cu_info->abs_index] != INTRA_MODE)//if ( !pcCUP->isIntra(uiPartP) && !pcCUQ->isIntra(uiPartQ) )
+	if(ctu_aux->pred_mode[aux_abs_idx] != INTRA_MODE && ctu->pred_mode[sub_cu_info->abs_index] != INTRA_MODE)//if ( !pcCUP->isIntra(uiPartP) && !pcCUQ->isIntra(uiPartQ) )
 	{
-		uint nsPartQ = curr_cu_info->abs_index;
-		uint nsPartP = aux_abs_idx;
+		uint ns_part_curr = sub_cu_info->abs_index;//nsPartQ
+		uint ns_part_aux = aux_abs_idx;//nsPartP
 
-		if ( m_aapucBS[dir][uiAbsPartIdx] && (pcCUQ->getCbf( nsPartQ, TEXT_LUMA, pcCUQ->getTransformIdx(nsPartQ)) != 0 || pcCUP->getCbf( nsPartP, TEXT_LUMA, pcCUP->getTransformIdx(nsPartP) ) != 0) )
+//		if ( m_aapucBS[dir][uiAbsPartIdx] && (pcCUQ->getCbf( nsPartQ, TEXT_LUMA, pcCUQ->getTransformIdx(nsPartQ)) != 0 || pcCUP->getCbf( nsPartP, TEXT_LUMA, pcCUP->getTransformIdx(nsPartP) ) != 0) )
+		if(ed->deblock_filter_strength_bs[dir][abs_idx] && ((CBF(ctu, ns_part_curr, Y_COMP, ctu->tr_idx[ns_part_curr]) != 0) || (CBF(ctu_aux, ns_part_aux, Y_COMP, ctu_aux->tr_idx[ns_part_aux]) != 0)))
 		{
-			uiBs = 1;
+			bs = 1;
 		}
 		else
 		{
 			if (dir == EDGE_HOR)
 			{
-				pcCUP = pcCUQ->getPUAbove(uiPartP, uiPartQ, !pcCU->getSlice()->getLFCrossSliceBoundaryFlag(), false, !m_bLFCrossTileBoundary);
+//				pcCUP = pcCUQ->getPUAbove(uiPartP, uiPartQ, !pcCU->getSlice()->getLFCrossSliceBoundaryFlag(), false, !m_bLFCrossTileBoundary);
+				ctu_aux = get_pu_top(ctu, sub_cu_info, &aux_abs_idx, FALSE);
 			}
-			if (pcSlice->isInterB() || pcCUP->getSlice()->isInterB())
+			if (currslice->slice_type == B_SLICE)//(pcSlice->isInterB() || pcCUP->getSlice()->isInterB())
 			{
-				Int iRefIdx;
+/*				Int iRefIdx;
 				TComPic *piRefP0, *piRefP1, *piRefQ0, *piRefQ1;
 				iRefIdx = pcCUP->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiPartP);
 				piRefP0 = (iRefIdx < 0) ? NULL : pcCUP->getSlice()->getRefPic(REF_PIC_LIST_0, iRefIdx);
@@ -224,28 +257,28 @@ void get_boundary_strength_single(hvenc_t* ed, ctu_info_t *ctu, cu_partition_inf
 				{
 					uiBs = 1;
 				}
-			}
+*/			}
 			else  // pcSlice->isInterP()
 			{
-				Int iRefIdx;
-				TComPic *piRefP0, *piRefQ0;
-				iRefIdx = pcCUP->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiPartP);
-				piRefP0 = (iRefIdx < 0) ? NULL : pcCUP->getSlice()->getRefPic(REF_PIC_LIST_0, iRefIdx);
-				iRefIdx = pcCUQ->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiPartQ);
-				piRefQ0 = (iRefIdx < 0) ? NULL : pcSlice->getRefPic(REF_PIC_LIST_0, iRefIdx);
-				TComMv pcMvP0 = pcCUP->getCUMvField(REF_PIC_LIST_0)->getMv(uiPartP);
-				TComMv pcMvQ0 = pcCUQ->getCUMvField(REF_PIC_LIST_0)->getMv(uiPartQ);
+				int ref_idx = ctu_aux->ref_idx0[aux_abs_idx];
+				video_frame_t *ref_frame_aux, *ref_frame_curr;
+				motion_vector_t mv_aux, mv_curr;
+				ref_frame_aux  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
+				ref_idx = ctu->ref_idx0[sub_cu_info->abs_index];
+				ref_frame_curr  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
+				mv_aux = ctu_aux->mv_ref0[aux_abs_idx];
+				mv_curr = ctu->mv_ref0[sub_cu_info->abs_index];
 
-				if (piRefP0 == NULL) pcMvP0.setZero();
-				if (piRefQ0 == NULL) pcMvQ0.setZero();
+				if (ref_frame_aux == NULL) {mv_aux.hor_vector = mv_aux.ver_vector = 0};
+				if (ref_frame_curr == NULL) {mv_curr.hor_vector = mv_curr.ver_vector = 0};
 
-				uiBs  = ((piRefP0 != piRefQ0) ||
-					(abs(pcMvQ0.getHor() - pcMvP0.getHor()) >= 4) ||
-					(abs(pcMvQ0.getVer() - pcMvP0.getVer()) >= 4)) ? 1 : 0;
+				bs  = ((ref_frame_aux != ref_frame_curr) ||
+					(abs(mv_curr.hor_vector - mv_aux.hor_vector) >= 4) ||
+					(abs(mv_curr.ver_vector - mv_aux.ver_vector) >= 4)) ? 1 : 0;
 			}
 		}   // enf of "if( one of BCBP == 0 )"
 	}   // enf of "if( not Intra )"
-*/
+
 	ed->deblock_filter_strength_bs[dir][abs_idx] = bs;
 //	m_aapucBS[dir][uiAbsPartIdx] = uiBs;
 }
@@ -660,7 +693,7 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 
 		if (ed->deblock_edge_filter[dir][part_idx] && bs_check)
 		{
-			get_boundary_strength_single(ed, ctu, curr_cu_info, sub_cu_info, currslice, dir);//xGetBoundaryStrengthSingle (ed, ctu, curr_cu_info, sub_cu_info, currslice, dir);
+			get_boundary_strength_single(ed, currslice, ctu, curr_cu_info, sub_cu_info, dir);//xGetBoundaryStrengthSingle (ed, ctu, curr_cu_info, sub_cu_info, currslice, dir);
 //							xGetBoundaryStrengthSingle ( pcCU, dir, uiPartIdx );
 		}
 	}
@@ -678,7 +711,7 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 
 
 //xSetEdgefilterPU
-void set_edge_filter_pu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, int num_elements, int max_cu_width_units)//, int dir)
+void set_edge_filter_pu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, int num_elements_width, int num_elements_height, int max_cu_width_units, int deblock_internal_edge)//, int dir)
 {
 	int part_idx;
 	int abs_x = ctu->x[Y_COMP]+curr_cu_info->x_position;
@@ -693,9 +726,10 @@ void set_edge_filter_pu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_par
 	int abs_index = curr_cu_info->abs_index;
 
 	//creo que esto solo habria que hacerlo si left_edge=!1
-	set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, left_edge, num_elements, max_cu_width_units);
+//	  xSetEdgefilterMultiple( pcCU, uiAbsZorderIdx, uiDepth, EDGE_VER, 0, m_stLFCUParam.bLeftEdge );
+	set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, left_edge, num_elements_width, max_cu_width_units);
 	//creo que esto solo habria que hacerlo si top_edge=!1
-	set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, top_edge, num_elements, max_cu_width_units);		
+	set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, top_edge, num_elements_height, max_cu_width_units);		
 
 	switch (ctu->part_size_type[abs_index])
 	{
@@ -706,6 +740,17 @@ void set_edge_filter_pu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_par
 		case SIZE_2NxN:
 		{
 			break;							
+		}
+		case SIZE_NxN:
+		{
+			//creo que esto solo habria que hacerlo si left_edge=!1
+			set_edge_filter_0_subdiv(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units, num_elements_width>>1);
+			//creo que esto solo habria que hacerlo si top_edge=!1
+			set_edge_filter_0_subdiv(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_width_units, num_elements_height>>1);		
+
+//			xSetEdgefilterMultiple( pcCU, uiAbsZorderIdx, uiDepth, EDGE_VER, uiHWidthInBaseUnits, m_stLFCUParam.bInternalEdge );
+//			xSetEdgefilterMultiple( pcCU, uiAbsZorderIdx, uiDepth, EDGE_HOR, uiHHeightInBaseUnits, m_stLFCUParam.bInternalEdge );
+			break;
 		}
 		//...
 	}
@@ -719,9 +764,9 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 	int tr_depth, pred_depth;
 	int deblock_internal_edge = !currslice->deblocking_filter_disabled_flag;
 	int curr_cu_size, abs_index;
-	int num_elements;// = (max(ctu->size, ctu->size)>>2);
+	int num_elements_width, num_elements_height;// = (max(ctu->size, ctu->size)>>2);
 	int max_cu_width_units = (ed->max_cu_size>>2);
-
+	int max_cu_height_units = (ed->max_cu_size>>2);
 //	int dir;
 
 //	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
@@ -752,9 +797,9 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 			int l;
 
 			abs_index = curr_cu_info->abs_index;
-			num_elements = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
-			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements, max_cu_width_units);
-			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements, max_cu_width_units);				
+			num_elements_width = num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
+			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units);
+			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_height_units);				
 	
 			while(depth_state[curr_depth]==4 && curr_depth > pred_depth)
 			{
@@ -765,10 +810,11 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 
 			if(curr_depth == pred_depth)//xDeblockCU
 			{
+				//xSetEdgefilterPU
 				abs_index = curr_cu_info->abs_index;
-				num_elements = (max(curr_cu_info->size, curr_cu_info->size)>>2);//(width, height)
+				num_elements_width = num_elements_height = (max(curr_cu_info->size, curr_cu_info->size)>>2);//(width, height)
 
-				set_edge_filter_pu(ed, currslice, ctu, curr_cu_info, num_elements, max_cu_width_units);
+				set_edge_filter_pu(ed, currslice, ctu, curr_cu_info, num_elements_width, num_elements_height, max_cu_width_units, deblock_internal_edge);
 				deblock_cu(ed, currslice, ctu, curr_cu_info, dir);
 			}
 

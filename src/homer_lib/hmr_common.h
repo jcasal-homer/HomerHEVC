@@ -154,6 +154,9 @@ void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int widt
 #define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
 #define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
 
+#define CBF(ctu, abs_index, comp, tr_depth) ((ctu->cbf[comp][abs_index]>>(tr_depth))&1)
+
+
 //init_tables.c
 void init_scan_pyramid(hvenc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
 void init_flat_quant_pyramids( hvenc_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp);

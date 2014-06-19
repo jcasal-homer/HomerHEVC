@@ -696,10 +696,10 @@ struct ctu_info_t
 	wnd_t			*coeff_wnd;
 
 	//inter
-	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS];
-	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS];
-	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS];
-	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS];
+	motion_vector_t		*mv_ref0;
+	motion_vector_t		*mv_ref1;
+	uint8_t				*ref_idx0;
+	uint8_t				*ref_idx1;
 
 	ctu_info_t		*ctu_left;
 	ctu_info_t		*ctu_left_bottom;
@@ -1003,10 +1003,10 @@ struct henc_thread_t
 	uint8_t				*tr_idx_buffs[NUM_CBF_BUFFS];
 
 	//inter
-	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 
 	//rd
 	ctu_info_t			*ctu_rd;//[MAX_MB_GROUP_SIZE];
