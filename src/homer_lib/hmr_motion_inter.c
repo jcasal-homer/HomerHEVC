@@ -876,7 +876,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					//top-down computation results are prefered
 					int parent_depth = parent_part_info->depth;//curr_depth-1
 					CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, parent_depth, abs_index, num_part_in_cu)
-					SET_INTER_INFO_BUFFS(et, ctu, parent_part_info, parent_part_info->abs_index, parent_part_info->num_part_in_cu)
+					SET_INTER_INFO_BUFFS(et, ctu, parent_part_info, abs_index, num_part_in_cu)
 
 					//if we fill this in here we don't have to consolidate
 					memset(&ctu->pred_depth[abs_index], parent_part_info->depth-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
@@ -896,6 +896,12 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	abs_index = curr_partition_info->abs_index;
 	curr_depth = curr_partition_info->depth;
 	num_part_in_cu = curr_partition_info->num_part_in_cu;
+
+	if(et->max_pred_partition_depth==0)
+	{
+		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
+		SET_INTER_INFO_BUFFS(et, ctu, curr_partition_info, abs_index, num_part_in_cu)	
+	}
 
 	//esta informacion o parte de ella se necesita para la codificacion de otros ctus (por lo menos el intra_mode y el pred_mode. Creo que los cbfs y los tr_idx solo se necesitan los actuales, no los de ctus anteriores)
 //	memcpy(&ctu->cbf[Y_COMP][abs_index], &et->cbf_buffs[Y_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->cbf[Y_COMP][0]));

@@ -269,8 +269,8 @@ void get_boundary_strength_single(hvenc_t* ed, slice_t *currslice, ctu_info_t *c
 				mv_aux = ctu_aux->mv_ref0[aux_abs_idx];
 				mv_curr = ctu->mv_ref0[sub_cu_info->abs_index];
 
-				if (ref_frame_aux == NULL) {mv_aux.hor_vector = mv_aux.ver_vector = 0};
-				if (ref_frame_curr == NULL) {mv_curr.hor_vector = mv_curr.ver_vector = 0};
+				if (ref_frame_aux == NULL) {mv_aux.hor_vector = mv_aux.ver_vector = 0;}
+				if (ref_frame_curr == NULL) {mv_curr.hor_vector = mv_curr.ver_vector = 0;}
 
 				bs  = ((ref_frame_aux != ref_frame_curr) ||
 					(abs(mv_curr.hor_vector - mv_aux.hor_vector) >= 4) ||
