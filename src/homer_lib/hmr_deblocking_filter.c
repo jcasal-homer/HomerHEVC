@@ -404,6 +404,12 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 
 	num_partitions = curr_cu_info->size/num_peels_in_partition;
 
+	if(ed->num_encoded_frames== 1 && ctu->ctu_number == 4)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
+	{
+		int iiiii=0;
+	}
+
+
 	for ( idx = 0; idx < num_partitions; idx++ )
 	{
 		int index_tc, index_b;
@@ -568,7 +574,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 		int bs_abs_idx = bx_index(ed, curr_cu_info, dir, max_cu_width_units, edge, idx);
 		int bs = ed->deblock_filter_strength_bs[dir][bs_abs_idx];
 
-		if ( bs )
+		if( bs > 1)
 		{
 			int block_idx;
 			int qp;
@@ -837,6 +843,8 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	ctu_info_t* ctu;
 	int dir;
 
+	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 
+
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
 		for(ctu_num = 0;ctu_num < ed->pict_total_cu;ctu_num++)
@@ -847,5 +855,4 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
 	}
-	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 
 }

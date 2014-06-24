@@ -450,6 +450,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			while(phvenc->max_cu_size>(1<<phvenc->max_cu_size_shift))phvenc->max_cu_size_shift++;
 
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
+
+			phvenc->max_inter_pred_depth = 0;
+			while((phvenc->max_cu_size>>phvenc->max_inter_pred_depth)>8)phvenc->max_inter_pred_depth++;
+			if(phvenc->max_inter_pred_depth>phvenc->max_pred_partition_depth)
+				phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
+
 			//depth of TU tree 
 			phvenc->max_intra_tr_depth = (cfg->max_intra_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_intra_tr_depth; 
 			phvenc->max_inter_tr_depth = (cfg->max_inter_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_inter_tr_depth; 
@@ -761,6 +767,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->max_intra_tr_depth = phvenc->max_intra_tr_depth;
 				henc_th->max_inter_tr_depth = phvenc->max_inter_tr_depth;
 				henc_th->max_pred_partition_depth = phvenc->max_pred_partition_depth;//max depth for prediction
+				henc_th->max_inter_pred_depth = phvenc->max_inter_pred_depth;//max depth for prediction
 
 				henc_th->num_partitions_in_cu = phvenc->num_partitions_in_cu;
 				henc_th->num_partitions_in_cu_shift = phvenc->num_partitions_in_cu_shift;

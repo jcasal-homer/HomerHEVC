@@ -631,8 +631,8 @@ typedef struct bit_counter
 typedef struct motion_vector_t motion_vector_t;
 struct motion_vector_t
 {
-  uint16_t hor_vector;
-  uint16_t ver_vector;
+  int32_t hor_vector;
+  int32_t ver_vector;
 };
 
 
@@ -917,7 +917,6 @@ struct low_level_funcs_t
 #define NUM_QUANT_WNDS			(MAX_PARTITION_DEPTH+1)
 #define NUM_DECODED_WNDS		(MAX_PARTITION_DEPTH+1)
 #define NUM_CBF_BUFFS			MAX_PARTITION_DEPTH
-#define NUM_CBF_BUFFS_CHROMA	5		//0 not used, U_COMP, V_COMP to consolidate best mode, U_COMP+2, V_COMP+2 for curr operation
 
 struct henc_thread_t
 {
@@ -950,7 +949,7 @@ struct henc_thread_t
 	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth;//max depth for prediction
+	int				max_pred_partition_depth, max_inter_pred_depth;//max depth for prediction
 
 	int				num_partitions_in_cu;
 	int				num_partitions_in_cu_shift;
@@ -1072,7 +1071,7 @@ struct hvenc_t
 	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth;//max depth for prediction
+	int				max_pred_partition_depth, max_inter_pred_depth;//max depth for prediction
 	int				wfpp_enable;
 	uint			wfpp_num_threads;
 

@@ -801,7 +801,7 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 
 
 
-//this function is used to consolidate buffer from bottom to top
+//this function is used to consolidate buffers from bottom to top
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
 {
 	int j;//, i;
