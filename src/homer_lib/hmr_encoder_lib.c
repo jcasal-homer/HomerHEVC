@@ -452,9 +452,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
 
 			phvenc->max_inter_pred_depth = 0;
-			while((phvenc->max_cu_size>>phvenc->max_inter_pred_depth)>8)phvenc->max_inter_pred_depth++;
-			if(phvenc->max_inter_pred_depth>phvenc->max_pred_partition_depth)
-				phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
+//			while((phvenc->max_cu_size>>phvenc->max_inter_pred_depth)>8)phvenc->max_inter_pred_depth++;
+//			if(phvenc->max_inter_pred_depth>phvenc->max_pred_partition_depth)
+			phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
 
 			//depth of TU tree 
 			phvenc->max_intra_tr_depth = (cfg->max_intra_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_intra_tr_depth; 
@@ -1418,7 +1418,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			//cabac - encode ctu
 			PROFILER_RESET(cabac)
 			ctu->coeff_wnd = &et->transform_quant_wnd[0];
-			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
+//			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 			PROFILER_ACCUMULATE(cabac)
 			et->cu_current_x++;
 		}

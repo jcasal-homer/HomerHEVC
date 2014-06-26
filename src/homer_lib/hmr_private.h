@@ -914,8 +914,8 @@ struct low_level_funcs_t
 
 
 
-#define NUM_QUANT_WNDS			(MAX_PARTITION_DEPTH+1)
-#define NUM_DECODED_WNDS		(MAX_PARTITION_DEPTH+1)
+#define NUM_QUANT_WNDS			(MAX_PARTITION_DEPTH+1)//5 depths + consolidation buffer + 1 extra depth for non 2Nx2N computation in inter prediction - consolidation is done to the ctu buffer
+#define NUM_DECODED_WNDS		(MAX_PARTITION_DEPTH+2)//5 depths + consolidation buffer + 1 extra depth for non 2Nx2N computation in inter prediction
 #define NUM_CBF_BUFFS			MAX_PARTITION_DEPTH
 
 struct henc_thread_t
