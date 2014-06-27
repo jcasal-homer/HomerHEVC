@@ -619,7 +619,7 @@ void create_partition_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partitio
 	cu_partition_info_t*	parent_part_info = curr_partition_info->parent;
 	int curr_depth = curr_partition_info->depth;
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int cu_min_tu_size_shift = max((et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth-1)), MIN_TU_SIZE_SHIFT);//(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth-1))>MIN_TU_SIZE_SHIFT?(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth)):MIN_TU_SIZE_SHIFT;//+ interSplitFlag + intraSplitFlag	//(part_size_type==SIZE_NxN));//
+	int cu_min_tu_size_shift = max((et->max_cu_size_shift - (et->max_pred_partition_depth+max(et->max_intra_tr_depth, et->max_inter_tr_depth)-1)), MIN_TU_SIZE_SHIFT);//(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth-1))>MIN_TU_SIZE_SHIFT?(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth)):MIN_TU_SIZE_SHIFT;//+ interSplitFlag + intraSplitFlag	//(part_size_type==SIZE_NxN));//
 	int max_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)

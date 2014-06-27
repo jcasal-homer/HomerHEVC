@@ -813,7 +813,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 	if(children_cost<parent_cost || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
 	{
 		//here we consolidate the bottom-up results being preferred to the top-down computation
-		int part_size_type2 = SIZE_2Nx2N;//(curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
+		int part_size_type2 = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		parent_part_info->cost = children_cost;
 
 //		if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff))//if(curr_depth==et->max_inter_pred_depth)
@@ -849,7 +849,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 	else
 	{
 		//top-down computation results are prefered
-		int part_size_type2 = SIZE_2Nx2N;//(parent_part_info->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
+		int part_size_type2 = (parent_part_info->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		int parent_depth = parent_part_info->depth;//curr_depth-1
 		parent_part_info->cost = parent_cost;
 		synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth-1], ctu->coeff_wnd, &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
@@ -954,7 +954,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	curr_depth = curr_partition_info->depth;
 	num_part_in_cu = curr_partition_info->num_part_in_cu;
 
-	//¿? .... if pred_depth==0 we need to consolidate
+	//¿? .... if pred_depth==0 there is no NxN subdivision. we need to consolidate
 	if(et->max_pred_partition_depth==0)
 	{
 		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)

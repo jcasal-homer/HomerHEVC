@@ -386,6 +386,12 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	int num_partitions;
 	int max_cu_width_units = (ed->max_cu_size>>2);		
 
+	if(ed->num_encoded_frames== 1 && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
+	{
+		int iiiii=0;
+	}
+
+
 	if (dir == EDGE_VER)
 	{
 		offset = 1;
@@ -403,12 +409,6 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 //	num_partitions /= num_peels_in_partition;
 
 	num_partitions = curr_cu_info->size/num_peels_in_partition;
-
-	if(ed->num_encoded_frames== 1 && ctu->ctu_number == 4)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
-	{
-		int iiiii=0;
-	}
-
 
 	for ( idx = 0; idx < num_partitions; idx++ )
 	{
@@ -661,27 +661,9 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 					
 	cu_partition_info_t *sub_cu_info;
 
-	//+ xSetEdgefilterPU
 	int curr_cu_size = curr_cu_info->size;
 	int abs_index = curr_cu_info->abs_index;
 
-/*	set_edge_filter(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, left_edge, 0);
-	set_edge_filter(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, top_edge, 0);				
-
-	switch (ctu->part_size_type[abs_index])
-	{
-		case SIZE_2Nx2N:
-		{
-			break;
-		}
-		case SIZE_2NxN:
-		{
-			break;							
-		}
-		//...
-	}
-	//- xSetEdgefilterPU
-*/
 	sub_cu_info = &ctu->partition_list[ed->partition_depth_start[ed->max_cu_depth]];//4x4 blocks
 	sub_cu_info += curr_cu_info->abs_index/sub_cu_info->num_part_in_cu;
 	for( part_idx = abs_index; part_idx < (abs_index + curr_cu_info->num_part_in_cu); part_idx++,sub_cu_info++)
@@ -767,7 +749,6 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 	int curr_depth = 0;
 	cu_partition_info_t *curr_cu_info, *pred_cu_info;
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int tr_depth, pred_depth;
 	int deblock_internal_edge = !currslice->deblocking_filter_disabled_flag;
 	int curr_cu_size, abs_index;
 	int num_elements_width, num_elements_height;// = (max(ctu->size, ctu->size)>>2);
@@ -782,18 +763,24 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 	curr_depth = curr_cu_info->depth;
 	memset(depth_state, 0, sizeof(depth_state));
 
+
+	if(ed->num_encoded_frames== 1)// && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
+	{
+		int iiiii=0;
+	}
+
 	memset(ed->deblock_filter_strength_bs[dir], 0, ed->num_partitions_in_cu*sizeof(ed->deblock_filter_strength_bs[dir][0]));
 	memset(ed->deblock_edge_filter[dir], 0, ed->num_partitions_in_cu*sizeof(ed->deblock_edge_filter[dir][0]));
 
-	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
+		int pred_depth = ctu->pred_depth[curr_cu_info->abs_index];
+		int tr_depth = ctu->tr_idx[curr_cu_info->abs_index];
+		int total_depth = pred_depth + tr_depth;
 		curr_cu_size = curr_cu_info->size;
-		pred_depth = ctu->pred_depth[curr_cu_info->abs_index];
-		tr_depth = pred_depth + ctu->tr_idx[curr_cu_info->abs_index];
 
 		depth_state[curr_depth]++;
-		if(curr_depth < tr_depth && curr_cu_info->is_tl_inside_frame && curr_cu_size>DEBLOCK_SMALLEST_BLOCK)//go down one level
+		if(curr_depth < total_depth && curr_cu_info->is_tl_inside_frame && curr_cu_size>DEBLOCK_SMALLEST_BLOCK)//go down one level
 		{
 			curr_depth++;
 			curr_cu_info = curr_cu_info->children[depth_state[curr_depth]];
@@ -804,6 +791,7 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 
 			abs_index = curr_cu_info->abs_index;
 			num_elements_width = num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
+			//num_elements_width = num_elements_height = (ed->max_cu_size>>total_depth)>>2;//num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
 			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units);
 			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_height_units);				
 	
@@ -843,8 +831,6 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	ctu_info_t* ctu;
 	int dir;
 
-	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 
-
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
 		for(ctu_num = 0;ctu_num < ed->pict_total_cu;ctu_num++)
@@ -855,4 +841,5 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
 	}
+	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 		
 }
