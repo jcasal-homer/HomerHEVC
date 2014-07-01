@@ -655,7 +655,10 @@ struct cu_partition_info_t
 	uint16_t top_right_neighbour; 
 	uint16_t is_tl_inside_frame, is_b_inside_frame, is_r_inside_frame;
 	uint16_t abs_index_left_partition;
+	uint16_t abs_index_left_bottom_partition;
 	uint16_t abs_index_top_partition;
+	uint16_t abs_index_top_right_partition;
+	uint16_t abs_index_top_left_partition;
 
 	cu_partition_info_t	*parent;//pointer to parent partition
 	cu_partition_info_t	*children[4];//pointers to child partitions
@@ -673,6 +676,8 @@ struct cu_partition_info_t
 	uint inter_distortion, inter_distortion_chroma;
 	uint inter_cost, inter_cost_chroma;
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
+	int	num_mv_candidates;
+	motion_vector_t	mv_candidates[2];
 	motion_vector_t	inter_mv[2];
 	int		inter_ref_index[2];
 };
@@ -689,17 +694,19 @@ struct ctu_info_t
 
 	uint8_t			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];
 	uint8_t			*intra_mode[NUM_PICT_COMPONENTS-1];//[MAX_NUM_PARTITIONS];
+	uint8_t			*inter_mode;//[MAX_NUM_PARTITIONS];
 	uint8_t			*tr_idx;//[MAX_NUM_PARTITIONS];
 	uint8_t			*pred_depth;//[MAX_NUM_PARTITIONS];
 	uint8_t			*part_size_type;//[MAX_NUM_PARTITIONS];
 	uint8_t			*pred_mode;//[MAX_NUM_PARTITIONS];//intra or inter
+	uint8_t			*skipped;//[MAX_NUM_PARTITIONS];//intra or inter
 	wnd_t			*coeff_wnd;
 
 	//inter
-	motion_vector_t		*mv_ref0;
-	motion_vector_t		*mv_ref1;
-	uint8_t				*ref_idx0;
-	uint8_t				*ref_idx1;
+	motion_vector_t		*mv_ref[2];
+//	motion_vector_t		*mv_ref1;
+	uint8_t				*ref_idx[2];
+//	uint8_t				*ref_idx1;
 
 	ctu_info_t		*ctu_left;
 	ctu_info_t		*ctu_left_bottom;

@@ -462,6 +462,21 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, int16_t *reference_buff, 
 
 }
 
+void get_mv_candidates(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info)//get candidates for motion search from the neigbour CUs
+{
+	ctu_info_t	*ctu_left, *ctu_below_left, *ctu_top;
+	uint		aux_part_idx = 0;
+
+	curr_partition_info->num_mv_candidates = 0;
+
+	//get spatial candidates
+//	ctu_below_left
+
+//	ctu_left = get_pu_left(ctu, curr_partition_info, &aux_part_idx);//ctu->ctu_left;
+
+//	ctu_top = get_pu_top(ctu, curr_partition_info, &aux_part_idx, FALSE);//ctu->ctu_top;//getPUAbove( aux_part_idx, m_uiAbsIdxInLCU + abs_index, TRUE, TRUE );
+}
+
 
 #define SET_ENC_INFO_BUFFS(et, cu_info, depth, abs_idx, num_partitions)																		\
 {																																			\
@@ -791,14 +806,15 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	memcpy(&ctu->tr_idx[abs_idx], &et->tr_idx_buffs[depth][abs_idx], num_partitions*sizeof(et->tr_idx_buffs[0][0]));						\
 }
 
-#define SET_INTER_INFO_BUFFS(et, ctu, cu_info, abs_idx, num_partitions)																		\
-{																																			\
-	int i;																																	\
-	memset(&ctu->ref_idx0[abs_idx], cu_info->inter_ref_index[REF_PIC_LIST_0], num_partitions*sizeof(ctu->ref_idx0[0]));						\
-	for(i=0;i<num_partitions;i++)																											\
-	{																																		\
-		ctu->mv_ref0[abs_idx+i] = cu_info->inter_mv[REF_PIC_LIST_0];																		\
-	}																																		\
+#define SET_INTER_INFO_BUFFS(et, ctu, cu_info, abs_idx, num_partitions)																						\
+{																																							\
+	int i;																																					\
+	memset(&ctu->inter_mode[abs_idx], 1<<REF_PIC_LIST_0, num_partitions*sizeof(ctu->inter_mode[0]));														\
+	memset(&ctu->ref_idx[REF_PIC_LIST_0][abs_idx], cu_info->inter_ref_index[REF_PIC_LIST_0], num_partitions*sizeof(ctu->ref_idx[REF_PIC_LIST_0][0]));		\
+	for(i=0;i<num_partitions;i++)																															\
+	{																																						\
+		ctu->mv_ref[REF_PIC_LIST_0][abs_idx+i] = cu_info->inter_mv[REF_PIC_LIST_0];																						\
+	}																																						\
 }
 
 
@@ -896,6 +912,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				int iiiiiii=0;
 			}
 
+			get_mv_candidates(et, ctu, curr_partition_info);//get candidates for motion search from the neigbour CUs
 			//encode
 			predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 			cost = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
@@ -904,11 +921,6 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 //			if((curr_depth+1)==et->max_inter_pred_depth && curr_partition_info->size>8)
 			if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_partition_info->size>8)
 			{
-				if(ctu->ctu_number == 0 && curr_partition_info->abs_index==192)// && curr_partition_info->depth == 2)
-				{
-					int iiiiiii=0;
-				}
-
 				predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
 				cost_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
 
@@ -954,13 +966,14 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	curr_depth = curr_partition_info->depth;
 	num_part_in_cu = curr_partition_info->num_part_in_cu;
 
-	//¿? .... if pred_depth==0 there is no NxN subdivision. we need to consolidate
+	//if pred_depth==0 there is no NxN subdivision. we need to collect the information of the ctu
 	if(et->max_pred_partition_depth==0)
 	{
 		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
 		SET_INTER_INFO_BUFFS(et, ctu, curr_partition_info, abs_index, num_part_in_cu)	
 	}
 
-	memset(&ctu->pred_mode[abs_index], INTER_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//indicamos que todas las codificaciones son intra
+	memset(&ctu->pred_mode[abs_index], INTER_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//signal all partitions as inter
+	memset(&ctu->skipped[abs_index], 0, num_part_in_cu*sizeof(ctu->skipped[0]));//signal all partitions as non skipped
 	return best_cost;
 }

@@ -260,14 +260,14 @@ void get_boundary_strength_single(hvenc_t* ed, slice_t *currslice, ctu_info_t *c
 */			}
 			else  // pcSlice->isInterP()
 			{
-				int ref_idx = ctu_aux->ref_idx0[aux_abs_idx];
+				int ref_idx = ctu_aux->ref_idx[REF_PIC_LIST_0][aux_abs_idx];
 				video_frame_t *ref_frame_aux, *ref_frame_curr;
 				motion_vector_t mv_aux, mv_curr;
 				ref_frame_aux  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
-				ref_idx = ctu->ref_idx0[sub_cu_info->abs_index];
+				ref_idx = ctu->ref_idx[REF_PIC_LIST_0][sub_cu_info->abs_index];
 				ref_frame_curr  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
-				mv_aux = ctu_aux->mv_ref0[aux_abs_idx];
-				mv_curr = ctu->mv_ref0[sub_cu_info->abs_index];
+				mv_aux = ctu_aux->mv_ref[REF_PIC_LIST_0][aux_abs_idx];
+				mv_curr = ctu->mv_ref[REF_PIC_LIST_0][sub_cu_info->abs_index];
 
 				if (ref_frame_aux == NULL) {mv_aux.hor_vector = mv_aux.ver_vector = 0;}
 				if (ref_frame_curr == NULL) {mv_curr.hor_vector = mv_curr.ver_vector = 0;}
@@ -837,7 +837,7 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 		{	
 			ctu = &ed->ctu_info[ctu_num];
 
-			create_partition_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
+			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
 	}

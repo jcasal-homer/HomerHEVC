@@ -76,6 +76,8 @@ const uint g_auiGoRicePrefixLen[5] =
 };
 
 
+uint g_auiPUOffset[8] = { 0, 8, 4, 4, 2, 10, 1, 5};
+
 int init_context(context_model_buff_t *cm, context_model_t *ctx, int size_y, int size_x, const byte *ref_ctx_model)
 {
 	cm->ctx = ctx;
@@ -207,9 +209,9 @@ void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst)
 }
 
 #define GET_CONTEXT_XYZ(cm, z, y, x) (&(cm.ctx[(z)*(cm.size_xy)+(y)*(cm.size_x)+(x)]))
-#define GET_CONTEXT_YZ(cm, z, y) (&cm.ctx[(z)*cm.size_xy+(y)*cm.size_x])
-#define GET_CONTEXT_Z(cm, z) (&(cm)->ctx[(z)*(cm)->size_xy])
-
+#define GET_CONTEXT_YZ(cm, z, y) (&(cm.ctx[(z)*cm.size_xy+(y)*cm.size_x]))
+//#define GET_CONTEXT_Z(cm, z) (&(cm->ctx[(z)*(cm)->size_xy]))
+#define GET_CONTEXT_Z(cm, z, y, x) (&(cm.ctx[(z)*(cm.size_xy)]))
 
 ctu_info_t *get_pu_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
 {
@@ -226,6 +228,23 @@ ctu_info_t *get_pu_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_inf
 		return ctu;
 	}
 }
+
+ctu_info_t *get_pu_bottom_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
+{
+	int	ctu_line_size_in_partitions_mask = (ctu->size>>2)-1;
+
+	if((curr_partition_info->raster_index & ctu_line_size_in_partitions_mask) == 0)//columna izq del ctu
+	{		
+		*aux_part_idx = curr_partition_info->abs_index_left_partition;
+		return ctu->ctu_left;
+	}
+	else
+	{
+		*aux_part_idx = curr_partition_info->abs_index_left_partition;
+		return ctu;
+	}
+}
+
 
 ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary)
 {
@@ -269,22 +288,144 @@ void encode_split_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr
 	ee->ee_encode_bin(ee, cm, split_flag);
 }
 
-void encode_part_size(henc_thread_t* et, enc_env_t* ee, cu_partition_info_t* curr_partition_info, int part_size_type, int is_intra)
+
+__inline void encode_skip_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
+	uint simbol = 0;//pcCU->isSkipped( uiAbsPartIdx ) ? 1 : 0;
 
-	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+	ctu_info_t	*ctu_left, *ctu_top;
+	uint		aux_part_idx = 0;
 
+	int ctx = 0;
+	int skip_flag = ctu->skipped[curr_partition_info->abs_index];
+	context_model_t *cm;
+
+	ctu_left = get_pu_left(ctu, curr_partition_info, &aux_part_idx);//ctu->ctu_left;
+	ctx = ctu_left ? ((ctu_left->skipped[aux_part_idx]) ? 1 : 0) : 0;
+
+	ctu_top = get_pu_top(ctu, curr_partition_info, &aux_part_idx, FALSE);//ctu->ctu_top;//getPUAbove( aux_part_idx, m_uiAbsIdxInLCU + abs_index, TRUE, TRUE );
+	ctx += ctu_top ? ((ctu_top->skipped[aux_part_idx]) ? 1 : 0) : 0;
+
+	cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_skip_flag_model,0, 0, ctx); 
+	ee->ee_encode_bin(ee, cm, skip_flag);
+}
+
+__inline void encode_pred_mode(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+{	
+	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_pred_mode_flag_model, 0, 0, 0); 
+	ee->ee_encode_bin(ee, cm, ctu->pred_mode[curr_partition_info->abs_index]);	
+}
+
+__inline void encode_part_size(henc_thread_t* et, enc_env_t* ee, cu_partition_info_t* curr_partition_info, PartSize part_size_type, int is_intra)
+{
 	if (is_intra)
 	{
+		context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+
 		if( curr_partition_info->depth == (et->max_cu_depth - et->mincu_mintr_shift_diff))
 		{
 			ee->ee_encode_bin( ee, cm, (part_size_type==SIZE_2Nx2N)? 1 : 0);
 		}
 		return;
 	}
+
+
+	switch(part_size_type)
+	{
+		case SIZE_2Nx2N:
+		{
+			context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+			//m_pcBinIf->encodeBin( 1, m_cCUPartSizeSCModel.get( 0, 0, 0) );
+			ee->ee_encode_bin( ee, cm, 1);
+			break;
+		}
+		case SIZE_2NxN:
+		case SIZE_2NxnU:
+		case SIZE_2NxnD:
+		{
+			context_model_t *cm_0 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+			context_model_t *cm_1 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 1); 
+
+//			m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 0) );
+//			m_pcBinIf->encodeBin( 1, m_cCUPartSizeSCModel.get( 0, 0, 1) );
+			ee->ee_encode_bin( ee, cm_0, 0);
+			ee->ee_encode_bin( ee, cm_1, 1);
+
+/*			if ( pcCU->getSlice()->getSPS()->getAMPAcc( uiDepth ) )
+			{
+				if (eSize == SIZE_2NxN)
+				{
+					m_pcBinIf->encodeBin(1, m_cCUPartSizeSCModel.get( 0, 0, 3 ));
+				}
+				else
+				{
+					m_pcBinIf->encodeBin(0, m_cCUPartSizeSCModel.get( 0, 0, 3 ));
+					m_pcBinIf->encodeBinEP((eSize == SIZE_2NxnU? 0: 1));
+				}
+			}
+*/			break;
+		}
+		case SIZE_Nx2N:
+		case SIZE_nLx2N:
+		case SIZE_nRx2N:
+		{
+			context_model_t *cm_0 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+			context_model_t *cm_1 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 1); 
+
+			//m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 0) );
+			//m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 1) );
+//			if( uiDepth == g_uiMaxCUDepth - g_uiAddCUDepth && !( pcCU->getWidth(uiAbsPartIdx) == 8 && pcCU->getHeight(uiAbsPartIdx) == 8 ) )
+//			{
+//				m_pcBinIf->encodeBin( 1, m_cCUPartSizeSCModel.get( 0, 0, 2) );
+//			}
+
+			ee->ee_encode_bin( ee, cm_0, 0);
+			ee->ee_encode_bin( ee, cm_1, 1);
+
+			if( curr_partition_info->depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && !( curr_partition_info->size == 8/*Width*/ && curr_partition_info->size == 8/*height*/))
+			{
+				context_model_t *cm_2 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 2); 
+//				m_pcBinIf->encodeBin( 1, m_cCUPartSizeSCModel.get( 0, 0, 2) );
+				ee->ee_encode_bin( ee, cm_2, 2);
+			}
+
+/*			if ( pcCU->getSlice()->getSPS()->getAMPAcc( uiDepth ) )
+			{
+				if (eSize == SIZE_Nx2N)
+				{
+					m_pcBinIf->encodeBin(1, m_cCUPartSizeSCModel.get( 0, 0, 3 ));
+				}
+				else
+				{
+					m_pcBinIf->encodeBin(0, m_cCUPartSizeSCModel.get( 0, 0, 3 ));
+					m_pcBinIf->encodeBinEP((eSize == SIZE_nLx2N? 0: 1));
+				}
+			}
+*/
+			break;
+		}
+		case SIZE_NxN:
+		{
+			if( curr_partition_info->depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && !( curr_partition_info->size == 8/*Width*/ && curr_partition_info->size == 8/*height*/))
+			{
+				context_model_t *cm_0 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 0); 
+				context_model_t *cm_1 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 1); 
+				context_model_t *cm_2 = GET_CONTEXT_XYZ(ee->e_ctx->cu_part_size_model,0, 0, 2); 
+
+//				m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 0) );
+//				m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 1) );
+//				m_pcBinIf->encodeBin( 0, m_cCUPartSizeSCModel.get( 0, 0, 2) );
+
+				ee->ee_encode_bin( ee, cm_0, 0);
+				ee->ee_encode_bin( ee, cm_1, 0);
+				ee->ee_encode_bin( ee, cm_2, 0);
+			}
+			break;
+		}
+	}
 }
 
-int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int* arr_intra_dir, int* piMode  )
+__inline int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int* arr_intra_dir, int* piMode)
 {
 	ctu_info_t	*ctu_left, *ctu_top;
 	uint		aux_part_idx = 0;
@@ -344,6 +485,185 @@ int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_part
 
 	return pred_num;
 }
+
+
+__inline void encode_merge_flag(enc_env_t* ee, uint merge_flag)
+{	
+	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_merge_flag_model, 0, 0, 0); 
+	ee->ee_encode_bin(ee, cm, merge_flag);	
+}
+
+void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+{
+/*  UInt uiUnaryIdx = pcCU->getMergeIndex( uiAbsPartIdx );
+  UInt uiNumCand = pcCU->getSlice()->getMaxNumMergeCand();
+  if ( uiNumCand > 1 )
+  {
+    for( UInt ui = 0; ui < uiNumCand - 1; ++ui )
+    {
+      const UInt uiSymbol = ui == uiUnaryIdx ? 0 : 1;
+      if ( ui==0 )
+      {
+        m_pcBinIf->encodeBin( uiSymbol, m_cCUMergeIdxExtSCModel.get( 0, 0, 0 ) );
+      }
+      else
+      {
+        m_pcBinIf->encodeBinEP( uiSymbol );
+      }
+      if( uiSymbol == 0 )
+      {
+        break;
+      }
+    }
+  }
+*/
+}
+
+void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+{
+/*  
+	const UInt uiInterDir = pcCU->getInterDir( uiAbsPartIdx ) - 1;
+	const UInt uiCtx      = pcCU->getCtxInterDir( uiAbsPartIdx );
+	ContextModel *pCtx    = m_cCUInterDirSCModel.get( 0 );
+	if (pcCU->getPartitionSize(uiAbsPartIdx) == SIZE_2Nx2N || pcCU->getHeight(uiAbsPartIdx) != 8 )
+	{
+		m_pcBinIf->encodeBin( uiInterDir == 2 ? 1 : 0, *( pCtx + uiCtx ) );
+	}
+	if (uiInterDir < 2)
+	{
+		m_pcBinIf->encodeBin( uiInterDir, *( pCtx + 4 ) );
+	}
+*/
+}
+
+__inline void encode_ref_frame_index(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
+{
+/*	if (ctu->inter_mode[curr_partition_info->abs_index] & ( 1 << ref_list))
+	{
+		m_pcEntropyCoderIf->codeRefFrmIdx( pcCU, uiAbsPartIdx, eRefList );
+	}
+*/
+}
+
+
+void write_ep_ex_golomb(enc_env_t* ee, uint symbol, uint count)
+{
+	uint bins = 0;
+	int num_bins = 0;
+
+	while( symbol >= (uint)(1<<count) )
+	{
+		bins = 2 * bins + 1;
+		num_bins++;
+		symbol -= 1 << count;
+		count  ++;
+	}
+	bins = 2 * bins + 0;
+	num_bins++;
+
+	bins = (bins << count) | symbol;
+	num_bins += count;
+
+	ee->ee_encode_bins_EP(ee, bins, num_bins);
+}
+
+
+void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
+{
+	if (ctu->inter_mode[abs_index] & ( 1 << ref_list))
+	{
+		motion_vector_t *mv = ctu->mv_ref[ref_list];
+		int horizontal = mv->hor_vector;
+		int horizontal_not_0 = horizontal!=0?1:0;
+		int horizontal_abs = abs(horizontal);
+		int vertical = mv->ver_vector;
+		int vertical_not_0 = vertical!=0?1:0;
+		int vertical_abs = abs(vertical);
+		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvd_model, 0);
+
+		ee->ee_encode_bin(ee, cm, horizontal_not_0);	
+		ee->ee_encode_bin(ee, cm, vertical_not_0);	
+
+		cm++;
+
+		if(horizontal_not_0)
+			ee->ee_encode_bin(ee, cm, horizontal_abs>1?1:0);	
+
+		if(vertical_not_0)
+			ee->ee_encode_bin(ee, cm, vertical_abs>1?1:0);	
+
+		if(horizontal_not_0)
+		{
+			if(horizontal_abs>1)
+				write_ep_ex_golomb(ee, horizontal_abs-2, 1);
+			ee->ee_encode_bin_EP(ee, horizontal<0?1:0);
+		}
+
+		if(vertical_not_0)
+		{
+			if(vertical_abs>1)
+				write_ep_ex_golomb(ee, vertical_abs-2, 1);
+			ee->ee_encode_bin_EP(ee, vertical<0?1:0);
+		}
+	}
+}
+
+void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
+{
+	
+}
+
+
+//encodePUWise
+void encode_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, PartSize partition_size_type)
+{
+	int part_idx, sub_part_idx;
+	/*  if ( bRD )
+	{
+	uiAbsPartIdx = 0;
+	}
+	*/ 
+	int abs_index = curr_partition_info->abs_index;
+	uint num_pu = ( partition_size_type == SIZE_2Nx2N ? 1 : ( partition_size_type == SIZE_NxN ? 4 : 2 ) );
+	uint pred_depth = ctu->pred_depth[abs_index];
+	uint pu_offset = ( g_auiPUOffset[(uint)partition_size_type] << ( ( et->max_cu_depth - pred_depth ) << 1 ) ) >> 4;
+
+	for (part_idx = 0, sub_part_idx = abs_index; part_idx < num_pu; part_idx++, sub_part_idx += pu_offset)
+	{
+		uint merge_flag = 0/*ctu->merge[sub_part_idx]*/;
+
+		encode_merge_flag(ee, merge_flag);
+		if (merge_flag)
+		{
+//			encode_merge_index(ee, ctu, curr_partition_info);
+		}
+		else
+		{
+			uint ref_list_idx;
+			if(slice->slice_type == B_SLICE)
+			{
+//				encode_inter_dir(ee, ctu, curr_partition_info);
+			}
+			for ( ref_list_idx = REF_PIC_LIST_0; ref_list_idx <= REF_PIC_LIST_1; ref_list_idx++ )
+			{
+				if (slice->num_ref_idx[ref_list_idx] > 0 )
+				{
+					if(slice->num_ref_idx[ref_list_idx]>1)
+					{
+//						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
+					}
+					encode_mv_diff(ee, ctu, ref_list_idx, curr_partition_info->abs_index);
+					encode_mv_diff_index(ee, ctu, ref_list_idx, curr_partition_info->abs_index);
+//					encodeMvdPU       ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
+//					encodeMVPIdxPU    ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
+				}
+			}
+		}
+	}
+
+	return;
+}
+
 
 void encode_intra_dir_luma_ang(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int is_multiple)
 {
@@ -993,7 +1313,30 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	slice_t *currslice = &et->ed->current_pict.slice;
 	int abs_index = curr_partition_info->abs_index;
 	int is_intra = ctu->pred_mode[abs_index]==INTRA_MODE;
-	int part_size_type =	ctu->part_size_type[abs_index];
+	int is_skipped = ctu->skipped[abs_index];
+	PartSize part_size_type = ctu->part_size_type[abs_index];
+
+	if(et->ed->num_encoded_frames == 1)
+	{
+		int iiiii=0;
+	}
+
+
+	if( !isIntra(currslice->slice_type))
+	{
+		encode_skip_flag(ee, ctu, curr_partition_info);
+	}
+
+	//if(is_skipped)
+	//{
+	//		encode_merge_index(...)
+	//		encode_end_of_cu(...)
+	//}
+
+	if( !isIntra(currslice->slice_type))
+	{
+		encode_pred_mode(ee, ctu, curr_partition_info);
+	}
 
 	encode_part_size(et, ee, curr_partition_info, part_size_type, is_intra);
 
@@ -1001,6 +1344,10 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	{
 		encode_intra_dir_luma_ang(ee, ctu, curr_partition_info, TRUE);
 		encode_intra_dir_chroma(ee, ctu, curr_partition_info);
+	}
+	else
+	{
+	
 	}
 
 	transform_tree(et, ee, ctu, curr_partition_info, gcnt);
@@ -1042,7 +1389,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int curr_depth = 0;
 	cu_partition_info_t*	curr_partition_info;
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int intra_pred_depth;
+	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
 	//encode parent
@@ -1058,11 +1405,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 				encode_split_flag(ee, ctu, curr_partition_info);
 		}
 
-		intra_pred_depth = ctu->pred_depth[curr_partition_info->abs_index];
+		pred_depth = ctu->pred_depth[curr_partition_info->abs_index];
 
 		depth_state[curr_depth]++;
 
-		if(curr_depth < intra_pred_depth)//go down one level
+		if(curr_depth < pred_depth)//go down one level
 		{
 			curr_depth++;
 			curr_partition_info = curr_partition_info->children[depth_state[curr_depth]];

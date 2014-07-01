@@ -614,7 +614,7 @@ void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size)
 		curr_part->top_right_neighbour = 0;
 }
 
-void create_partition_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info)
+void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info)
 {
 	cu_partition_info_t*	parent_part_info = curr_partition_info->parent;
 	int curr_depth = curr_partition_info->depth;
@@ -663,7 +663,7 @@ void create_partition_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partitio
 }
 
 
-int get_left_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+/*int get_left_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
 {
 	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
 	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
@@ -672,13 +672,33 @@ int get_left_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_pa
 
 	if((raster_index & ctu_partitions_in_line_mask) == 0)
 	{
-		left_abs_index = et->ed->raster2abs_table[raster_index+ ctu_partitions_in_line-1];
+		left_abs_index = et->ed->raster2abs_table[raster_index + ctu_partitions_in_line-1];
 	}
 	else
 	{
 		left_abs_index = et->ed->raster2abs_table[et->ed->abs2raster_table[curr_partition_info->abs_index]-1];
 	}
 	return left_abs_index;
+}
+
+
+int get_left_bottom_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+{
+	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
+//	int	raster_index = curr_partition_info->raster_index;
+	int left_raster_index = et->ed->abs2raster_table[curr_partition_info->abs_index_left_partition];
+	int left_bottom_abs_index;	
+
+	if(left_raster_index<et->num_partitions_in_cu-ctu_partitions_in_line)
+	{
+		left_bottom_abs_index = et->ed->raster2abs_table[left_raster_index + ctu_partitions_in_line];
+	}
+	else
+	{
+		left_bottom_abs_index = et->ed->raster2abs_table[left_raster_index - (et->num_partitions_in_cu-ctu_partitions_in_line)];
+	}
+	return left_bottom_abs_index;
 }
 
 int get_top_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
@@ -694,6 +714,85 @@ int get_top_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_par
 	
 	return top_abs_index;
 }
+
+int get_top_right_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+{
+	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
+//	int	raster_index = curr_partition_info->raster_index;
+	int top_raster_index = et->ed->abs2raster_table[curr_partition_info->abs_index_top_partition];
+	int top_right_abs_index;	
+
+	if((top_raster_index & ctu_partitions_in_line_mask) == ctu_partitions_in_line_mask)//is in the right column of the cu
+	{
+		top_right_abs_index = et->ed->raster2abs_table[top_raster_index - ctu_partitions_in_line_mask];
+	}
+	else
+	{
+		top_right_abs_index = et->ed->raster2abs_table[top_raster_index+1];
+	}
+
+	return top_right_abs_index;
+}
+
+int get_top_left_partition_abs_index(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+{
+	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_ctu_mask = et->num_partitions_in_cu-1;
+	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_partitions_in_line;
+	int left_raster_index = et->ed->abs2raster_table[curr_partition_info->abs_index_left_partition];
+	int top_left_abs_index;	
+
+	top_left_abs_index = et->ed->raster2abs_table[(left_raster_index + ctu_partition_top_line_offset)&ctu_partitions_in_ctu_mask];
+
+	return top_left_abs_index;
+}
+*/
+int get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+{
+	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
+	int ctu_partitions_in_ctu_mask = et->num_partitions_in_cu-1;
+	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_partitions_in_line;
+	int left_raster_index, left_bottom_raster_index, top_raster_index, top_right_raster_index, top_left_raster_index;
+	int	raster_index = curr_partition_info->raster_index;
+
+	//left
+	if((raster_index & ctu_partitions_in_line_mask) == 0)
+	{
+		left_raster_index = raster_index + ctu_partitions_in_line_mask;
+	}
+	else
+	{
+		left_raster_index = raster_index - 1;
+	}
+
+	//left bottom
+	left_bottom_raster_index = (left_raster_index + ctu_partitions_in_line) & ctu_partitions_in_ctu_mask;
+
+	//top
+	top_raster_index = (raster_index + ctu_partition_top_line_offset) & ctu_partitions_in_ctu_mask;
+
+	//top right
+	if((top_raster_index & ctu_partitions_in_line_mask) == ctu_partitions_in_line_mask)//is in the right column of the ctu
+	{
+		top_right_raster_index = top_raster_index - ctu_partitions_in_line_mask;
+	}
+	else
+	{
+		top_right_raster_index = top_raster_index+1;
+	}
+
+	//top left
+	top_left_raster_index = (left_raster_index + ctu_partition_top_line_offset) & ctu_partitions_in_ctu_mask;
+
+	curr_partition_info->abs_index_left_partition = et->ed->raster2abs_table[left_raster_index];
+	curr_partition_info->abs_index_left_bottom_partition = et->ed->raster2abs_table[left_bottom_raster_index];
+	curr_partition_info->abs_index_top_partition = et->ed->raster2abs_table[top_raster_index];
+	curr_partition_info->abs_index_top_right_partition = et->ed->raster2abs_table[top_right_raster_index];
+	curr_partition_info->abs_index_top_left_partition = et->ed->raster2abs_table[top_left_raster_index];
+}
+
 
 
 //creates tree depencies
@@ -765,8 +864,14 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 			curr_partition_info->depth = curr_depth;
 			curr_partition_info->abs_index = parent_part_info->abs_index+child_cnt*num_part_in_cu;
 			curr_partition_info->raster_index = et->ed->abs2raster_table[curr_partition_info->abs_index];
-			curr_partition_info->abs_index_left_partition = get_left_partition_abs_index(et,curr_partition_info);
+/*			curr_partition_info->abs_index_left_partition = get_left_partition_abs_index(et,curr_partition_info);
 			curr_partition_info->abs_index_top_partition = get_top_partition_abs_index(et,curr_partition_info);
+			curr_partition_info->abs_index_left_bottom_partition = get_left_bottom_partition_abs_index(et,curr_partition_info);
+			curr_partition_info->abs_index_top_right_partition = get_top_right_partition_abs_index(et,curr_partition_info);
+			curr_partition_info->abs_index_top_left_partition = get_top_left_partition_abs_index(et,curr_partition_info);
+*/			get_partition_neigbours(et, curr_partition_info);
+
+
 			curr_partition_info->num_part_in_cu = num_part_in_cu;
 			
 			curr_part_x += curr_part_size;
@@ -1582,7 +1687,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 //		ctu_rd->pred_mode = INTRA_MODE;
 	}
 	//map spatial features and neighbours in recursive partition structure
-	//create_partition_neighbours(et, ctu, curr_partition_info);
+	//create_partition_ctu_neighbours(et, ctu, curr_partition_info);
 
 #ifndef COMPUTE_AS_HM
 	if(et->performance_mode != 0)
@@ -1822,14 +1927,14 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	curr_depth = curr_partition_info->depth;
 	num_part_in_cu = curr_partition_info->num_part_in_cu;
 
-	//esta informacion o parte de ella se necesita para la codificacion de otros ctus (por lo menos el intra_mode y el pred_mode. Creo que los cbfs y los tr_idx solo se necesitan los actuales, no los de ctus anteriores)
 	memcpy(&ctu->cbf[Y_COMP][abs_index], &et->cbf_buffs[Y_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->cbf[Y_COMP][0]));
 	memcpy(&ctu->cbf[U_COMP][abs_index], &et->cbf_buffs[U_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->cbf[U_COMP][0]));
 	memcpy(&ctu->cbf[V_COMP][abs_index], &et->cbf_buffs[V_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->cbf[V_COMP][0]));
 	memcpy(&ctu->intra_mode[Y_COMP][abs_index], &et->intra_mode_buffs[Y_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->intra_mode[Y_COMP][0]));
 	memcpy(&ctu->intra_mode[CHR_COMP][abs_index], &et->intra_mode_buffs[CHR_COMP][curr_depth][abs_index], num_part_in_cu*sizeof(ctu->intra_mode[CHR_COMP][0]));
 	memcpy(&ctu->tr_idx[abs_index], &et->tr_idx_buffs[curr_depth][abs_index], num_part_in_cu*sizeof(ctu->tr_idx[0]));
-	memset(&ctu->pred_mode[abs_index], INTRA_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//indicamos que todas las codificaciones son intra
+	memset(&ctu->pred_mode[abs_index], INTRA_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//signal all partitions as intra
+	memset(&ctu->skipped[abs_index], 0, num_part_in_cu*sizeof(ctu->skipped[0]));//signal all partitions as non skipped
 	return best_cost;
 }
 

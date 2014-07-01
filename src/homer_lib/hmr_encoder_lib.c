@@ -276,6 +276,7 @@ void HOMER_enc_close(void* h)
 
 		free(henc_th->ctu_rd->part_size_type);
 		free(henc_th->ctu_rd->pred_mode);
+		free(henc_th->ctu_rd->skipped);
 		free(henc_th->ctu_rd);
 
 		free(henc_th);
@@ -359,17 +360,18 @@ void HOMER_enc_close(void* h)
 			free(phvenc->ctu_info[i].cbf[Y_COMP]);
 			//intra mode
 			free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+			free(phvenc->ctu_info[i].inter_mode);
 			//tr_idx, pred_depth, part_size_type, pred_mode
 			free(phvenc->ctu_info[i].tr_idx);
 			free(phvenc->ctu_info[i].pred_depth);
 			free(phvenc->ctu_info[i].part_size_type);
 			free(phvenc->ctu_info[i].pred_mode);
-			
+			free(phvenc->ctu_info[i].skipped);
 			//inter
-			free(phvenc->ctu_info[i].mv_ref0);
-			free(phvenc->ctu_info[i].mv_ref1);
-			free(phvenc->ctu_info[i].ref_idx0);
-			free(phvenc->ctu_info[i].ref_idx1);
+			free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+//			free(phvenc->ctu_info[i].mv_ref1);
+			free(phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]);
+//			free(phvenc->ctu_info[i].ref_idx1);
 		}
 
 		free(phvenc->ctu_info);
@@ -631,17 +633,19 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					free(phvenc->ctu_info[i].cbf[Y_COMP]);
 					//intra mode
 					free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+					free(phvenc->ctu_info[i].inter_mode);
 					//tr_idx, pred_depth, part_size_type, pred_mode
 					free(phvenc->ctu_info[i].tr_idx);
 					free(phvenc->ctu_info[i].pred_depth);
 					free(phvenc->ctu_info[i].part_size_type);
 					free(phvenc->ctu_info[i].pred_mode);
+					free(phvenc->ctu_info[i].skipped);
 
 					//inter
-					free(phvenc->ctu_info[i].mv_ref0);
-					free(phvenc->ctu_info[i].mv_ref1);
-					free(phvenc->ctu_info[i].ref_idx0);
-					free(phvenc->ctu_info[i].ref_idx1);
+					free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+//					free(phvenc->ctu_info[i].mv_ref1);
+					free(phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]);
+//					free(phvenc->ctu_info[i].ref_idx1);
 				}
 				free(phvenc->ctu_info);
 			}
@@ -657,19 +661,21 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//intra mode
 				phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-		//		phvenc->ctu_info[i].intra_mode[V_COMP] = phvenc->ctu_info[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
-				//tr_idx, pred_depth, part_size_type, pred_mode
+				//inter mode
+				phvenc->ctu_info[i].inter_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				//tr_idx, pred_depth, part_size_type, pred_mode, skipped
 				phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				
 
 				//inter
-				phvenc->ctu_info[i].mv_ref0 = (motion_vector_t*)calloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-				phvenc->ctu_info[i].mv_ref1 = (motion_vector_t*)calloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-				phvenc->ctu_info[i].ref_idx0 = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				phvenc->ctu_info[i].ref_idx1 = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-
+				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 			}
 
 
@@ -874,6 +880,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->ctu_rd = (ctu_info_t*)calloc (1, sizeof(ctu_info_t));
 				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				henc_th->ctu_rd->pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->ctu_rd->skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
@@ -1296,9 +1303,11 @@ void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu)
 {
 	uint8_t *part_size_type = dst_ctu->part_size_type;
 	uint8_t *pred_mode = dst_ctu->pred_mode;
+	uint8_t *skipped = dst_ctu->skipped;
 	memcpy(dst_ctu, src_ctu, sizeof(ctu_info_t));
 	dst_ctu->part_size_type = part_size_type;
 	dst_ctu->pred_mode = pred_mode;
+	dst_ctu->skipped = skipped;
 }
 
 
@@ -1398,7 +1407,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			PROFILER_RESET(intra)
 
 			//map spatial features and neighbours in recursive partition structure
-			create_partition_neighbours(et, ctu, ctu->partition_list);
+			create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
 			if(currslice->slice_type != I_SLICE)
 			{
 				motion_inter(et, ctu, gcnt);
@@ -1418,7 +1427,12 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			//cabac - encode ctu
 			PROFILER_RESET(cabac)
 			ctu->coeff_wnd = &et->transform_quant_wnd[0];
-//			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
+
+			if(et->ed->num_encoded_frames == 1)
+			{
+				int iiiii=0;
+			}
+			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 			PROFILER_ACCUMULATE(cabac)
 			et->cu_current_x++;
 		}
