@@ -260,11 +260,11 @@ void get_boundary_strength_single(hvenc_t* ed, slice_t *currslice, ctu_info_t *c
 */			}
 			else  // pcSlice->isInterP()
 			{
-				int ref_idx = ctu_aux->ref_idx[REF_PIC_LIST_0][aux_abs_idx];
+				int ref_idx = ctu_aux->mv_ref_idx[REF_PIC_LIST_0][aux_abs_idx];
 				video_frame_t *ref_frame_aux, *ref_frame_curr;
 				motion_vector_t mv_aux, mv_curr;
 				ref_frame_aux  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
-				ref_idx = ctu->ref_idx[REF_PIC_LIST_0][sub_cu_info->abs_index];
+				ref_idx = ctu->mv_ref_idx[REF_PIC_LIST_0][sub_cu_info->abs_index];
 				ref_frame_curr  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
 				mv_aux = ctu_aux->mv_ref[REF_PIC_LIST_0][aux_abs_idx];
 				mv_curr = ctu->mv_ref[REF_PIC_LIST_0][sub_cu_info->abs_index];

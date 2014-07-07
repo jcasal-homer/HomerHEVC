@@ -369,8 +369,11 @@ void HOMER_enc_close(void* h)
 			free(phvenc->ctu_info[i].skipped);
 			//inter
 			free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
 //			free(phvenc->ctu_info[i].mv_ref1);
-			free(phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]);
+			
 //			free(phvenc->ctu_info[i].ref_idx1);
 		}
 
@@ -488,9 +491,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			create_raster2abs_tables( phvenc->abs2raster_table, phvenc->raster2abs_table, phvenc->ctu_width[0], phvenc->ctu_height[0], phvenc->max_cu_size_shift-1);
 
 			phvenc->profile = cfg->profile;
-			phvenc->gop_size = cfg->N;
-			phvenc->num_b = (cfg->M-1)>0?(cfg->M-1):0;
-			phvenc->num_ref_frames = phvenc->gop_size>1?cfg->num_ref_frames:0;
+			phvenc->intra_period = cfg->intra_period;
+			phvenc->gop_size = phvenc->intra_period==1?0:cfg->gop_size;
+			phvenc->num_b = cfg->num_b;
+			phvenc->num_ref_frames = phvenc->gop_size>0?cfg->num_ref_frames:0;
 			//conformance wnd
 			min_cu_size = phvenc->min_cu_size;
 			min_cu_size_mask = phvenc->min_cu_size-1;
@@ -643,8 +647,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 					//inter
 					free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
 //					free(phvenc->ctu_info[i].mv_ref1);
-					free(phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]);
+					
 //					free(phvenc->ctu_info[i].ref_idx1);
 				}
 				free(phvenc->ctu_info);
@@ -674,8 +681,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//inter
 				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+
+				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+
 			}
 
 
@@ -915,8 +928,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			//reference picture_t lists
 			phvenc->num_ref_lists = 2;
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc->gop_size==1?4:1;//this will need to be a consistent decission taken depending on the configuration
-			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc->gop_size==1?4:1;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc->intra_period==1?4:1;//this will need to be a consistent decission taken depending on the configuration
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc->intra_period==1?4:1;
 
 			phvenc->num_short_term_ref_pic_sets = phvenc->gop_size+1;
 			if(phvenc->ref_pic_set_list)
@@ -924,7 +937,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->ref_pic_set_list = (ref_pic_set_t*)calloc (phvenc->num_short_term_ref_pic_sets, sizeof(ref_pic_set_t));
 			for(i=0;i<phvenc->num_short_term_ref_pic_sets-1;i++)
 			{
-				if(phvenc->gop_size==1)
+				if(phvenc->intra_period==1)
 					phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->ref_pic_set_list[i].num_positive_pics = phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
 				else if(phvenc->num_b == 0)
 				{
@@ -1004,7 +1017,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.sample_adaptive_offset_enabled_flag = 0;//cfg->UseSAO;
 			phvenc->sps.temporal_id_nesting_flag = (phvenc->max_sublayers == 1);
 			phvenc->num_long_term_ref_pic_sets = 0;
-			phvenc->sps.temporal_mvp_enable_flag = 1;
+			phvenc->sps.temporal_mvp_enable_flag = 0;
 			phvenc->sps.strong_intra_smooth_enabled_flag = 1;
 			phvenc->sps.vui_parameters_present_flag = 0;
 			//----------------- end sps ------------------
@@ -1016,8 +1029,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->pps.output_flag_present_flag = 0;
 			phvenc->pps.num_extra_slice_header_bits = 0;
 			phvenc->pps.sign_data_hiding_flag = cfg->sign_hiding;
-			phvenc->pps.cabac_init_present_flag = 1;
+			phvenc->pps.cabac_init_present_flag = 0;//1
 
+			phvenc->pps.num_ref_idx_l0_default_active_minus1 = 0;
+			phvenc->pps.num_ref_idx_l1_default_active_minus1 = 0;
+			
 			phvenc->pps.pic_init_qp_minus26 = 0;
 
 			phvenc->pps.constrained_intra_pred_flag = 0;
@@ -1190,8 +1206,9 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
+	currslice->max_num_merge_candidates = 5;
 
-	if((currslice->poc%ed->gop_size)==0)
+	if((currslice->poc%ed->intra_period)==0)
 	{
 		currslice->slice_type = I_SLICE;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
@@ -1250,10 +1267,16 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 	{
 		ctu->ctu_top = NULL;	
 		ctu->ctu_top_right = NULL;
+		ctu->ctu_top_left = NULL;
 	}
 	else
 	{
 		ctu->ctu_top = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu];	
+
+		if(ctu->x[Y_COMP]==0)
+			ctu->ctu_top_left = NULL;
+		else
+			ctu->ctu_top_left = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu-1];	
 
 		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_cu) == (et->pict_width_in_cu-1)))
 			ctu->ctu_top_right = NULL;

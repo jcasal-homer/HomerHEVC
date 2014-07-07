@@ -524,8 +524,8 @@ struct pps_t
 	unsigned int sign_data_hiding_flag;							// u(1)
 	unsigned int cabac_init_present_flag;                       // u(1)
 	unsigned int cabac_init_flag;								// u(1)
-//  unsigned int num_ref_idx_l0_default_active_minus1;          // ue(v)
-//  unsigned int num_ref_idx_l1_default_active_minus1;          // ue(v)
+	unsigned int num_ref_idx_l0_default_active_minus1;          // ue(v)
+	unsigned int num_ref_idx_l1_default_active_minus1;          // ue(v)
 
 	unsigned int pic_init_qp_minus26;							// se(v)
 
@@ -636,6 +636,16 @@ struct motion_vector_t
 };
 
 
+#define AMVP_MAX_NUM_CANDS		2
+#define AMVP_MAX_NUM_CANDS_MEM	3
+
+typedef struct mv_candiate_list_t mv_candiate_list_t;
+struct mv_candiate_list_t
+{
+	int	num_mv_candidates;
+	motion_vector_t	mv_candidates[AMVP_MAX_NUM_CANDS_MEM];
+};
+
 typedef struct cu_partition_info_t cu_partition_info_t;
 struct cu_partition_info_t
 {
@@ -676,9 +686,9 @@ struct cu_partition_info_t
 	uint inter_distortion, inter_distortion_chroma;
 	uint inter_cost, inter_cost_chroma;
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
-	int	num_mv_candidates;
-	motion_vector_t	mv_candidates[2];
 	motion_vector_t	inter_mv[2];
+	motion_vector_t	best_dif_mv[2];
+	int 	best_candidate_idx[2];
 	int		inter_ref_index[2];
 };
 
@@ -704,14 +714,17 @@ struct ctu_info_t
 
 	//inter
 	motion_vector_t		*mv_ref[2];
-//	motion_vector_t		*mv_ref1;
-	uint8_t				*ref_idx[2];
+	uint8_t				*mv_ref_idx[2];
+	motion_vector_t		*mv_diff[2];
+	uint8_t				*mv_diff_ref_idx[2];
+
 //	uint8_t				*ref_idx1;
 
 	ctu_info_t		*ctu_left;
 	ctu_info_t		*ctu_left_bottom;
 	ctu_info_t		*ctu_top;
 	ctu_info_t		*ctu_top_right;
+	ctu_info_t		*ctu_top_left;
 	int				top;
 	int				left;
 	
@@ -790,7 +803,7 @@ struct entropy_model_t
 	context_model_buff_t	cu_ctx_last_y_model;
 	context_model_buff_t	cu_one_model;
 	context_model_buff_t	cu_abs_model;
-	context_model_buff_t	mvp_idx_model;
+	context_model_buff_t	cu_mvp_idx_model;
 	context_model_buff_t	cu_amp_model;
 	context_model_buff_t	sao_merge_model;
 	context_model_buff_t	sao_type_model;
@@ -869,6 +882,7 @@ struct slice_t
 	unsigned int slice_loop_filter_across_slices_enabled_flag;
 	unsigned int slice_beta_offset_div2;
 	unsigned int slice_tc_offset_div2;
+	unsigned int max_num_merge_candidates;
 
 	sps_t		*sps;
 	pps_t		*pps;
@@ -1009,6 +1023,7 @@ struct henc_thread_t
 	uint8_t				*tr_idx_buffs[NUM_CBF_BUFFS];
 
 	//inter
+	mv_candiate_list_t	mv_candidates[2];
 //	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
@@ -1057,6 +1072,7 @@ struct hvenc_t
 
 	//Encoder Cfg	
 	//Encoding layer
+	int				intra_period;
 	int				gop_size;
 	int				num_b;
 //	img_pool_t		img_list;

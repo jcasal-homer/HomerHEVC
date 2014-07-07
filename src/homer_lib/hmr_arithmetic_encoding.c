@@ -115,7 +115,7 @@ void ee_init_contexts(enc_env_t *ee)
 	curr_ctx+=init_context(&entropy_models->cu_ctx_last_y_model, curr_ctx, 2, NUM_CTX_LAST_FLAG_XY, &INIT_LAST[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_one_model, curr_ctx, 1, NUM_ONE_FLAG_CTX, &INIT_ONE_FLAG[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_abs_model, curr_ctx, 1, NUM_ABS_FLAG_CTX, &INIT_ABS_FLAG[0][0]);
-	curr_ctx+=init_context(&entropy_models->mvp_idx_model, curr_ctx, 1, NUM_MVP_IDX_CTX, &INIT_MVP_IDX[0][0]);
+	curr_ctx+=init_context(&entropy_models->cu_mvp_idx_model, curr_ctx, 1, NUM_MVP_IDX_CTX, &INIT_MVP_IDX[0][0]);
 	curr_ctx+=init_context(&entropy_models->cu_trans_subdiv_flag_model, curr_ctx, 1, NUM_TRANS_SUBDIV_FLAG_CTX, &INIT_TRANS_SUBDIV_FLAG[0][0]);
 	curr_ctx+=init_context(&entropy_models->sao_merge_model, curr_ctx, 1, NUM_SAO_MERGE_FLAG_CTX, &INIT_SAO_MERGE_FLAG[0][0]);
 	curr_ctx+=init_context(&entropy_models->sao_type_model, curr_ctx, 1, NUM_SAO_TYPE_IDX_CTX, &INIT_SAO_TYPE_IDX[0][0]);
@@ -183,7 +183,7 @@ void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_ini
 	start_context(&entropy_models->cu_ctx_last_y_model, init_type, qp);
 	start_context(&entropy_models->cu_one_model, init_type, qp);
 	start_context(&entropy_models->cu_abs_model, init_type, qp);
-	start_context(&entropy_models->mvp_idx_model, init_type, qp);
+	start_context(&entropy_models->cu_mvp_idx_model, init_type, qp);
 	start_context(&entropy_models->cu_trans_subdiv_flag_model, init_type, qp);
 	start_context(&entropy_models->sao_merge_model, init_type, qp);
 	start_context(&entropy_models->sao_type_model, init_type, qp);
@@ -215,58 +215,154 @@ void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst)
 
 ctu_info_t *get_pu_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
 {
-	int	ctu_line_size_in_partitions_mask = (ctu->size>>2)-1;
+	int	ctu_width_in_partitions_mask = (ctu->size>>2)-1;
 
-	if((curr_partition_info->raster_index & ctu_line_size_in_partitions_mask) == 0)//columna izq del ctu
+	*aux_part_idx = curr_partition_info->abs_index_left_partition;
+
+	if((curr_partition_info->raster_index & ctu_width_in_partitions_mask) == 0)//columna izq del ctu
 	{		
-		*aux_part_idx = curr_partition_info->abs_index_left_partition;
 		return ctu->ctu_left;
 	}
 	else
 	{
-		*aux_part_idx = curr_partition_info->abs_index_left_partition;
 		return ctu;
 	}
 }
 
-ctu_info_t *get_pu_bottom_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
+ctu_info_t *get_pu_left_bottom(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
 {
-	int	ctu_line_size_in_partitions_mask = (ctu->size>>2)-1;
+	int ctu_width_in_partitions = (ctu->size>>2);
+	int	ctu_width_in_partitions_mask = ctu_width_in_partitions-1;
 
-	if((curr_partition_info->raster_index & ctu_line_size_in_partitions_mask) == 0)//columna izq del ctu
-	{		
-		*aux_part_idx = curr_partition_info->abs_index_left_partition;
+	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_width_in_partitions;
+	
+	*aux_part_idx = curr_partition_info->abs_index_left_bottom_partition;
+
+	if(curr_partition_info->raster_index == et->num_partitions_in_cu-ctu_width_in_partitions)//left bottom partition
+	{
+		return ctu->ctu_left_bottom;//null for raster or wavefront processing
+	}
+	else if((curr_partition_info->raster_index & ctu_width_in_partitions_mask) == 0)//left column
+	{	
 		return ctu->ctu_left;
+	}
+	else if(curr_partition_info->raster_index >= ctu_partition_top_line_offset)//left column
+	{	
+		return NULL;
+	}
+	else if(curr_partition_info->abs_index > curr_partition_info->abs_index_left_bottom_partition)
+	{
+		return ctu;//right ctu is never avaliable
 	}
 	else
 	{
-		*aux_part_idx = curr_partition_info->abs_index_left_partition;
-		return ctu;
+		return NULL;
 	}
 }
 
 
 ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary)
 {
-	int	ctu_line_size_in_partitions = (ctu->size>>2);
+	int	ctu_width_in_partitions = (ctu->size>>2);
 
-	if(curr_partition_info->raster_index < ctu_line_size_in_partitions)
+	*aux_part_idx = curr_partition_info->abs_index_top_partition;
+
+	if(curr_partition_info->raster_index < ctu_width_in_partitions)
 	{
 		if(planarAtLCUBoundary)
 			return NULL;
-		*aux_part_idx = curr_partition_info->abs_index_top_partition;
 
 		return ctu->ctu_top;
 	}
 	else
 	{
-		*aux_part_idx = curr_partition_info->abs_index_top_partition;
 		return ctu;
 	}
-
-	return NULL;
 }
 
+ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
+{
+	int	ctu_width_in_partitions = (ctu->size>>2);
+	int	ctu_width_in_partitions_mask = ctu_width_in_partitions-1;
+
+	*aux_part_idx = curr_partition_info->abs_index_top_right_partition;
+
+	if(curr_partition_info->raster_index == ctu_width_in_partitions_mask)//top right partition
+	{
+		return ctu->ctu_top_right;
+	}
+	else if(curr_partition_info->raster_index < ctu_width_in_partitions)//top line
+	{
+		return ctu->ctu_top;
+	}
+	else if((curr_partition_info->raster_index & ctu_width_in_partitions_mask) == ctu_width_in_partitions_mask)//right column
+	{
+		return NULL;
+	}
+	else if(curr_partition_info->abs_index > curr_partition_info->abs_index_top_right_partition)
+	{
+		return ctu;//right ctu is never avaliable
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx)
+{
+	int	ctu_width_in_partitions = (ctu->size>>2);
+	int	ctu_width_in_partitions_mask = ctu_width_in_partitions-1;
+
+	*aux_part_idx = curr_partition_info->abs_index_top_left_partition;
+	if(curr_partition_info->raster_index == 0)//top left partition
+	{
+		return ctu->ctu_top_left;
+	}
+	else if(curr_partition_info->raster_index < ctu_width_in_partitions)//top line
+	{
+		return ctu->ctu_top;
+	}
+	else if((curr_partition_info->raster_index & ctu_width_in_partitions_mask)== 0)//left column
+	{
+		return ctu->ctu_left;
+	}
+	else
+		return ctu;
+}
+
+
+void write_unary_max_simbol(enc_env_t* ee, context_model_t *cm, uint symbol, int offset, uint max_symbol )
+{
+
+  int bCodeLast = ( max_symbol > symbol );
+  if (max_symbol == 0)
+  {
+    return;
+  }
+  	ee->ee_encode_bin(ee, cm, symbol? 1 : 0);
+//  m_pcBinIf->encodeBin( uiSymbol ? 1 : 0, pcSCModel[ 0 ] );
+  
+  if ( symbol == 0 )
+  {
+    return;
+  }
+  
+
+  cm+=offset;
+  while( --symbol )
+  {
+		ee->ee_encode_bin(ee, cm, 1);
+//    m_pcBinIf->encodeBin( 1, pcSCModel[ iOffset ] );
+  }
+  if( bCodeLast )
+  {
+		ee->ee_encode_bin(ee, cm, 0);
+//    m_pcBinIf->encodeBin( 0, pcSCModel[ iOffset ] );
+  }
+  
+  return;
+}
 
 
 void encode_split_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
@@ -568,11 +664,11 @@ void write_ep_ex_golomb(enc_env_t* ee, uint symbol, uint count)
 }
 
 
-void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
+void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
 {
 	if (ctu->inter_mode[abs_index] & ( 1 << ref_list))
 	{
-		motion_vector_t *mv = ctu->mv_ref[ref_list];
+		motion_vector_t *mv = &ctu->mv_diff[ref_list][abs_index];
 		int horizontal = mv->hor_vector;
 		int horizontal_not_0 = horizontal!=0?1:0;
 		int horizontal_abs = abs(horizontal);
@@ -608,14 +704,19 @@ void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
 	}
 }
 
-void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
+void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
 {
-	
+	if(ctu->inter_mode[abs_index] & (1<<ref_list))
+	{
+		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvp_idx_model, 0);
+
+		write_unary_max_simbol(ee, cm, ctu->mv_diff_ref_idx[ref_list][abs_index], 1, AMVP_MAX_NUM_CANDS-1);
+	}
 }
 
 
 //encodePUWise
-void encode_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, PartSize partition_size_type)
+void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, PartSize partition_size_type)
 {
 	int part_idx, sub_part_idx;
 	/*  if ( bRD )
@@ -652,8 +753,15 @@ void encode_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, ctu_in
 					{
 //						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
-					encode_mv_diff(ee, ctu, ref_list_idx, curr_partition_info->abs_index);
-					encode_mv_diff_index(ee, ctu, ref_list_idx, curr_partition_info->abs_index);
+
+					if(sub_part_idx==48)
+					{
+						int iiii=0;
+					}
+
+					encode_mv_diff(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
+
+					encode_mv_diff_index(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
 //					encodeMvdPU       ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 //					encodeMVPIdxPU    ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 				}
@@ -846,52 +954,60 @@ void encode_last_significant_XY(enc_env_t* ee, int x, int y, int width, int heig
 }
 
 
+void encode_qtroot_cbf(enc_env_t *ee, ctu_info_t *ctu, uint qtroot)
+{
+//	uint qtroot = CBF(ctu, abs_index, Y_COMP, 0) || CBF(ctu, abs_index, U_COMP, 0) || CBF(ctu, abs_index, V_COMP, 0);
+	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_qt_root_cbf_model, 0, 0, 0); 
+
+	ee->ee_encode_bin(ee, cm, qtroot);
+}
+
 int get_sig_ctx_inc(int pattern_sig_ctx, int scan_mode, int pos_x, int pos_y, int part_size_shift, int component)
 {
 	int offset;
 	int posXinSubset, posYinSubset;
 	int cnt = 0;
-  const int ctxIndMap[16] =
-  {
-    0, 1, 4, 5,
-    2, 3, 4, 5,
-    6, 6, 8, 8,
-    7, 7, 8, 8
-  };
+	const int ctxIndMap[16] =
+	{
+		0, 1, 4, 5,
+		2, 3, 4, 5,
+		6, 6, 8, 8,
+		7, 7, 8, 8
+	};
 
-  if( pos_x + pos_y == 0 )
-  {
-    return 0;
-  }
+	if( pos_x + pos_y == 0 )
+	{
+		return 0;
+	}
 
-  if ( part_size_shift == 2 )
-  {
-    return ctxIndMap[ 4 * pos_y + pos_x ];
-  }
+	if ( part_size_shift == 2 )
+	{
+		return ctxIndMap[ 4 * pos_y + pos_x ];
+	}
 
-  offset = part_size_shift == 3 ? (scan_mode==DIAG_SCAN ? 9 : 15) : (component == Y_COMP ? 21 : 12);
+	offset = part_size_shift == 3 ? (scan_mode==DIAG_SCAN ? 9 : 15) : (component == Y_COMP ? 21 : 12);
 
-  posXinSubset = pos_x-((pos_x>>2)<<2);
-  posYinSubset = pos_y-((pos_y>>2)<<2);
-  cnt = 0;
-  if(pattern_sig_ctx==0)
-  {
-    cnt = posXinSubset+posYinSubset<=2 ? (posXinSubset+posYinSubset==0 ? 2 : 1) : 0;
-  }
-  else if(pattern_sig_ctx==1)
-  {
-    cnt = posYinSubset<=1 ? (posYinSubset==0 ? 2 : 1) : 0;
-  }
-  else if(pattern_sig_ctx==2)
-  {
-    cnt = posXinSubset<=1 ? (posXinSubset==0 ? 2 : 1) : 0;
-  }
-  else
-  {
-    cnt = 2;
-  }
+	posXinSubset = pos_x-((pos_x>>2)<<2);
+	posYinSubset = pos_y-((pos_y>>2)<<2);
+	cnt = 0;
+	if(pattern_sig_ctx==0)
+	{
+		cnt = posXinSubset+posYinSubset<=2 ? (posXinSubset+posYinSubset==0 ? 2 : 1) : 0;
+	}
+	else if(pattern_sig_ctx==1)
+	{
+		cnt = posYinSubset<=1 ? (posYinSubset==0 ? 2 : 1) : 0;
+	}
+	else if(pattern_sig_ctx==2)
+	{
+		cnt = posXinSubset<=1 ? (posXinSubset==0 ? 2 : 1) : 0;
+	}
+	else
+	{
+		cnt = 2;
+	}
 
-  return (( component == Y_COMP && ((pos_x>>2) + (pos_y>>2)) > 0 ) ? 3 : 0) + offset + cnt;
+	return (( component == Y_COMP && ((pos_x>>2) + (pos_y>>2)) > 0 ) ? 3 : 0) + offset + cnt;
 }
 
 
@@ -1205,8 +1321,25 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 	int tu_log_min_size_in_cu;
 	int split_flag, is_intra, part_size_type, pred_depth;
 
+	abs_index = curr_partition_info->abs_index;
+	is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;
+	if(!is_intra)
+	{
+		uint merge_flag = 0;/*ctu->merge[sub_part_idx]*/
+		uint qtroot = CBF(ctu, abs_index, Y_COMP, 0) || CBF(ctu, abs_index, U_COMP, 0) || CBF(ctu, abs_index, V_COMP, 0);
+		if(!(merge_flag && ctu->part_size_type[abs_index] == SIZE_2Nx2N))
+		{
+			encode_qtroot_cbf(ee, ctu, qtroot);		
+		}
+		if(!qtroot)
+		{
+			return;
+		}
+	}
+
 	while(curr_depth!=depth || depth_state[curr_depth]!=1)//tenemos que iterar un cu de la profundidad inicial
 	{
+		unsigned int intra_split_flag, inter_split_flag;
 		curr_depth = curr_partition_info->depth;
 		abs_index = curr_partition_info->abs_index;
 		curr_part_size_shift = et->max_cu_size_shift-curr_depth;
@@ -1219,12 +1352,15 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		split_flag = ((tr_idx + pred_depth) > curr_depth );
 		log2_tr_size = et->max_cu_size_shift-(curr_depth);
 		log2_cu_size = et->max_cu_size_shift-pred_depth;
+		intra_split_flag = (is_intra && part_size_type==SIZE_NxN);
+		inter_split_flag = (!is_intra && et->max_inter_tr_depth==1 && part_size_type!=SIZE_2Nx2N);
 
-		if(log2_cu_size < tu_log_min_size+(is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth)-1+(is_intra && part_size_type==SIZE_NxN))//falta el flag de inter
+
+		if(log2_cu_size < tu_log_min_size + (is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth) - 1 + inter_split_flag + intra_split_flag)
 			tu_log_min_size_in_cu = et->min_tu_size_shift;
 		else
 		{
-			tu_log_min_size_in_cu = log2_cu_size - ((is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth)-1+(is_intra && part_size_type==SIZE_NxN));
+			tu_log_min_size_in_cu = log2_cu_size - ((is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth) - 1 + inter_split_flag + intra_split_flag);
 			if (tu_log_min_size_in_cu > tu_log_max_size)
 			  tu_log_min_size_in_cu = tu_log_max_size;
 		}
@@ -1314,7 +1450,7 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	int abs_index = curr_partition_info->abs_index;
 	int is_intra = ctu->pred_mode[abs_index]==INTRA_MODE;
 	int is_skipped = ctu->skipped[abs_index];
-	PartSize part_size_type = ctu->part_size_type[abs_index];
+	PartSize part_size_type = (PartSize)ctu->part_size_type[abs_index];
 
 	if(et->ed->num_encoded_frames == 1)
 	{
@@ -1347,7 +1483,12 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	}
 	else
 	{
-	
+		encode_inter_motion_info(et, ee, currslice, ctu, curr_partition_info, part_size_type);
+	}
+
+	if(!is_intra)
+	{
+		int iiiii=0;
 	}
 
 	transform_tree(et, ee, ctu, curr_partition_info, gcnt);

@@ -219,8 +219,9 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.M = 1;
-	HmrCfg.N = 4;
+	HmrCfg.intra_period = 4;
+	HmrCfg.num_b = 0;
+	HmrCfg.gop_size = 1;
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;

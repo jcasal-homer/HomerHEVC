@@ -113,8 +113,9 @@ struct HVENC_Cfg{
 	int size;
 	int profile;
 	int width, height; // frame size (pels) 
-	int N; // number of frames in Group of Pictures 
-	int M; // distance between I/P frames 
+	int intra_period;
+	int gop_size; 
+	int num_b; 
 	int qp;
 	int frame_rate;
 	int num_ref_frames;

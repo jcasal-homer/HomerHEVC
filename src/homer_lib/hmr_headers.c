@@ -449,9 +449,29 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 			}
 		}
 
+
+		//if(use_sao)
+		//.....
+
 		if(!isIntra(currslice->slice_type))
 		{
-			
+			int override_flag = (currslice->num_ref_idx[REF_PIC_LIST_0]!=(pps->num_ref_idx_l0_default_active_minus1+1));// ||(pcSlice->isInterB()&&pcSlice->getNumRefIdx( REF_PIC_LIST_1 )!=pcSlice->getPPS()->getNumRefIdxL1DefaultActive()));
+			hmr_bitstream_write_bits(bs, override_flag, 1);//num_ref_idx_active_override_flag
+//			WRITE_FLAG( overrideFlag ? 1 : 0,                               "num_ref_idx_active_override_flag");
+			if (override_flag) 
+			{
+				hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l0_default_active_minus1);
+//				WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) - 1,      "num_ref_idx_l0_active_minus1" );
+				if (currslice->slice_type != B_SLICE)
+				{
+					hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l0_default_active_minus1);
+//					WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) - 1,    "num_ref_idx_l1_active_minus1" );
+				}
+				else
+				{
+					currslice->num_ref_idx[REF_PIC_LIST_1] = 0;
+				}
+			}			
 		}
 		else
 		{
@@ -471,8 +491,13 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 		{
 			if(pps->cabac_init_present_flag)
 			{
-			//	cabac_init_flag
-			}
+				//	cabac_init_flag
+/*				SliceType sliceType   = pcSlice->getSliceType();
+				Int  encCABACTableIdx = pcSlice->getPPS()->getEncCABACTableIdx();
+				Bool encCabacInitFlag = (sliceType!=encCABACTableIdx && encCABACTableIdx!=I_SLICE) ? true : false;
+				pcSlice->setCabacInitFlag( encCabacInitFlag );
+				WRITE_FLAG( encCabacInitFlag?1:0, "cabac_init_flag" );
+*/			}
 		}
 		if(currslice->slice_temporal_mvp_enable_flag)
 		{
@@ -489,7 +514,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 
 		if(!isIntra(currslice->slice_type))
 		{
-			//five_minus_max_num_merge_cand
+			hmr_bitstream_write_bits_uvlc(bs, 5 - currslice->max_num_merge_candidates);//five_minus_max_num_merge_cand			
 		}
 		
 		hmr_bitstream_write_bits_svlc(bs, ed->pict_qp - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
