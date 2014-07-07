@@ -1533,6 +1533,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
+	if(ctu->ctu_number==5 && currslice->slice_type == P_SLICE)
+	{
+		int iiiiii=0;
+	}
+
 	//encode parent
 	curr_depth = curr_partition_info->depth;
 	memset(depth_state, 0, sizeof(depth_state));

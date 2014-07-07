@@ -53,7 +53,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	ctu->per = ctu->qp/6;
 	ctu->rem = ctu->qp%6;
 
-	quant_wnd = &et->transform_quant_wnd[curr_depth + (part_size_type!=SIZE_2Nx2N)];
+	quant_wnd = &et->transform_quant_wnd[curr_depth + 1 + (part_size_type!=SIZE_2Nx2N)];
 	decoded_wnd = &et->decoded_mbs_wnd[curr_depth + 1  + (part_size_type!=SIZE_2Nx2N)];
 //	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
@@ -124,7 +124,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	ctu->per = ctu->qp_chroma/6;
 	ctu->rem = ctu->qp_chroma%6;
 
-	quant_wnd = &et->transform_quant_wnd[original_depth+(part_size_type!=SIZE_2Nx2N)];
+	quant_wnd = &et->transform_quant_wnd[original_depth+1+(part_size_type!=SIZE_2Nx2N)];
 	decoded_wnd = &et->decoded_mbs_wnd[original_depth+1+(part_size_type!=SIZE_2Nx2N)];
 //	cbf_buff = et->cbf_buffs[component][original_depth];
 
@@ -888,14 +888,24 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 					if(curr_depth == max_tr_processing_depth)	//create cbf and tr_idx buffs
 					{
 						int nchild;
+						uint cbf_split[NUM_PICT_COMPONENTS];
+						int tr_mask = 0x1<<(curr_depth-depth);
+
+						cbf_split[Y_COMP] = (parent_part_info->children[0]->inter_cbf[Y_COMP]&tr_mask)||(parent_part_info->children[1]->inter_cbf[Y_COMP]&tr_mask)||(parent_part_info->children[2]->inter_cbf[Y_COMP]&tr_mask)||(parent_part_info->children[3]->inter_cbf[Y_COMP]&tr_mask);
+						cbf_split[U_COMP] = (parent_part_info->children[0]->inter_cbf[U_COMP]&tr_mask)||(parent_part_info->children[1]->inter_cbf[U_COMP]&tr_mask)||(parent_part_info->children[2]->inter_cbf[U_COMP]&tr_mask)||(parent_part_info->children[3]->inter_cbf[U_COMP]&tr_mask);
+						cbf_split[V_COMP] = (parent_part_info->children[0]->inter_cbf[V_COMP]&tr_mask)||(parent_part_info->children[1]->inter_cbf[V_COMP]&tr_mask)||(parent_part_info->children[2]->inter_cbf[V_COMP]&tr_mask)||(parent_part_info->children[3]->inter_cbf[V_COMP]&tr_mask);
+
 						for(nchild=0;nchild<4;nchild++)
 						{
 							cu_partition_info_t *cu_info = parent_part_info->children[nchild];
+							cu_info->inter_cbf[Y_COMP]|=cbf_split[Y_COMP];
+							cu_info->inter_cbf[U_COMP]|=cbf_split[U_COMP];
+							cu_info->inter_cbf[V_COMP]|=cbf_split[V_COMP];
 							SET_ENC_INFO_BUFFS(et, cu_info, depth+(part_size_type!=SIZE_2Nx2N), cu_info->abs_index, cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
 					}
-					synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
-					synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
+					synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
+					synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
 				}
 				else 
 				{
@@ -964,8 +974,8 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 			int nchild;
 			int num_part_in_sub_cu = parent_part_info->children[0]->num_part_in_cu;
 
-			synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth], ctu->coeff_wnd, &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
-			synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth], ctu->coeff_wnd, &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
+			synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
+			synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
 			CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
 			for(nchild=0;nchild<4;nchild++)
 			{
@@ -993,8 +1003,8 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 		int part_size_type2 = (parent_part_info->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		int parent_depth = parent_part_info->depth;//curr_depth-1
 		parent_part_info->cost = parent_cost;
-		synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth-1], ctu->coeff_wnd, &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
-		synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth-1], ctu->coeff_wnd, &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
+		synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
+		synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
 		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, parent_depth, abs_index, num_part_in_cu)
 		SET_INTER_INFO_BUFFS(et, ctu, parent_part_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)
 
@@ -1032,9 +1042,9 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			if(ctu->ctu_number == 2 && curr_cu_info->abs_index==16)// && curr_cu_info->depth == 1)
+			if(ctu->ctu_number==5 && et->ed->current_pict.slice.slice_type == P_SLICE)
 			{
-				int iiiiiii=0;
+				int iiii=0;
 			}
 
 			//encode

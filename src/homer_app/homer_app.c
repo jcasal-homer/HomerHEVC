@@ -36,7 +36,7 @@
 
 //#define FILE_IN  "//home//juan//Patrones//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+#define FILE_IN  "C:\\Patrones\\Prueba3_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 #define FILE_OUT  "C:\\Patrones\\Homer_output.265"//"output_32_.265"
 
@@ -219,7 +219,7 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 4;
+	HmrCfg.intra_period = 20;
 	HmrCfg.num_b = 0;
 	HmrCfg.gop_size = 1;
 	HmrCfg.qp = 32;
