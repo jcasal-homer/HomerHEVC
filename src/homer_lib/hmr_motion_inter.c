@@ -885,6 +885,11 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 					parent_part_info->cost = cost;
 					parent_part_info->distortion = distortion;
 
+					if(parent_part_info->abs_index == 96)
+					{
+						int iiiii=0;
+					}
+
 					if(curr_depth == max_tr_processing_depth)	//create cbf and tr_idx buffs
 					{
 						int nchild;
@@ -898,11 +903,38 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 						for(nchild=0;nchild<4;nchild++)
 						{
 							cu_partition_info_t *cu_info = parent_part_info->children[nchild];
-							cu_info->inter_cbf[Y_COMP]|=cbf_split[Y_COMP];
-							cu_info->inter_cbf[U_COMP]|=cbf_split[U_COMP];
-							cu_info->inter_cbf[V_COMP]|=cbf_split[V_COMP];
+							cu_info->inter_cbf[Y_COMP]|=cbf_split[Y_COMP]<<(curr_depth-depth-1);
+							cu_info->inter_cbf[U_COMP]|=cbf_split[U_COMP]<<(curr_depth-depth-1);
+							cu_info->inter_cbf[V_COMP]|=cbf_split[V_COMP]<<(curr_depth-depth-1);
 							SET_ENC_INFO_BUFFS(et, cu_info, depth+(part_size_type!=SIZE_2Nx2N), cu_info->abs_index, cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
+					}
+					else
+					{
+						int ll;
+						int buff_depth = depth+(part_size_type!=SIZE_2Nx2N);
+						int abs_index = parent_part_info->abs_index;
+						int num_part_in_cu = parent_part_info->num_part_in_cu;
+//						uint cbf_split[NUM_PICT_COMPONENTS];
+						uint cbf_y, cbf_u, cbf_v;
+						int tr_mask = 0x1<<(curr_depth-depth);
+						cbf_y = (et->cbf_buffs[Y_COMP][buff_depth][parent_part_info->children[0]->abs_index]&tr_mask)||(et->cbf_buffs[Y_COMP][buff_depth][parent_part_info->children[1]->abs_index]&tr_mask)||(et->cbf_buffs[Y_COMP][buff_depth][parent_part_info->children[2]->abs_index]&tr_mask)||(et->cbf_buffs[Y_COMP][buff_depth][parent_part_info->children[3]->abs_index]&tr_mask);
+						cbf_u = (et->cbf_buffs[U_COMP][buff_depth][parent_part_info->children[0]->abs_index]&tr_mask)||(et->cbf_buffs[U_COMP][buff_depth][parent_part_info->children[1]->abs_index]&tr_mask)||(et->cbf_buffs[U_COMP][buff_depth][parent_part_info->children[2]->abs_index]&tr_mask)||(et->cbf_buffs[U_COMP][buff_depth][parent_part_info->children[3]->abs_index]&tr_mask);
+						cbf_v = (et->cbf_buffs[V_COMP][buff_depth][parent_part_info->children[0]->abs_index]&tr_mask)||(et->cbf_buffs[V_COMP][buff_depth][parent_part_info->children[1]->abs_index]&tr_mask)||(et->cbf_buffs[V_COMP][buff_depth][parent_part_info->children[2]->abs_index]&tr_mask)||(et->cbf_buffs[V_COMP][buff_depth][parent_part_info->children[3]->abs_index]&tr_mask);
+
+						cbf_y <<= (curr_depth-depth-1);
+						cbf_u <<= (curr_depth-depth-1);
+						cbf_v <<= (curr_depth-depth-1);
+						cbf_y |= ((cbf_y&0xff)<<8) | ((cbf_y&0xff)<<16) | ((cbf_y&0xff)<<24);
+						cbf_u |= ((cbf_u&0xff)<<8) | ((cbf_u&0xff)<<16) | ((cbf_u&0xff)<<24);
+						cbf_v |= ((cbf_v&0xff)<<8) | ((cbf_v&0xff)<<16) | ((cbf_v&0xff)<<24);
+						//consolidate cbf flags
+						for(ll=(abs_index>>2);ll<((abs_index+num_part_in_cu)>>2);ll++)
+						{
+							((uint*)(et->cbf_buffs[Y_COMP][buff_depth]))[ll] |= cbf_y;
+							((uint*)(et->cbf_buffs[U_COMP][buff_depth]))[ll] |= cbf_u;
+							((uint*)(et->cbf_buffs[V_COMP][buff_depth]))[ll] |= cbf_v;
+						}											
 					}
 					synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
 					synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->transform_quant_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth+1+(part_size_type!=SIZE_2Nx2N)], &et->decoded_mbs_wnd[curr_depth-1+1+(part_size_type!=SIZE_2Nx2N)], gcnt);
@@ -982,7 +1014,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 				cu_partition_info_t *cu_info = parent_part_info->children[nchild];
 				SET_INTER_INFO_BUFFS(et, ctu, cu_info, cu_info->abs_index, cu_info->num_part_in_cu, REF_PIC_LIST_0)
 			}
-			cbf_split[Y_COMP] = (ctu->cbf[Y_COMP][abs_index]&2) || (ctu->cbf[Y_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+3*num_part_in_sub_cu]&2);
+/*			cbf_split[Y_COMP] = (ctu->cbf[Y_COMP][abs_index]&2) || (ctu->cbf[Y_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+3*num_part_in_sub_cu]&2);
 			cbf_split[U_COMP] = (ctu->cbf[U_COMP][abs_index]&2) || (ctu->cbf[U_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[U_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[U_COMP][abs_index+3*num_part_in_sub_cu]&2);
 			cbf_split[V_COMP] = (ctu->cbf[V_COMP][abs_index]&2) || (ctu->cbf[V_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[V_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[V_COMP][abs_index+3*num_part_in_sub_cu]&2);
 			//consolidate cbf flags
@@ -992,7 +1024,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 				ctu->cbf[U_COMP][ll] |= cbf_split[U_COMP];
 				ctu->cbf[V_COMP][ll] |= cbf_split[V_COMP];
 			}
-			//if we fill this in here we don't have to consolidate
+*/			//if we fill this in here we don't have to consolidate
 			memset(&ctu->pred_depth[abs_index], curr_depth-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 			memset(&ctu->part_size_type[abs_index], part_size_type2, num_part_in_cu*sizeof(ctu->part_size_type[0]));
 		}
@@ -1084,6 +1116,10 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				depth_state[curr_depth] = 0;
 				best_cost = parent_part_info->cost;
 
+				if(parent_part_info->abs_index == 96)
+				{
+					int iiiii=0;
+				}
 				consolidate_inter_prediction_info(et, ctu, parent_part_info, best_cost, cost, is_max_depth);
 
 				curr_depth--;

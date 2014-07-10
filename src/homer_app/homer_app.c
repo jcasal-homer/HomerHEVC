@@ -36,12 +36,12 @@
 
 //#define FILE_IN  "//home//juan//Patrones//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\Prueba3_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+#define FILE_IN  "C:\\Patrones\\DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
-#define FILE_OUT  "C:\\Patrones\\Homer_output.265"//"output_32_.265"
+#define FILE_OUT  "C:\\Patrones\\Homer_output.bin"//"output_32_.265"
 
-#define HOR_SIZE	192//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	128//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	384//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	256//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 
 
 #ifdef _MSC_VER
@@ -197,7 +197,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile, *outfile;
-	int num_frames = 10;
+	int num_frames = 16;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -226,9 +226,9 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 2;
+	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 1;
-	HmrCfg.max_inter_tr_depth = 1;
+	HmrCfg.max_inter_tr_depth = 4;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;

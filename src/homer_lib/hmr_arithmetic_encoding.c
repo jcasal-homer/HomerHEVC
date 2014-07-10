@@ -1366,7 +1366,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		}
 
 		if(!(is_intra && part_size_type == SIZE_NxN && curr_depth == pred_depth) && 
-			!(!is_intra && part_size_type != SIZE_2Nx2N && curr_depth == pred_depth) && 
+			!(!is_intra && part_size_type != SIZE_2Nx2N && curr_depth == pred_depth && et->max_inter_tr_depth == 1) && 
 			!(log2_tr_size>tu_log_max_size) && !(log2_tr_size==tu_log_min_size) && !(log2_tr_size==tu_log_min_size_in_cu))
 		{
 			ee->ee_encode_bin(ee, GET_CONTEXT_XYZ(ee->e_ctx->cu_trans_subdiv_flag_model ,0, 0, 5 - curr_part_size_shift), split_flag);
@@ -1533,7 +1533,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
-	if(ctu->ctu_number==5 && currslice->slice_type == P_SLICE)
+	if(/*ctu->ctu_number==5 && */currslice->slice_type == P_SLICE)
 	{
 		int iiiiii=0;
 	}
