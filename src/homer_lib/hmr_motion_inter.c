@@ -32,7 +32,7 @@
 #include "hmr_sse42_functions.h"
 
 
-int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int depth, PartSize part_size_type, int *curr_sum, motion_vector_t *mv, int gcnt)//depth = prediction depth
+int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int depth, PartSize part_size_type, int *curr_sum, int gcnt)//depth = prediction depth
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
@@ -69,7 +69,6 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
 	decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 
 	inv_depth = (et->max_cu_size_shift - curr_depth);
 //	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
@@ -101,7 +100,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 }
 
 
-int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int component, int depth, PartSize part_size_type, int *curr_sum, motion_vector_t *mv, int gcnt)//depth = prediction depth
+int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int component, int depth, PartSize part_size_type, int *curr_sum, int gcnt)//depth = prediction depth
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
@@ -830,17 +829,18 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		curr_cu_info = (parent_part_info==NULL)?curr_cu_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
 		curr_depth = curr_cu_info->depth;
 
-		if(ctu->ctu_number == 2 && curr_cu_info->abs_index==28 && depth==2 && part_size_type == SIZE_NxN)// && curr_cu_info->depth == 1)
+//		if(ctu->ctu_number == 2 && curr_cu_info->abs_index==28 && depth==2 && part_size_type == SIZE_NxN)// && curr_cu_info->depth == 1)
+		if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 92 && depth == 1)
 		{
 			int iiiiiii=0;
 		}
 
-		dist_y = encode_inter_cu(et, ctu, curr_cu_info, depth, part_size_type, &curr_sum_y, &mv, gcnt);//depth = prediction depth
+		dist_y = encode_inter_cu(et, ctu, curr_cu_info, depth, part_size_type, &curr_sum_y, gcnt);//depth = prediction depth
 
 		if(curr_cu_info->size_chroma!=2 || (curr_cu_info->size_chroma==2 && depth_state[curr_depth]==0))
 		{
-			dist_u = encode_inter_cu_chroma(et, ctu, curr_cu_info, U_COMP, depth, part_size_type, &curr_sum_u, &mv, gcnt);//depth = prediction depth
-			dist_v = encode_inter_cu_chroma(et, ctu, curr_cu_info, V_COMP, depth, part_size_type, &curr_sum_v, &mv, gcnt);//depth = prediction depth
+			dist_u = encode_inter_cu_chroma(et, ctu, curr_cu_info, U_COMP, depth, part_size_type, &curr_sum_u, gcnt);//depth = prediction depth
+			dist_v = encode_inter_cu_chroma(et, ctu, curr_cu_info, V_COMP, depth, part_size_type, &curr_sum_v, gcnt);//depth = prediction depth
 		}
 		else
 		{
@@ -1074,9 +1074,9 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			if(ctu->ctu_number==5 && et->ed->current_pict.slice.slice_type == P_SLICE)
+			if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 64)// && curr_cu_info->depth == 1)
 			{
-				int iiii=0;
+				int iiiiiii=0;
 			}
 
 			//encode

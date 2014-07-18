@@ -1356,6 +1356,11 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		inter_split_flag = (!is_intra && et->max_inter_tr_depth==1 && part_size_type!=SIZE_2Nx2N);
 
 
+			if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_partition_info->abs_index == 92)
+			{
+				int iiiiii=0;
+			}
+
 		if(log2_cu_size < tu_log_min_size + (is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth) - 1 + inter_split_flag + intra_split_flag)
 			tu_log_min_size_in_cu = et->min_tu_size_shift;
 		else
@@ -1364,6 +1369,13 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			if (tu_log_min_size_in_cu > tu_log_max_size)
 			  tu_log_min_size_in_cu = tu_log_max_size;
 		}
+
+
+			if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_partition_info->abs_index == 92)
+			{
+				int iiiiii=0;
+			}
+
 
 		if(!(is_intra && part_size_type == SIZE_NxN && curr_depth == pred_depth) && 
 			!(!is_intra && part_size_type != SIZE_2Nx2N && curr_depth == pred_depth && et->max_inter_tr_depth == 1) && 
@@ -1398,6 +1410,12 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 				CBF(ctu, abs_index, V_COMP, tr_depth) ) 
 			{
 				encode_qt_cbf(ee, curr_partition_info, Y_COMP, tr_depth, CBF(ctu, abs_index, Y_COMP, tr_depth));
+			}
+
+
+			if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_partition_info->abs_index == 92)
+			{
+				int iiiiii=0;
 			}
 
 			if(CBF(ctu, abs_index, Y_COMP, tr_depth))
@@ -1505,7 +1523,12 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 	int granularityBoundary;
 	uint uiRealEndAddress;
 
-	uiRealEndAddress = et->pict_total_cu*et->num_partitions_in_cu;
+	if(width%et->max_cu_size || height%et->max_cu_size)
+	{
+		uiRealEndAddress = (et->pict_total_cu-1)*et->num_partitions_in_cu + ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height
+	}
+	else
+		uiRealEndAddress = et->pict_total_cu*et->num_partitions_in_cu;
 
 	bTerminateSlice = FALSE;
 
@@ -1533,7 +1556,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
-	if(/*ctu->ctu_number==5 && */currslice->slice_type == P_SLICE)
+	if(ctu->ctu_number==2 && currslice->slice_type == P_SLICE)
 	{
 		int iiiiii=0;
 	}
@@ -1566,6 +1589,10 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 			{
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
+				if(ctu->ctu_number == et->pict_total_cu-1 && curr_partition_info->abs_index==12)
+				{
+					int iiiii=0;
+				}
 				encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 			}
 			while(depth_state[curr_depth]==4)

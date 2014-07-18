@@ -132,8 +132,8 @@ struct HVENC_Cfg{
 
 void *HOMER_enc_init();
 void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-//int HOMER_enc_encode(void* handle, unsigned char *picture_t[], nalu_t *nalu_out[], unsigned int *nalu_list_size);
-int HOMER_enc_encode(void* handle, unsigned char *picture_t[]);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
+//int HOMER_enc_encode(void* handle, unsigned char *picture[], nalu_t *nalu_out[], unsigned int *nalu_list_size);
+int HOMER_enc_encode(void* handle, unsigned char *picture[]);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
 int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *nalu_list_size);
 void encoder_thread(void *h);//void encoder_thread(void* ed);
 int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout);

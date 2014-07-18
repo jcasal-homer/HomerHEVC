@@ -392,26 +392,42 @@ void HOMER_enc_close(void* h)
 }
 
 
-void put_frame_to_encode(hvenc_t *ed, unsigned char *picture_t[])
+void put_frame_to_encode(hvenc_t *ed, unsigned char *picture[])
 {
 	video_frame_t	*p;
+
+	uint8_t *src, *dst;
+	int stride_dst, stride_src;
+	int comp, j;
+
 	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
 
-	memcpy(WND_DATA_PTR(uint8_t*, p->img, Y_COMP), picture_t[0], ed->pict_width[0]*ed->pict_height[0]);
-	memcpy(WND_DATA_PTR(uint8_t*, p->img, U_COMP), picture_t[1], ed->pict_width[1]*ed->pict_height[1]);
-	memcpy(WND_DATA_PTR(uint8_t*, p->img, V_COMP), picture_t[2], ed->pict_width[2]*ed->pict_height[2]);
+	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	{
+		src = picture[comp];
+		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
+		stride_src = ed->pict_width[comp];
+		stride_dst = WND_STRIDE_2D(p->img, comp);
+
+		for(j=0;j<ed->pict_height[comp];j++)
+		{
+			memcpy(dst, src, ed->pict_width[comp]);
+			src += stride_src;
+			dst += stride_dst;
+		}
+	}
 	sync_cont_put_filled(ed->input_hmr_container, p);
 }
 
 
-void get_frame_to_encode(hvenc_t *ed, video_frame_t **picture_t)
+void get_frame_to_encode(hvenc_t *ed, video_frame_t **picture)
 {
-	sync_cont_get_filled(ed->input_hmr_container, (void**)picture_t);
+	sync_cont_get_filled(ed->input_hmr_container, (void**)picture);
 }
 
-void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture_t)
+void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture)
 {
-	sync_cont_put_empty(ed->input_hmr_container, picture_t);
+	sync_cont_put_empty(ed->input_hmr_container, picture);
 }
 
 
@@ -926,7 +942,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			memset(phvenc->ptl.subLayerProfilePresentFlag, 0, sizeof(phvenc->ptl.subLayerProfilePresentFlag));
 			memset(phvenc->ptl.subLayerLevelPresentFlag,   0, sizeof(phvenc->ptl.subLayerLevelPresentFlag  ));
 
-			//reference picture_t lists
+			//reference picture lists
 			phvenc->num_ref_lists = 2;
 			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc->intra_period==1?4:1;//this will need to be a consistent decission taken depending on the configuration
 			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc->intra_period==1?4:1;
@@ -1474,6 +1490,12 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 		}
 		if(et->cu_current_x==et->pict_width_in_cu)
 		{
+			if(et->cu_current+1 == et->pict_total_cu)
+			{
+				int iiii=0;
+			}
+
+
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
 			et->cu_current_y+=et->wfpp_num_threads;
@@ -1491,10 +1513,10 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 
 
-int HOMER_enc_encode(void* handle, unsigned char *picture_t[])
+int HOMER_enc_encode(void* handle, unsigned char *picture[])
 {
 	hvenc_t* ed = (hvenc_t*)handle;
-	put_frame_to_encode(ed, picture_t);
+	put_frame_to_encode(ed, picture);
 
 	return 0;
 }

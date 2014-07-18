@@ -696,7 +696,7 @@ typedef struct ctu_info_t ctu_info_t ;
 struct ctu_info_t 
 {
 	int				ctu_number;
-	int				x[3],y[3];//global in picture_t
+	int				x[3],y[3];//global coordinates in frame
 	int				size;
 	int				num_part_in_ctu;
 

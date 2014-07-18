@@ -685,7 +685,12 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 //							xGetBoundaryStrengthSingle ( pcCU, dir, uiPartIdx );
 		}
 	}
-					
+
+
+	if(ctu->ctu_number == 7 && curr_cu_info->abs_index == 12)
+	{
+		int iiiii=0;
+	}
 	for(part_idx = 0; part_idx < pu_size_in_deblock_units; part_idx+=deblock_partition_idx_incr)
 	{
 		deblock_filter_luma(ed, ctu, curr_cu_info, &ed->curr_reference_frame->img, currslice, dir, part_idx);
@@ -764,7 +769,7 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 	memset(depth_state, 0, sizeof(depth_state));
 
 
-	if(ed->num_encoded_frames== 1)// && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
+	if(ctu->ctu_number == 7)//ed->num_encoded_frames== 1)// && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
 	{
 		int iiiii=0;
 	}
@@ -785,31 +790,39 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 			curr_depth++;
 			curr_cu_info = curr_cu_info->children[depth_state[curr_depth]];
 		}
-		else //
+		else//
 		{	
 			int l;
 
-			abs_index = curr_cu_info->abs_index;
-			num_elements_width = num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
-			//num_elements_width = num_elements_height = (ed->max_cu_size>>total_depth)>>2;//num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
-			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units);
-			set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_height_units);				
-	
-			while(depth_state[curr_depth]==4 && curr_depth > pred_depth)
+			if(ctu->ctu_number == 7 && curr_cu_info->abs_index == 12)
 			{
-				depth_state[curr_depth] = 0;
-				curr_depth--;
-				curr_cu_info = curr_cu_info->parent;
+				int iiiii=0;
 			}
 
-			if(curr_depth == pred_depth)//xDeblockCU
+			if(curr_cu_info->is_tl_inside_frame)
 			{
-				//xSetEdgefilterPU
 				abs_index = curr_cu_info->abs_index;
-				num_elements_width = num_elements_height = (max(curr_cu_info->size, curr_cu_info->size)>>2);//(width, height)
+				num_elements_width = num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
+				//num_elements_width = num_elements_height = (ed->max_cu_size>>total_depth)>>2;//num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
+				set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_VER] , ed->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units);
+				set_edge_filter_0(ed, curr_cu_info, ed->deblock_edge_filter[EDGE_HOR] , ed->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_height_units);				
+	
+				while(depth_state[curr_depth]==4 && curr_depth > pred_depth)
+				{
+					depth_state[curr_depth] = 0;
+					curr_depth--;
+					curr_cu_info = curr_cu_info->parent;
+				}
 
-				set_edge_filter_pu(ed, currslice, ctu, curr_cu_info, num_elements_width, num_elements_height, max_cu_width_units, deblock_internal_edge);
-				deblock_cu(ed, currslice, ctu, curr_cu_info, dir);
+				if(curr_depth == pred_depth)//xDeblockCU
+				{
+					//xSetEdgefilterPU
+					abs_index = curr_cu_info->abs_index;
+					num_elements_width = num_elements_height = (max(curr_cu_info->size, curr_cu_info->size)>>2);//(width, height)
+
+					set_edge_filter_pu(ed, currslice, ctu, curr_cu_info, num_elements_width, num_elements_height, max_cu_width_units, deblock_internal_edge);
+					deblock_cu(ed, currslice, ctu, curr_cu_info, dir);
+				}
 			}
 
 			while(depth_state[curr_depth]==4)
@@ -831,6 +844,7 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	ctu_info_t* ctu;
 	int dir;
 
+	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
 		for(ctu_num = 0;ctu_num < ed->pict_total_cu;ctu_num++)
@@ -838,8 +852,16 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			ctu = &ed->ctu_info[ctu_num];
 
 			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
+			if(ctu->ctu_number == 7 && dir==EDGE_VER)
+			{
+				int iiiii=0;
+			}
+
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
+//		if(dir==EDGE_VER)
+//			wnd_write2file(&ed->curr_reference_frame->img);//for debugging 		
+
 	}
 	wnd_write2file(&ed->curr_reference_frame->img);//for debugging 		
 }
