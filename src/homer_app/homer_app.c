@@ -197,7 +197,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile, *outfile;
-	int num_frames = 16;
+	int num_frames = 15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -291,9 +291,12 @@ int main (int argc, char **argv)
 		frame[1] = (unsigned char*)stream.streams[1];
 		frame[2] = (unsigned char*)stream.streams[2];
 
-		fread(frame[0],HmrCfg.width,HmrCfg.height,infile);
-		fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile);
-		fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile);
+		if(fread(frame[0],HmrCfg.width,HmrCfg.height,infile)==0)
+			bCoding = 0;
+		if(fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
+			bCoding = 0;
+		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
+			bCoding = 0;
 
 		in.stream = stream;
 

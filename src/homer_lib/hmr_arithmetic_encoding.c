@@ -236,6 +236,11 @@ ctu_info_t *get_pu_left_bottom(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_width_in_partitions;
 	
+	if(!curr_partition_info->left_bottom_neighbour)
+	{
+		return NULL;
+	}
+
 	*aux_part_idx = curr_partition_info->abs_index_left_bottom_partition;
 
 	if(curr_partition_info->raster_index == et->num_partitions_in_cu-ctu_width_in_partitions)//left bottom partition
@@ -284,6 +289,11 @@ ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partitio
 {
 	int	ctu_width_in_partitions = (ctu->size>>2);
 	int	ctu_width_in_partitions_mask = ctu_width_in_partitions-1;
+
+	if(!curr_partition_info->top_right_neighbour)
+	{
+		return NULL;
+	}
 
 	*aux_part_idx = curr_partition_info->abs_index_top_right_partition;
 
