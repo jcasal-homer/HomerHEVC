@@ -487,6 +487,7 @@ void get_mv_candidates(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *
 	}
 
 	//get spatial candidates
+	partition_info_lb->left_bottom_neighbour = curr_cu_info->left_bottom_neighbour;
 	ctu_left_bottom = get_pu_left_bottom(et, ctu, partition_info_lb, &part_idx_lb);
 
 	if(ctu_left_bottom!=NULL)
@@ -504,6 +505,7 @@ void get_mv_candidates(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *
 	}
 
 	added = FALSE;
+	partition_tr->top_right_neighbour = curr_cu_info->top_right_neighbour;
 	ctu_top_right = get_pu_top_right(ctu, partition_tr, &aux_part_idx);
 //	ctu_top_right = get_pu_top_right(ctu, curr_cu_info, &aux_part_idx);
 	if(ctu_top_right!=NULL)
@@ -705,7 +707,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-		if(ctu->ctu_number==11 && et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_cu_info->abs_index == 64)// && curr_cu_info->depth == 1)
+		if(et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 8)//&& ctu->ctu_number==11 && curr_cu_info->depth == 1)
 		{
 			int iiiiiii=0;
 		}

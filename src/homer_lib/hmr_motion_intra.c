@@ -589,6 +589,12 @@ void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t
 void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size)
 {
 	cu_partition_info_t	*parent = curr_part->parent;
+
+	if(curr_part->abs_index == 8)
+	{
+		int iiii=0;
+	}
+
 	if(parent->left_neighbour || curr_part->x_position)
 		curr_part->left_neighbour = 1;
 	else
