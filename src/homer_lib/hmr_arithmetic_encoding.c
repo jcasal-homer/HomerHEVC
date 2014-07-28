@@ -1533,9 +1533,16 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 	int granularityBoundary;
 	uint uiRealEndAddress;
 
-	if(width%et->max_cu_size || height%et->max_cu_size)
+	if(width%et->max_cu_size && height%et->max_cu_size)
 	{
 		uiRealEndAddress = (et->pict_total_cu-1)*et->num_partitions_in_cu + ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height
+	}
+	else if(width%et->max_cu_size)
+	{
+//		int aux = ((et->max_cu_size*et->max_cu_size-1) + (width%et->max_cu_size))>>4;
+		int cu_size_in_partitions = et->max_cu_size>>2;
+		int aux = ((cu_size_in_partitions*cu_size_in_partitions-cu_size_in_partitions) + ((width%et->max_cu_size)>>2));
+		uiRealEndAddress = (et->pict_total_cu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
 	}
 	else
 		uiRealEndAddress = et->pict_total_cu*et->num_partitions_in_cu;
@@ -1566,7 +1573,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
-	if(ctu->ctu_number==2 && currslice->slice_type == P_SLICE)
+	if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==106)// && currslice->slice_type == P_SLICE)
 	{
 		int iiiiii=0;
 	}
@@ -1597,6 +1604,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 		{	
 			if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 			{
+				if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==106)
+				{
+					int iiiii=0;
+				}
+
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
 				if(ctu->ctu_number == et->pict_total_cu-1 && curr_partition_info->abs_index==12)

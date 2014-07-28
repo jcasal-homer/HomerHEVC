@@ -137,7 +137,7 @@ void aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
-void wnd_write2file(wnd_t *wnd_t);
+void wnd_write2file(wnd_t *wnd_t, FILE* file);
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu);

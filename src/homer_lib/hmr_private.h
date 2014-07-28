@@ -575,7 +575,7 @@ struct wnd_t
 	int		data_height[3];//wnd data vertical size
 	int		pix_size;
 //#ifdef WRITE_REF_FRAMES
-	FILE	*out_file;//for debug porposes
+//	FILE	*out_file;//for debug porposes
 //#endif
 };
 
@@ -593,6 +593,17 @@ struct video_frame_t
 	temporal_info_t	temp_info;
 	int				is_reference;
 };
+
+
+#define NALU_SET_SIZE	8
+typedef struct output_set_t output_set_t;
+struct output_set_t
+{
+	video_frame_t	*frame;
+	nalu_t			*nalu_list[NALU_SET_SIZE];
+	int				num_nalus;
+};
+
 
 //picture_t pool for image storage
 /*#define PICT_POOL_SIZE 5
@@ -1173,7 +1184,7 @@ struct hvenc_t
 	//input and output
 	video_frame_t	input_frames[NUM_INPUT_FRAMES];
 	void			*input_hmr_container;
-	nalu_set_t		output_nalus[NUM_OUTPUT_NALUS];
+	output_set_t	output_sets[NUM_OUTPUT_NALUS];
 	void			*output_hmr_container;
 
 #ifdef COMPUTE_METRICS
@@ -1181,6 +1192,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
+//	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

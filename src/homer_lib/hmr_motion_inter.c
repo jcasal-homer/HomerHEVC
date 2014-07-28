@@ -279,7 +279,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 //	curr_best_x = 0;
 //	curr_best_y = 0;
 
-/*	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
+	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
 	{
 		int curr_x = best_x+diamond_small[i][0];
 		int curr_y = best_y+diamond_small[i][1];
@@ -300,7 +300,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	best_sad = curr_best_sad;
 	best_x = curr_best_x;
 	best_y = curr_best_y;
-*/
+
 	mv->hor_vector = best_x<<2;
 	mv->ver_vector = best_y<<2;
 
@@ -839,7 +839,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		curr_depth = curr_cu_info->depth;
 
 //		if(ctu->ctu_number == 2 && curr_cu_info->abs_index==28 && depth==2 && part_size_type == SIZE_NxN)// && curr_cu_info->depth == 1)
-		if(ctu->ctu_number==7 && et->ed->current_pict.slice.slice_type == P_SLICE)//&& curr_cu_info->abs_index == 92 && depth == 1)
+		if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==4 && part_size_type == SIZE_NxN && et->ed->current_pict.slice.slice_type == P_SLICE)//&& curr_cu_info->abs_index == 92 && depth == 1)
 		{
 			int iiiiiii=0;
 		}
@@ -1083,7 +1083,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			if(ctu->ctu_number==11 && et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_cu_info->abs_index == 64)// && curr_cu_info->depth == 1)
+			if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==4 && et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_cu_info->abs_index == 64)// && curr_cu_info->depth == 1)
 			{
 				int iiiiiii=0;
 			}

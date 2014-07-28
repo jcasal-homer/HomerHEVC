@@ -147,15 +147,9 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-//#ifdef WRITE_REF_FRAMES
-	{
-		FILE *refs_file = fopen("C:\\Patrones\\refs.bin","wb");//refs.yuv","wb");
-		for(i=0;i<MAX_NUM_REF;i++)
-		{
-			phvenc->ref_wnds[i].img.out_file = refs_file;
-		}
-	}
-//#endif
+//	phvenc->debug_file  = fopen("C:\\Patrones\\refs.bin","wb");//refs.yuv","wb")
+
+
 
 /*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
 
@@ -1513,25 +1507,47 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 
 
-int HOMER_enc_encode(void* handle, unsigned char *picture[])
+int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame)
 {
 	hvenc_t* ed = (hvenc_t*)handle;
-	put_frame_to_encode(ed, picture);
+	put_frame_to_encode(ed, input_frame->stream.streams);
 
 	return 0;
 }
 
-int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *nalu_list_size)
+int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], unsigned int *nalu_list_size)
 {
 	hvenc_t* ed = (hvenc_t*)handle;
 	*nalu_list_size = 0;
 
 	if(get_num_elements(ed->output_hmr_container))
 	{
-		nalu_set_t* ouput_nalus;
-		cont_get(ed->output_hmr_container, (void**)&ouput_nalus);
-		memcpy(nalu_out, ouput_nalus->nalu_list, ouput_nalus->num_nalus*sizeof(ouput_nalus->nalu_list[0]));
-		*nalu_list_size = ouput_nalus->num_nalus;
+		int comp, j, i, stride_src, stride_dst;
+		uint16_t *src;
+		uint8_t *dst;
+		output_set_t* ouput_set;
+		cont_get(ed->output_hmr_container, (void**)&ouput_set);
+		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
+//		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
+		*nalu_list_size = ouput_set->num_nalus;
+		if(output_frame!=NULL)
+		{
+			for(comp=Y_COMP;comp<=V_COMP;comp++)
+			{
+				src = WND_DATA_PTR(uint16_t*, ouput_set->frame->img, comp);
+				dst = output_frame->stream.streams[comp];
+				stride_src = WND_STRIDE_2D(ouput_set->frame->img, comp);
+				
+				for(j=0;j<ed->pict_height[comp];j++)
+				{
+					for(i=0;i<ed->pict_width[comp];i++)
+					{
+						*dst++ = src[i];						
+					}
+					src += stride_src;
+				}
+			}
+		}
 	}
 
 	return 0;
@@ -1549,10 +1565,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 //	while(ed->run)
 	{
-		nalu_set_t* ouput_nalus = &ed->output_nalus[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
+		output_set_t* ouput_sets = &ed->output_sets[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
 		int		output_nalu_cnt = 0;
 		int		nalu_list_size = NALU_SET_SIZE;
-		nalu_t	**output_nalu_list = ouput_nalus->nalu_list;
+		nalu_t	**output_nalu_list = ouput_sets->nalu_list;
 	
 
 		PROFILER_START(intra)
@@ -1639,7 +1655,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
 
-		if(currslice->slice_type != I_SLICE)
+		if(ed->num_encoded_frames == 9)//if(currslice->slice_type != I_SLICE)
 		{
 			int iiiii=0;
 		}
@@ -1732,8 +1748,9 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		put_avaliable_frame(ed, ed->current_pict.img2encode);
 
-		ouput_nalus->num_nalus = output_nalu_cnt;
-		cont_put(ed->output_hmr_container, ouput_nalus);
+		ouput_sets->num_nalus = output_nalu_cnt;
+		ouput_sets->frame = ed->curr_reference_frame;
+		cont_put(ed->output_hmr_container, ouput_sets);
 	}
 
 	return THREAD_RETURN;

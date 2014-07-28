@@ -171,7 +171,7 @@ int hmr_bitstream_bitcount(bitstream_t* bs)
 void hmr_bitstream_write2file(bitstream_t* bs)
 {
 	FILE *f_annexb;
-	if (((f_annexb) = fopen ("prueba.bin", "wb")) == NULL)
+	if (((f_annexb) = fopen ("bitstream.bin", "wb")) == NULL)
 	{
 		printf("Fatal: cannot open Annex B bytestream file 'prueba.bin', exit (-1)\n");
 	}

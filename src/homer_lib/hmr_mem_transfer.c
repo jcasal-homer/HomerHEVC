@@ -96,8 +96,10 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 }
 
 //#ifdef WRITE_REF_FRAMES
-void wnd_write2file(wnd_t *wnd)
+void wnd_write2file(wnd_t *wnd, FILE *file)
 {
+	if(file==NULL)
+		return;
 	if(wnd->pix_size == 1)
 	{
 		byte * __restrict src;
@@ -109,10 +111,10 @@ void wnd_write2file(wnd_t *wnd)
 			stride  = WND_STRIDE_2D(*wnd, component);
 			for(j=0;j<wnd->data_height[component];j++)
 			{
-				fwrite(src, sizeof(byte), (wnd->data_width[component]), wnd->out_file); 
+				fwrite(src, sizeof(byte), (wnd->data_width[component]), file); 
 				src+=stride;
 			}
-			fflush(wnd->out_file);
+			fflush(file);
 		}
 	}
 	else if(wnd->pix_size == 2)
@@ -128,11 +130,11 @@ void wnd_write2file(wnd_t *wnd)
 			{
 				for(i=0;i<wnd->data_width[component];i++)
 				{
-					fwrite(&src[i], 1, sizeof(byte), wnd->out_file); 
+					fwrite(&src[i], 1, sizeof(byte), file); 
 				}
 				src+=stride;
 			}
-			fflush(wnd->out_file);
+			fflush(file);
 		}
 	}
 }

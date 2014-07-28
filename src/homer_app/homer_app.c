@@ -36,12 +36,14 @@
 
 //#define FILE_IN  "//home//juan//Patrones//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
-#define FILE_OUT  "C:\\Patrones\\Homer_output_.bin"//"output_32_.265"
+#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//"output_32_.265"
+#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
-#define HOR_SIZE	384//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	256//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+
+#define HOR_SIZE	720//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	576//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 
 
 #ifdef _MSC_VER
@@ -63,7 +65,7 @@ unsigned int get_ms()
 
 char file_in_name[256];
 char file_out_name[256];
-
+char file_ref_name[256];
 
 void print_help()
 {
@@ -73,6 +75,7 @@ void print_help()
 	printf("-h: \t\t\t help\r\n");
 	printf("-i: \t\t\t input yuv file\r\n");
 	printf("-o: \t\t\t output 265 file\r\n");
+	printf("-o-raw: \t\t\t output raw frames in yuv format\r\n");
 	printf("-widthxheight: \t\t default = 1280x720\r\n");
 	printf("-cu_size: \t\t cu size[16,32 or 64], default = 64\r\n");
 	printf("-qp: \t\t\t fixed qp[0-51], default = 32\r\n");
@@ -121,6 +124,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 			args_parsed++;
 			strcpy(file_out_name, argv[args_parsed++]);
 		}
+		else if(strcmp(argv[args_parsed], "-o-raw")==0 && args_parsed+1<argc)//output
+		{
+			args_parsed++;
+			strcpy(file_ref_name, argv[args_parsed++]);
+		}
 		else if(strcmp(argv[args_parsed], "-widthxheight")==0 && args_parsed+1<argc)//720x576, 1280x720, 1920x1080.... Multiple of 16
 		{
 			args_parsed++;
@@ -145,7 +153,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 			else
 				cfg->wfpp_enable = 1;
 		}
-		else if(strcmp(argv[args_parsed], "-max_intra_pred_depth")==0 && args_parsed+1<argc)//depth of intra prediction, default 4
+		else if(strcmp(argv[args_parsed], "-max_pred_depth")==0 && args_parsed+1<argc)//depth of prediction, default 4
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->max_pred_partition_depth);
@@ -196,12 +204,12 @@ int main (int argc, char **argv)
 	unsigned int msInit=0, msTotal=0;
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
-	FILE *infile, *outfile;
+	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int num_frames = 16;
 
 	unsigned char *frame[3];
 	stream_t stream;
-	encoder_in_out_t in, out;
+	encoder_in_out_t input_frame, output_stream, output_frame;
 
 	void *pEncoder;
 
@@ -212,7 +220,7 @@ int main (int argc, char **argv)
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-
+	strcpy(file_ref_name, FILE_REF);
 #define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
@@ -226,9 +234,9 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 1;
-	HmrCfg.max_inter_tr_depth = 4;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
@@ -257,7 +265,6 @@ int main (int argc, char **argv)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames);
 
-
 	if(!(infile = fopen(file_in_name, "rb")))
 	{
 		printf("Error opening input file: %s\r\n", file_in_name);
@@ -270,15 +277,26 @@ int main (int argc, char **argv)
 		exit(0);
 	}
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
+	if(!(reffile = fopen(file_ref_name, "wb")))
+	{
+		printf("Error opening raw output file: %s\r\n", file_ref_name);
+		exit(0);
+	}
+
+	memset(&input_frame, 0, sizeof(input_frame));
+	memset(&output_stream, 0, sizeof(output_stream));
+	memset(&output_frame, 0, sizeof(output_frame));
 	memset(&stream, 0, sizeof(stream));
 
 	stream.streams[0] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height, 1);
 	stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
+	output_stream.stream.streams[0] = (unsigned char *)calloc(0x8000000,1);
 
-	out.stream.streams[0] = (unsigned char *)calloc(0x8000000,1);
+	output_frame.stream.streams[0] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height, 1);
+	output_frame.stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
+	output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
+	
 
 	pEncoder = HOMER_enc_init();
 
@@ -298,25 +316,36 @@ int main (int argc, char **argv)
 		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
 			bCoding = 0;
 
-		in.stream = stream;
+		input_frame.stream = stream;
 
 		if(bCoding)
 		{
 			num_nalus = 8;
-			HOMER_enc_encode(pEncoder, in.stream.streams);//, nalu_out, &num_nalus);
+			HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
 			printf("\r\ninput_frame %d: calling HOMER_enc_encode", input_frames);
 			fflush(stdout);
 			input_frames++;
 
 			encoder_thread(pEncoder);
 
-			HOMER_enc_get_coded_frame(pEncoder, nalu_out, &num_nalus);
+			if(reffile!=NULL)//ouput yuv decoded frames (makes internal copy of data) - recomended for debug purposes
+				HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
+			else
+				HOMER_enc_get_coded_frame(pEncoder, NULL, nalu_out, &num_nalus);
+
 			if(num_nalus>0)
 			{
-				HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &out);
-				fwrite(out.stream.streams[0], sizeof(unsigned char), out.stream.data_size[0], outfile);
+				HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
+				fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
 				fflush(outfile);
-				totalbits+=out.stream.data_size[0];
+				totalbits+=output_stream.stream.data_size[0];
+
+				if(reffile!=NULL)
+				{
+					fwrite(output_frame.stream.streams[0], HmrCfg.width, HmrCfg.height, reffile); 
+					fwrite(output_frame.stream.streams[1], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+					fwrite(output_frame.stream.streams[2], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+				}
 				encoded_frames++;
 			}
 			if(encoded_frames==num_frames)
@@ -329,12 +358,14 @@ int main (int argc, char **argv)
 			}
 		}
 
+
+
 		if(!bCoding)
 			break;
 	}
 
 	fclose(infile);
 	fclose(outfile);
-
+	fclose(reffile);
 	return 0;
 }
