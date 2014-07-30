@@ -36,8 +36,8 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff, *decoded_buff;
-	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
+	uint8_t *orig_buff;
+	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff, *decoded_buff;
 //	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth;//, diff;//, is_filtered;
@@ -68,7 +68,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 	iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
-	decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
 	inv_depth = (et->max_cu_size_shift - curr_depth);
 //	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
@@ -104,8 +104,8 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff, *decoded_buff;
-	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff;
+	uint8_t *orig_buff;
+	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff, *decoded_buff;
 //	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth, diff;//, is_filtered;
@@ -138,7 +138,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, component, gcnt, et->ctu_width, (processing_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 	iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, component, gcnt, et->ctu_width, (processing_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, component);
-	decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
 //	inv_depth = (et->max_cu_size_shift - curr_depth);
 	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
@@ -213,7 +213,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	if (curr_best_y>yhigh)
 		curr_best_y=yhigh;
 
-	curr_best_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
+	curr_best_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
 
 	best_sad = curr_best_sad;
 	best_x = curr_best_x;
@@ -229,7 +229,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
-			curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
 			if(curr_sad < curr_best_sad)
 			{
 				curr_best_sad = curr_sad;
@@ -260,7 +260,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 			if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 			{
-				curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+				curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
 				if(curr_sad < curr_best_sad)
 				{
 					curr_best_sad = curr_sad;

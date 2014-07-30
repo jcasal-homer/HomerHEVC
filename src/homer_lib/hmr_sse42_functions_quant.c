@@ -147,7 +147,7 @@ void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *src, short
 	int n;
 
 	__m128i _128one = sse_128_vector_i16(1);
-	__m128i _128zero = sse_128_vector_i16(0);
+//	__m128i _128zero = sse_128_vector_i16(0);
 
 	if(iq_shift>ctu->per)
 	{

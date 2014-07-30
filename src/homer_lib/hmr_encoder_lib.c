@@ -724,7 +724,21 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			{
 				printf("tenemos SSE42!!");
 
-				phvenc->funcs.sad = sse_aligned_sad;
+				phvenc->funcs.sad = sad;
+				phvenc->funcs.ssd = ssd;
+				phvenc->funcs.modified_variance = modified_variance;
+				phvenc->funcs.predict = predict;
+				phvenc->funcs.reconst = reconst;
+				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
+				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
+
+				phvenc->funcs.quant = sse_aligned_quant;
+				phvenc->funcs.inv_quant = sse_aligned_inv_quant;
+
+				phvenc->funcs.transform = sse_transform;
+				phvenc->funcs.itransform = sse_itransform;
+
+/*				phvenc->funcs.sad = sse_aligned_sad;
 				phvenc->funcs.ssd = sse_aligned_ssd;
 				phvenc->funcs.modified_variance = sse_modified_variance;
 				phvenc->funcs.predict = sse_aligned_predict;
@@ -745,8 +759,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.modified_variance = modified_variance;
 				phvenc->funcs.predict = predict;
 				phvenc->funcs.reconst = reconst;
-
-
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
 
@@ -846,12 +858,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
 				for(i=0;i<NUM_QUANT_WNDS;i++)
-					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));		
+					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));		
 
-				wnd_realloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
-					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(uint8_t));
+					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(int16_t));
 
 
 				filter_buff_width = MAX_CU_SIZE	+ 16;

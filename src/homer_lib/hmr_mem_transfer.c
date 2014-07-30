@@ -167,20 +167,19 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
-//	int l;//, i;
 	wnd_t *decoded_src_wnd = &et->decoded_mbs_wnd[0];
 	wnd_t *decoded_dst_wnd = &et->ed->curr_reference_frame->img;
 	int component = Y_COMP;
 	int src_stride;
 	int dst_stride;
-	uint8_t *decoded_buff_src;
+	int16_t *decoded_buff_src;
 	int16_t *decoded_buff_dst;
 	int copy_width, copy_height, decoded_frame_width, decoded_frame_height;
 
 	for(component=Y_COMP;component<=V_COMP;component++)
 	{
 		int j, i;
-		decoded_buff_src = WND_POSITION_2D(uint8_t *, *decoded_src_wnd, component, 0, 0, 0, et->ctu_width);
+		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src_wnd, component, 0, 0, 0, et->ctu_width);
 		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst_wnd, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);
 		src_stride =  WND_STRIDE_2D(*decoded_src_wnd, component);
 		dst_stride =  WND_STRIDE_2D(*decoded_dst_wnd, component);
@@ -189,7 +188,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 		decoded_frame_height = decoded_dst_wnd->data_height[component];
 		copy_width = ((ctu->x[component]+et->ctu_width[component]*et->ctu_group_size)<decoded_frame_width)?(et->ctu_width[component]*et->ctu_group_size):(decoded_frame_width-ctu->x[component]);
 		copy_height = ((ctu->y[component]+et->ctu_height[component])<decoded_frame_height)?(et->ctu_height[component]):(decoded_frame_height-(ctu->y[component]));
-//		mem_transfer_2d2d(decoded_buff_src, decoded_buff_dst, copy_width, copy_height, src_stride, dst_stride);
+//		mem_transfer_2d2d((uint8_t*)decoded_buff_src, (uint8_t*)decoded_buff_dst, copy_width*sizeof(decoded_buff_src[0]), copy_height, src_stride*sizeof(decoded_buff_src[0]), dst_stride*sizeof(decoded_buff_dst[0]));
 		for(j=0;j<copy_height;j++)
 		{
 			for(i=0;i<copy_width;i++)
@@ -199,7 +198,6 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 			decoded_buff_dst += dst_stride;
 			decoded_buff_src += src_stride;
 		}
-
 	}
 }
 
@@ -213,7 +211,7 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 	int src_stride = et->pict_width[component];
 	int dst_stride;
 	int16_t *decoded_buff_src;
-	uint8_t * decoded_buff_dst;
+	int16_t * decoded_buff_dst;
 	int cu_size = ctu->size;
 	int left_copy = 0, top_copy = 0;
 
@@ -230,7 +228,7 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 			src_stride = WND_STRIDE_2D(*decoded_src_wnd, component);
 			dst_stride = WND_STRIDE_2D(*decoded_dst_wnd, component);
 			decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src_wnd, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);
-			decoded_buff_dst = WND_POSITION_2D(uint8_t *, *decoded_dst_wnd, component, 0, 0, 0, et->ctu_width);
+			decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst_wnd, component, 0, 0, 0, et->ctu_width);
 			cu_size = et->ctu_width[component];
 			left_copy = top_copy = 0;
 			if(ctu->ctu_left)

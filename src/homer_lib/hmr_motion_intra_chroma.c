@@ -30,14 +30,14 @@ void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* 
 {
 	int j, comp;
 	int decoded_buff_stride;
-	uint8_t *  decoded_buff_src;
-	uint8_t *  decoded_buff_dst;
+	int16_t *  decoded_buff_src;
+	int16_t *  decoded_buff_dst;
 
 	for(comp=U_COMP;comp<=V_COMP;comp++)
 	{
 		decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
-		decoded_buff_src = WND_POSITION_2D(uint8_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
-		decoded_buff_dst = WND_POSITION_2D(uint8_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
 
 		//bottom line
 		memcpy(decoded_buff_dst+decoded_buff_stride*(curr_part->size_chroma-1), decoded_buff_src+decoded_buff_stride*(curr_part->size_chroma-1), curr_part->size_chroma*sizeof(decoded_buff_src[0]));
@@ -57,8 +57,8 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 {
 	int j, comp;//, i;
 	int decoded_buff_stride;
-	uint8_t *  decoded_buff_src;
-	uint8_t *  decoded_buff_dst;
+	int16_t *  decoded_buff_src;
+	int16_t *  decoded_buff_dst;
 
 	int quant_buff_stride = curr_part->size_chroma;//0;//es lineal
 	int16_t *  quant_buff_src;
@@ -67,8 +67,8 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 	for(comp=U_COMP;comp<=V_COMP;comp++)
 	{
 		decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
-		decoded_buff_src = WND_POSITION_2D(uint8_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
-		decoded_buff_dst = WND_POSITION_2D(uint8_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
 
 		quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
 		quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
@@ -114,8 +114,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	uint8_t * orig_buff, * decoded_buff;
-	int16_t *pred_buff, *residual_buff, * quant_buff, * iquant_buff;
+	uint8_t * orig_buff;
+	int16_t *pred_buff, *residual_buff, * quant_buff, * iquant_buff, *decoded_buff;
 	uint8_t *cbf_buff[3] = {NULL,NULL,NULL};
 	int num_candidates = 3;
 	int best_pred_index = 0;
@@ -315,7 +315,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 				iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
-				decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
 				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, FALSE, FALSE);//don't create filtered adi samples
 

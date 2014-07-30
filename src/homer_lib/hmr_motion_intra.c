@@ -71,7 +71,7 @@ uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 	return sad;
 }
 
-uint32_t ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size)
+uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	unsigned int ssd = 0;
 	int  aux;
@@ -148,14 +148,14 @@ void predict(uint8_t * orig_auxptr, int orig_buff_stride, int16_t *pred_auxptr, 
 	}
 }
 
-void reconst(int16_t *pred_auxptr, int pred_buff_stride, int16_t * residual_auxptr, int residual_buff_stride, uint8_t * decoded_auxptr, int decoded_buff_stride, int curr_part_size)
+void reconst(int16_t *pred_auxptr, int pred_buff_stride, int16_t * residual_auxptr, int residual_buff_stride, int16_t * decoded_auxptr, int decoded_buff_stride, int curr_part_size)
 {
 	int i,j;
 	for(j=0;j<curr_part_size;j++)
 	{
 		for(i=0;i<curr_part_size;i++)
 		{
-			decoded_auxptr[i] = clip((int16_t)residual_auxptr[i]+pred_auxptr[i],0,255);
+			decoded_auxptr[i] = clip(residual_auxptr[i]+pred_auxptr[i],0,255);
 		}
 		decoded_auxptr += decoded_buff_stride;
 		residual_auxptr += residual_buff_stride;//este es 2D.Podria ser lineal
@@ -221,12 +221,12 @@ void adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, in
 	}
 }
 
-void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, uint8_t* decoded_buff, int decoded_buff_stride, int partition_size, int is_luma, int is_filtered)
+void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int is_luma, int is_filtered)
 {
 	int i, aux, aux2;
 	int  dc = 1 << (et->bit_depth - 1);//dc value depending on bit-depth
 	int16_t  *ptr = et->adi_pred_buff;
-	uint8_t  *ref_ptr;
+	int16_t  *ref_ptr;
 	int16_t first_sample,last_sample;
 	int16_t  *ptr_padding_left, *ptr_padding_top;
 	int padding_left_size = 0, padding_top_size = 0;
@@ -895,8 +895,8 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 {
 	int j;//, i;
 	int decoded_buff_stride = WND_STRIDE_2D(*decoded_src, Y_COMP);//-curr_part->size;
-	uint8_t * decoded_buff_src = WND_POSITION_2D(uint8_t *, *decoded_src, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
-	uint8_t * decoded_buff_dst = WND_POSITION_2D(uint8_t *, *decoded_dst, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
+	int16_t * decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
+	int16_t * decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
 
 	//bottom line
 	memcpy(decoded_buff_dst+decoded_buff_stride*(curr_part->size-1), decoded_buff_src+decoded_buff_stride*(curr_part->size-1), curr_part->size*sizeof(decoded_buff_src[0]));
@@ -917,8 +917,8 @@ void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* cur
 {
 	int j;//, i;
 	int decoded_buff_stride = WND_STRIDE_2D(*decoded_src, Y_COMP);//-curr_part->size;
-	uint8_t * decoded_buff_src = WND_POSITION_2D(uint8_t *, *decoded_src, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
-	uint8_t * decoded_buff_dst = WND_POSITION_2D(uint8_t *, *decoded_dst, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
+	int16_t * decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
+	int16_t * decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
 
 	int quant_buff_stride = curr_part->size;//0;//es lineal
 	int16_t * quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
@@ -1017,8 +1017,8 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff, *decoded_buff;
-	int16_t *pred_buff, *residual_buff, *quant_buff, *iquant_buff;
+	uint8_t *orig_buff;
+	int16_t *pred_buff, *residual_buff, *quant_buff, *iquant_buff, *decoded_buff;
 	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
 	int inv_depth, diff, is_filtered;
@@ -1045,7 +1045,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
 	iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
-	decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
 
 	inv_depth = (et->max_cu_size_shift - curr_depth);
@@ -1097,7 +1097,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	else
 	{
 		PROFILER_RESET(intra_luma_recon_ssd)
-		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is foll of zeros
+		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros
 	}
 
 	ssd_ = et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
@@ -1116,7 +1116,7 @@ int num_search_points[NUM_SEARCH_LOOPS] =	{2, 5, 4, 2};//{2, 4, 4, 2};
 
 
 #define PRED_MODE_INVALID	100
-int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, uint8_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
+int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
 {
 	int preds[3] = {-1,-1,-1};
 	int preds_aux[3];
@@ -1215,7 +1215,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 
 
 
-void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, uint8_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
+void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
 {
 	int cu_mode;
 	int diff;
@@ -1267,8 +1267,8 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	slice_t *currslice = &et->ed->current_pict.slice;
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff, *decoded_buff;
-	int16_t *pred_buff;
+	uint8_t *orig_buff;
+	int16_t *pred_buff, *decoded_buff;
 	uint8_t *cbf_buff = NULL;//, *best_cbf_buff = NULL, *best_cbf_buff2 = NULL;
 	int num_mode_candidates = 3;
 	int best_pred_modes[3];
@@ -1315,7 +1315,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 
 	decoded_wnd = &et->decoded_mbs_wnd[depth];	
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
-	decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
 	memset(&ctu_rd->part_size_type[curr_partition_info->abs_index], part_size_type, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 	memset(&ctu_rd->pred_depth[curr_partition_info->abs_index], depth-(part_size_type==SIZE_NxN), curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition

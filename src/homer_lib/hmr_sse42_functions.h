@@ -28,16 +28,16 @@
 #include "hmr_common.h"
 //SSE 4.2
 //------------------------------------------------------sad -------------------------------------------------------------------------
-uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+uint32_t sse_aligned_sad(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 
 //#define NOINLINE	__declspec(noinline) 
 
-uint32_t sse_aligned_sad_4x4(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_8x8(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_4x4(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_8x8(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
 //uint32_t sse_aligned_sad_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
-uint32_t sse_aligned_sad_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_32x32(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_64x64(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_16x16(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_32x32(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_64x64(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
 
 
 //------------------------------------------------------ssd -------------------------------------------------------------------------
