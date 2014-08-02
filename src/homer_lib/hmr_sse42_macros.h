@@ -32,10 +32,12 @@
 	//result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(src_ln1),sse_128_loadlo_vector64(src_ln2))),sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(pred_ln1),sse_128_loadlo_vector64(pred_ln2)))));	
 
 #define CALC_ALIGNED_SAD_2x8(result, src_ln1, src_ln2, pred_ln1, pred_ln2)	\
-	result = sse_128_add_i64(result, sse_128_sad_u8(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2)),sse128_unpacklo_u8(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2))));
+	result = sse_128_add_i64(result,sse_128_sad_u8(sse128_unpacklo_u64(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2)),sse128_packs_i16_u8(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2))));
+//	result = sse_128_add_i64(result, sse_128_sad_u8(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2)),sse128_unpacklo_u8(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2))));
 
 #define CALC_ALIGNED_SAD_16(result, src, pred)																								\
-	result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_load_vector_a(src),sse_128_load_vector_a(pred)));						
+	result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_load_vector_a(src),sse128_packs_i16_u8(sse_128_load_vector_u(pred),sse_128_load_vector_u(pred+8))));
+//	result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_load_vector_a(src),sse_128_load_vector_a(pred)));						
 
 #define CALC_ALIGNED_SAD_32(result, src, pred)																								\
 	CALC_ALIGNED_SAD_16(result, src, pred)																									\
@@ -82,16 +84,16 @@
 
 //--------------------------------------- PREDICT -----------------------------------------------------------------------------------------------------------
 
-#define CALC_ALIGNED_PREDICT_4(src, pred, dst, zero)																															\
-	sse_64_storel_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),zero),sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero)));	
+#define CALC_ALIGNED_PREDICT_4(src, pred, dst, zero)																														\
+	sse_64_storel_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),(zero)),sse_128_load_vector_u(pred)));	
 
 
 #define CALC_ALIGNED_PREDICT_8(src, pred, dst, zero)																														\
-	sse_128_store_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),zero),sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero)));					
+	sse_128_store_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),zero),sse_128_load_vector_u(pred)));					
 
-#define CALC_ALIGNED_PREDICT_16(src, pred, dst, zero)																																\
-	sse_128_store_vector_a((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_a(src),zero),sse128_unpacklo_u8(sse_128_load_vector_a(pred),zero)));						\
-	sse_128_store_vector_a((dst+8), sse_128_sub_i16(sse128_unpackhi_u8(sse_128_load_vector_a(src),zero),sse128_unpackhi_u8(sse_128_load_vector_a(pred),zero)));	
+#define CALC_ALIGNED_PREDICT_16(src, pred, dst, zero)																														\
+	sse_128_store_vector_a((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_a(src),zero),sse_128_load_vector_a(pred)));										\
+	sse_128_store_vector_a((dst+8), sse_128_sub_i16(sse128_unpackhi_u8(sse_128_load_vector_a(src),zero),sse_128_load_vector_a(pred+8)));	
 
 
 #define CALC_ALIGNED_PREDICT_32(src, pred, dst, zero)													\
@@ -109,17 +111,20 @@
 //--------------------------------------- RECONST -----------------------------------------------------------------------------------------------------------
 
 #define CALC_ALIGNED_RECONST_4(pred, resi, deco, zero)																															\
-	sse_32_store_vector0_u(deco, _mm_packus_epi16(_mm_adds_epi16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_u(resi)),zero));
+	sse_32_store_vector0_u(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_u(resi)),zero));
 
 #define CALC_ALIGNED_RECONST_8(pred, resi, deco, zero)																															\
-	sse_64_storel_vector_u(deco, _mm_packus_epi16(_mm_adds_epi16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_a(resi)),zero));
-	//sse_64_storel_vector_u(deco, _mm_adds_epu8(sse_128_load_vector_u(pred), _mm_packus_epi16(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi)))); 						
+	sse_128_store_vector_u(deco, sse_128_convert_u8_i16(sse128_packs_i16_u8(sse_128_adds_i16(sse_128_load_vector_u(pred), sse_128_load_vector_u(resi)),zero)));
+	//sse_64_storel_vector_u(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_a(resi)),zero));
+	//sse_64_storel_vector_u(deco, _mm_adds_epu8(sse_128_load_vector_u(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi)))); 						
 
 #define CALC_ALIGNED_RECONST_16(pred, resi, deco, zero)																															\
-	sse_128_store_vector_a(deco, _mm_packus_epi16(_mm_adds_epi16(sse_128_load_vector_a(resi), sse128_unpacklo_u8(sse_128_load_vector_a(pred), zero)),_mm_adds_epi16(sse_128_load_vector_a(resi+8), sse128_unpackhi_u8(sse_128_load_vector_a(pred), zero))));
+	CALC_ALIGNED_RECONST_8(pred, resi, deco, zero)																																\
+	CALC_ALIGNED_RECONST_8(pred+8, resi+8, deco+8, zero)
+	//sse_128_store_vector_a(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse_128_load_vector_a(resi), sse128_unpacklo_u8(sse_128_load_vector_a(pred), zero)),sse_128_adds_i16(sse_128_load_vector_a(resi+8), sse128_unpackhi_u8(sse_128_load_vector_a(pred), zero))));
 
-//		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), _mm_packus_epi16(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
-//		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), _mm_packus_epi16(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
+//		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
+//		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
 
 #define CALC_ALIGNED_RECONST_32(pred, resi, deco, zero)													\
 	CALC_ALIGNED_RECONST_16(pred, resi, deco, zero)														\

@@ -41,7 +41,7 @@ ALIGN(16) static const int8_t shuffle_mask_prediction_16_3[16] ={  1,  0,  2,  0
 ALIGN(16) static const int8_t shuffle_mask_prediction_16_4[16] ={ 14, 15, 14, 15, 14, 15, 14, 15, 14, 15, 14, 15, 14, 15, 14, 15};//0,1,2,3,4,5,6,7 -> 1,1,1,1,1,1,1,1
 
 
-void sse_create_intra_planar_prediction_4(int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size)
+void sse_create_intra_planar_prediction_4(uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
 	int j;
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
@@ -72,17 +72,16 @@ void sse_create_intra_planar_prediction_4(int16_t *pred, int pred_stride, int16_
 		__m128_u16 horPred = sse_128_shuffle_8(left_colum_plus_cu_size, shuffle_mask_element16);//make a 126_i16 register full of left_colum_plus_cu_size[j]
 		horPred = sse_128_add_i16(horPred, right_column_j);
 		topRow = sse_128_add_i16(topRow, bottomRow);
-//		sse_64_storel_vector_u(pred, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 2+1), _128_cu_size));//this _128_cu_size is whatever
-		sse_128_store_vector_a(pred, sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 2+1));//this _128_cu_size is whatever
-
-		pred += pred_stride;
+		sse_64_storel_vector_u(ref_wnd, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 2+1), _128_cu_size));//this _128_cu_size is whatever
+		
+		ref_wnd+=ref_wnd_stride_2D;
 		shuffle_mask_element16 = sse_128_add_i8(shuffle_mask_element16, shuffle_mask_next_element16);
 	}
 }
 
 
 
-void sse_create_intra_planar_prediction_8(int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size)
+void sse_create_intra_planar_prediction_8(uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
 	int i, j, jj;
 	int16_t  *__restrict adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
@@ -116,10 +115,9 @@ void sse_create_intra_planar_prediction_8(int16_t *pred, int pred_stride, int16_
 
 		horPred = sse_128_add_i16(horPred, right_column_j);
 		topRow = sse_128_add_i16(topRow, bottomRow);
-		//sse_64_storel_vector_u(pred, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 3+1), _128_cu_size));//this _128_cu_size is whatever
-		sse_128_store_vector_a(pred, sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 3+1));//this _128_cu_size is whatever		
-		pred += pred_stride;
-
+		sse_64_storel_vector_u(ref_wnd, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow), 3+1), _128_cu_size));//this _128_cu_size is whatever
+		
+		ref_wnd+=ref_wnd_stride_2D;
 		shuffle_mask_element16 = sse_128_add_i8(shuffle_mask_element16, shuffle_mask_next_element16);
 	}
 
@@ -128,7 +126,7 @@ void sse_create_intra_planar_prediction_8(int16_t *pred, int pred_stride, int16_
 
 
 
-void sse_create_intra_planar_prediction_16_32_64(int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift)
+void sse_create_intra_planar_prediction_16_32_64(uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift)
 {
 	int i, j, jj, iterations = (cu_size>>3);
 	int16_t  *__restrict adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
@@ -188,25 +186,23 @@ void sse_create_intra_planar_prediction_16_32_64(int16_t *pred, int pred_stride,
 				horPred = sse_128_shuffle_8(aux, shuffle_mask_last_element16);
 				horPred = sse_128_add_i16(horPred, right_column_j);
 				topRow[i+1] = sse_128_add_i16(topRow[i+1], bottomRow[i+1]);
-				//sse_128_store_vector_a(pred+8*i, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(aux, topRow[i]), cu_size_shift+1), sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow[i+1]), cu_size_shift+1)));//this _128_cu_size is whatever
-				sse_128_store_vector_a(pred+8*i, sse_128_shift_r_i16(sse_128_add_i16(aux, topRow[i]), cu_size_shift+1));
-				sse_128_store_vector_a(pred+8*i+1, sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow[i+1]), cu_size_shift+1));//this _128_cu_size is whatever
+				sse_128_store_vector_a(ref_wnd+8*i, sse128_packs_i16_u8(sse_128_shift_r_i16(sse_128_add_i16(aux, topRow[i]), cu_size_shift+1), sse_128_shift_r_i16(sse_128_add_i16(horPred, topRow[i+1]), cu_size_shift+1)));//this _128_cu_size is whatever
 			}
-			pred += pred_stride;
+			ref_wnd+=ref_wnd_stride_2D;
 			shuffle_mask_element16 = sse_128_add_i8(shuffle_mask_element16, shuffle_mask_next_element16);
 		}
 	}
 
 }
 
-void sse_create_intra_planar_prediction(henc_thread_t* et, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift)
+void sse_create_intra_planar_prediction(henc_thread_t* et, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift)
 {
 	if(cu_size==4)
-		sse_create_intra_planar_prediction_4(pred, pred_stride, adi_pred_buff, adi_size);
+		sse_create_intra_planar_prediction_4(ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size);
 	else if(cu_size==8)
-		sse_create_intra_planar_prediction_8(pred, pred_stride, adi_pred_buff, adi_size);
+		sse_create_intra_planar_prediction_8(ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size);
 	else
-		sse_create_intra_planar_prediction_16_32_64(pred, pred_stride, adi_pred_buff, adi_size, cu_size, cu_size_shift);
+		sse_create_intra_planar_prediction_16_32_64(ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_size, cu_size_shift);
 }
 
 
@@ -284,7 +280,7 @@ uint16_t sse_pred_intra_calc_dc( int16_t *__restrict adi_ptr, int width, int hei
 	}
 	else
 	{
-		dc = adi_ptr[0];//pred[-1]; // Default DC value already calculated and placed in the prediction array if no neighbors are available
+		dc = adi_ptr[0];//ref_wnd[-1]; // Default DC value already calculated and placed in the prediction array if no neighbors are available
 	}
 
 	return dc;
@@ -292,8 +288,8 @@ uint16_t sse_pred_intra_calc_dc( int16_t *__restrict adi_ptr, int width, int hei
 
 
 ALIGN(16) static const int8_t shuffle_mask_predict_16_0[16] ={ 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1};//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
-//Void TComPrediction::xPredIntraAng(int bitDepth, int* pred, int srcStride, Pel*& rpDst, int dstStride, unsigned int width, unsigned int height, unsigned int dirMode, int blkAboveAvailable, int blkLeftAvailable, int bFilter )			
-void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
+//Void TComPrediction::xPredIntraAng(int bitDepth, int* ref_wnd, int srcStride, Pel*& rpDst, int dstStride, unsigned int width, unsigned int height, unsigned int dirMode, int blkAboveAvailable, int blkLeftAvailable, int bFilter )			
+void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
 	int i, j, jj;
 	int is_DC_mode = cu_mode < 2;
@@ -307,7 +303,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 	int16_t  *__restrict adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 	int inv_angle = et->ed->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
-	int16_t *dst;
+	uint8_t *dst;
 	abs_angle = et->ed->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
 
@@ -318,14 +314,14 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 		
 		__m128_u8 _128_dcval = sse_128_vector_i8((byte)dcval);
 
-		dst = pred;
+		dst = ref_wnd;
 		for (j=0;j<cu_size;j++)
 		{
 			for (i=0;i<cu_size;i+=16)
 			{
 				sse_128_store_vector_u(dst+i, _128_dcval);
 			}
-			dst+=pred_stride;
+			dst+=ref_wnd_stride_2D;
 		}
 
 		if(cu_size<=16 && cu_mode == DC_IDX && is_luma)
@@ -333,23 +329,23 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 			__m128_u8 _128_two = sse_128_vector_i16(2);
 			__m128_u8 _128_three = sse_128_vector_i16(3);
 
-			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);//			pred[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);
+			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);//			ref_wnd[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);
 
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) + 1;
 
 			for(i=0;i<cu_size;i+=8)		//for(i=1;i<cu_size;i+=8)		
 			{
-				__m128_u8 aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(pred+i)),_128_three);
+				__m128_u8 aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(ref_wnd+i)),_128_three);
 				__m128_u8 aux2 = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_load_vector_u(adi_ptr+i), aux), _128_two), 2);
-				sse_64_storel_vector_u(pred+i, sse128_packs_i16_u8(aux2,aux2));
+				sse_64_storel_vector_u(ref_wnd+i, sse128_packs_i16_u8(aux2,aux2));
 			}
-			pred[0] = ref0;
+			ref_wnd[0] = ref0;
 
 	
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) - 1;
 			for(j=1;j<cu_size;j++)		
 			{
-				pred[j*pred_stride] = ((adi_ptr[-j] + 3*(int16_t)pred[j*pred_stride] + 2)>>2);
+				ref_wnd[j*ref_wnd_stride_2D] = ((adi_ptr[-j] + 3*(int16_t)ref_wnd[j*ref_wnd_stride_2D] + 2)>>2);
 			}
 		}
 
@@ -402,8 +398,8 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 		if (pred_angle == 0)
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 
 			if(cu_size>8)
 			{
@@ -414,7 +410,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 					{
 						for (j=0;j<16;j++)				
 						{
-							sse_128_store_vector_u(pred+jj*aux_stride+i*aux_stride2+j*pred_stride, aux);
+							sse_128_store_vector_u(ref_wnd+jj*aux_stride+i*aux_stride2+j*ref_wnd_stride_2D, aux);
 						}
 					}
 				}			
@@ -426,7 +422,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 					__m128_i16 aux = sse_128_load_vector_u(refMain+i+1);
 					for (j=0;j<cu_size;j++)
 					{
-						sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+						sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 					}
 				}
 			}
@@ -435,14 +431,14 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 			{
 				for (i=0;i<cu_size;i++)
 				{
-					pred[i*pred_stride] = clip(pred[i*pred_stride] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
+					ref_wnd[i*ref_wnd_stride_2D] = clip(ref_wnd[i*ref_wnd_stride_2D] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
 				}
 			}
 		}
 		else
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 			int pos_delta=0;
 			int aux_delta;
 			int fract_delta;
@@ -465,7 +461,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 					for (i=0;i<cu_size;i+=8)
 					{
 						__m128_i16 aux = sse_128_load_vector_u(refMain+i+aux_delta+1);
-						sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+						sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 					}
 				}
 			}
@@ -489,7 +485,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 								ref_main_idx = i+aux_delta+1;
 								aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+1), _128_frac_delta)),_128_round),5);
 								aux1 = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+8), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+9), _128_frac_delta)),_128_round),5);
-								sse_128_store_vector_u(pred+jj*aux_stride+i*aux_stride2+j*pred_stride, sse128_packs_i16_u8(aux,aux1));
+								sse_128_store_vector_u(ref_wnd+jj*aux_stride+i*aux_stride2+j*ref_wnd_stride_2D, sse128_packs_i16_u8(aux,aux1));
 							}
 						}
 					}						
@@ -507,7 +503,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 						ref_main_idx = aux_delta+1;//i+aux_delta+1;
 						aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+1), _128_frac_delta)),_128_round),5);
-						sse_64_storel_vector_u(pred+(j*pred_stride), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
+						sse_64_storel_vector_u(ref_wnd+(j*ref_wnd_stride_2D), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
 					}
 				}
 			}
@@ -522,14 +518,14 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 					{
 						__m128_i16 c0c1_h, c2c3_h, c4c5_h, c6c7_h, c8c9_h, c10c11_h, c12c13_h, c14c15_h;
 
-						__m128_i16 l0 = sse_128_load_vector_u(pred+j*pred_stride+i);
-						__m128_i16 l1 = sse_128_load_vector_u(pred+(j+1)*pred_stride+i);
-						__m128_i16 l2 = sse_128_load_vector_u(pred+(j+2)*pred_stride+i);
-						__m128_i16 l3 = sse_128_load_vector_u(pred+(j+3)*pred_stride+i);
-						__m128_i16 l4 = sse_128_load_vector_u(pred+(j+4)*pred_stride+i);
-						__m128_i16 l5 = sse_128_load_vector_u(pred+(j+5)*pred_stride+i);
-						__m128_i16 l6 = sse_128_load_vector_u(pred+(j+6)*pred_stride+i);
-						__m128_i16 l7 = sse_128_load_vector_u(pred+(j+7)*pred_stride+i);
+						__m128_i16 l0 = sse_128_load_vector_u(ref_wnd+j*ref_wnd_stride_2D+i);
+						__m128_i16 l1 = sse_128_load_vector_u(ref_wnd+(j+1)*ref_wnd_stride_2D+i);
+						__m128_i16 l2 = sse_128_load_vector_u(ref_wnd+(j+2)*ref_wnd_stride_2D+i);
+						__m128_i16 l3 = sse_128_load_vector_u(ref_wnd+(j+3)*ref_wnd_stride_2D+i);
+						__m128_i16 l4 = sse_128_load_vector_u(ref_wnd+(j+4)*ref_wnd_stride_2D+i);
+						__m128_i16 l5 = sse_128_load_vector_u(ref_wnd+(j+5)*ref_wnd_stride_2D+i);
+						__m128_i16 l6 = sse_128_load_vector_u(ref_wnd+(j+6)*ref_wnd_stride_2D+i);
+						__m128_i16 l7 = sse_128_load_vector_u(ref_wnd+(j+7)*ref_wnd_stride_2D+i);
 
 						__m128_i16 l0l1_l = sse128_unpacklo_u8(l0,l1);
 						__m128_i16 l0l1_h = sse128_unpackhi_u8(l0,l1);
@@ -559,14 +555,14 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 						__m128_i16 c14c15_l = sse128_unpackhi_u32(l0l1l2l3_hh,l4l5l6l7_hh);//l014,l114,l214,l314,l414,l514,l614,l714,l015,l115,l215,l315,l415,l515,l615,l715
 
 						//rows 8-15
-						l0 = sse_128_load_vector_u(pred+(j+8)*pred_stride+i);
-						l1 = sse_128_load_vector_u(pred+(j+9)*pred_stride+i);
-						l2 = sse_128_load_vector_u(pred+(j+10)*pred_stride+i);
-						l3 = sse_128_load_vector_u(pred+(j+11)*pred_stride+i);
-						l4 = sse_128_load_vector_u(pred+(j+12)*pred_stride+i);
-						l5 = sse_128_load_vector_u(pred+(j+13)*pred_stride+i);
-						l6 = sse_128_load_vector_u(pred+(j+14)*pred_stride+i);
-						l7 = sse_128_load_vector_u(pred+(j+15)*pred_stride+i);
+						l0 = sse_128_load_vector_u(ref_wnd+(j+8)*ref_wnd_stride_2D+i);
+						l1 = sse_128_load_vector_u(ref_wnd+(j+9)*ref_wnd_stride_2D+i);
+						l2 = sse_128_load_vector_u(ref_wnd+(j+10)*ref_wnd_stride_2D+i);
+						l3 = sse_128_load_vector_u(ref_wnd+(j+11)*ref_wnd_stride_2D+i);
+						l4 = sse_128_load_vector_u(ref_wnd+(j+12)*ref_wnd_stride_2D+i);
+						l5 = sse_128_load_vector_u(ref_wnd+(j+13)*ref_wnd_stride_2D+i);
+						l6 = sse_128_load_vector_u(ref_wnd+(j+14)*ref_wnd_stride_2D+i);
+						l7 = sse_128_load_vector_u(ref_wnd+(j+15)*ref_wnd_stride_2D+i);
 
 						l0l1_l = sse128_unpacklo_u8(l0,l1);
 						l0l1_h = sse128_unpackhi_u8(l0,l1);
@@ -595,35 +591,35 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 						c12c13_h = sse128_unpacklo_u32(l0l1l2l3_hh,l4l5l6l7_hh);
 						c14c15_h = sse128_unpackhi_u32(l0l1l2l3_hh,l4l5l6l7_hh);
 
-						sse_128_store_vector_u(pred+(j)*pred_stride+i, sse128_unpacklo_u64(c0c1_l,c0c1_h));	//c0
-						sse_128_store_vector_u(pred+(j+1)*pred_stride+i, sse128_unpackhi_u64(c0c1_l,c0c1_h));	//c1
-						sse_128_store_vector_u(pred+(j+2)*pred_stride+i, sse128_unpacklo_u64(c2c3_l,c2c3_h));	//c2
-						sse_128_store_vector_u(pred+(j+3)*pred_stride+i, sse128_unpackhi_u64(c2c3_l,c2c3_h));	//c3
-						sse_128_store_vector_u(pred+(j+4)*pred_stride+i, sse128_unpacklo_u64(c4c5_l,c4c5_h));	//c4
-						sse_128_store_vector_u(pred+(j+5)*pred_stride+i, sse128_unpackhi_u64(c4c5_l,c4c5_h));	//c5
-						sse_128_store_vector_u(pred+(j+6)*pred_stride+i, sse128_unpacklo_u64(c6c7_l,c6c7_h));	//c6
-						sse_128_store_vector_u(pred+(j+7)*pred_stride+i, sse128_unpackhi_u64(c6c7_l,c6c7_h));	//c7
-						sse_128_store_vector_u(pred+(j+8)*pred_stride+i, sse128_unpacklo_u64(c8c9_l,c8c9_h));	//c8
-						sse_128_store_vector_u(pred+(j+9)*pred_stride+i, sse128_unpackhi_u64(c8c9_l,c8c9_h));	//c9
-						sse_128_store_vector_u(pred+(j+10)*pred_stride+i, sse128_unpacklo_u64(c10c11_l,c10c11_h));	//c10
-						sse_128_store_vector_u(pred+(j+11)*pred_stride+i, sse128_unpackhi_u64(c10c11_l,c10c11_h));	//c11
-						sse_128_store_vector_u(pred+(j+12)*pred_stride+i, sse128_unpacklo_u64(c12c13_l,c12c13_h));	//c12
-						sse_128_store_vector_u(pred+(j+13)*pred_stride+i, sse128_unpackhi_u64(c12c13_l,c12c13_h));	//c13
-						sse_128_store_vector_u(pred+(j+14)*pred_stride+i, sse128_unpacklo_u64(c14c15_l,c14c15_h));	//c14
-						sse_128_store_vector_u(pred+(j+15)*pred_stride+i, sse128_unpackhi_u64(c14c15_l,c14c15_h));	//c15
+						sse_128_store_vector_u(ref_wnd+(j)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c0c1_l,c0c1_h));	//c0
+						sse_128_store_vector_u(ref_wnd+(j+1)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c0c1_l,c0c1_h));	//c1
+						sse_128_store_vector_u(ref_wnd+(j+2)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c2c3_l,c2c3_h));	//c2
+						sse_128_store_vector_u(ref_wnd+(j+3)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c2c3_l,c2c3_h));	//c3
+						sse_128_store_vector_u(ref_wnd+(j+4)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c4c5_l,c4c5_h));	//c4
+						sse_128_store_vector_u(ref_wnd+(j+5)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c4c5_l,c4c5_h));	//c5
+						sse_128_store_vector_u(ref_wnd+(j+6)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c6c7_l,c6c7_h));	//c6
+						sse_128_store_vector_u(ref_wnd+(j+7)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c6c7_l,c6c7_h));	//c7
+						sse_128_store_vector_u(ref_wnd+(j+8)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c8c9_l,c8c9_h));	//c8
+						sse_128_store_vector_u(ref_wnd+(j+9)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c8c9_l,c8c9_h));	//c9
+						sse_128_store_vector_u(ref_wnd+(j+10)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c10c11_l,c10c11_h));	//c10
+						sse_128_store_vector_u(ref_wnd+(j+11)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c10c11_l,c10c11_h));	//c11
+						sse_128_store_vector_u(ref_wnd+(j+12)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c12c13_l,c12c13_h));	//c12
+						sse_128_store_vector_u(ref_wnd+(j+13)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c12c13_l,c12c13_h));	//c13
+						sse_128_store_vector_u(ref_wnd+(j+14)*ref_wnd_stride_2D+i, sse128_unpacklo_u64(c14c15_l,c14c15_h));	//c14
+						sse_128_store_vector_u(ref_wnd+(j+15)*ref_wnd_stride_2D+i, sse128_unpackhi_u64(c14c15_l,c14c15_h));	//c15
 					}
 				}
 			}
 			else if(cu_size==8)//transpond 8x8 blocks
 			{			
-				__m128_i16 l0 = sse_128_load_vector_u(pred);
-				__m128_i16 l1 = sse_128_load_vector_u(pred+1*pred_stride);
-				__m128_i16 l2 = sse_128_load_vector_u(pred+2*pred_stride);
-				__m128_i16 l3 = sse_128_load_vector_u(pred+3*pred_stride);
-				__m128_i16 l4 = sse_128_load_vector_u(pred+4*pred_stride);
-				__m128_i16 l5 = sse_128_load_vector_u(pred+5*pred_stride);
-				__m128_i16 l6 = sse_128_load_vector_u(pred+6*pred_stride);
-				__m128_i16 l7 = sse_128_load_vector_u(pred+7*pred_stride);
+				__m128_i16 l0 = sse_128_load_vector_u(ref_wnd);
+				__m128_i16 l1 = sse_128_load_vector_u(ref_wnd+1*ref_wnd_stride_2D);
+				__m128_i16 l2 = sse_128_load_vector_u(ref_wnd+2*ref_wnd_stride_2D);
+				__m128_i16 l3 = sse_128_load_vector_u(ref_wnd+3*ref_wnd_stride_2D);
+				__m128_i16 l4 = sse_128_load_vector_u(ref_wnd+4*ref_wnd_stride_2D);
+				__m128_i16 l5 = sse_128_load_vector_u(ref_wnd+5*ref_wnd_stride_2D);
+				__m128_i16 l6 = sse_128_load_vector_u(ref_wnd+6*ref_wnd_stride_2D);
+				__m128_i16 l7 = sse_128_load_vector_u(ref_wnd+7*ref_wnd_stride_2D);
 
 				__m128_i16 l0l1_l = sse128_unpacklo_u8(l0,l1);
 				__m128_i16 l0l1_h = sse128_unpackhi_u8(l0,l1);
@@ -652,32 +648,32 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 				__m128_i16 c12c13_l = sse128_unpacklo_u32(l0l1l2l3_hh,l4l5l6l7_hh);//l012,l112,l212,l312,l412,l512,l612,l712,l013,l113,l213,l313,l413,l513,l613,l713
 				__m128_i16 c14c15_l = sse128_unpackhi_u32(l0l1l2l3_hh,l4l5l6l7_hh);//l014,l114,l214,l314,l414,l514,l614,l714,l015,l115,l215,l315,l415,l515,l615,l715
 
-				sse_64_storel_vector_u(pred, c0c1_l);	//c0
-				sse_64_storeh_vector_u(pred+1*pred_stride, c0c1_l);	//c1
-				sse_64_storel_vector_u(pred+2*pred_stride, c2c3_l);	//c2
-				sse_64_storeh_vector_u(pred+3*pred_stride, c2c3_l);	//c3
-				sse_64_storel_vector_u(pred+4*pred_stride, c4c5_l);	//c4
-				sse_64_storeh_vector_u(pred+5*pred_stride, c4c5_l);	//c5
-				sse_64_storel_vector_u(pred+6*pred_stride, c6c7_l);	//c6
-				sse_64_storeh_vector_u(pred+7*pred_stride, c6c7_l);	//c7
+				sse_64_storel_vector_u(ref_wnd, c0c1_l);	//c0
+				sse_64_storeh_vector_u(ref_wnd+1*ref_wnd_stride_2D, c0c1_l);	//c1
+				sse_64_storel_vector_u(ref_wnd+2*ref_wnd_stride_2D, c2c3_l);	//c2
+				sse_64_storeh_vector_u(ref_wnd+3*ref_wnd_stride_2D, c2c3_l);	//c3
+				sse_64_storel_vector_u(ref_wnd+4*ref_wnd_stride_2D, c4c5_l);	//c4
+				sse_64_storeh_vector_u(ref_wnd+5*ref_wnd_stride_2D, c4c5_l);	//c5
+				sse_64_storel_vector_u(ref_wnd+6*ref_wnd_stride_2D, c6c7_l);	//c6
+				sse_64_storeh_vector_u(ref_wnd+7*ref_wnd_stride_2D, c6c7_l);	//c7
 			}
 			else //transpond 4x4 blocks
 			{
-				__m128_i16 l0 = sse_128_load_vector_u(pred);
-				__m128_i16 l1 = sse_128_load_vector_u(pred+1*pred_stride);
-				__m128_i16 l2 = sse_128_load_vector_u(pred+2*pred_stride);
-				__m128_i16 l3 = sse_128_load_vector_u(pred+3*pred_stride);
+				__m128_i16 l0 = sse_128_load_vector_u(ref_wnd);
+				__m128_i16 l1 = sse_128_load_vector_u(ref_wnd+1*ref_wnd_stride_2D);
+				__m128_i16 l2 = sse_128_load_vector_u(ref_wnd+2*ref_wnd_stride_2D);
+				__m128_i16 l3 = sse_128_load_vector_u(ref_wnd+3*ref_wnd_stride_2D);
 
 				__m128_i16 l0l1_l = sse128_unpacklo_u8(l0,l1);
 				__m128_i16 l2l3_l = sse128_unpacklo_u8(l2,l3);
 
 				__m128_i16 c0c1c2c3 = sse128_unpacklo_u16(l0l1_l,l2l3_l);//l00,l10,l20,l30,l01,l11,l21,l31,l02,l12,l22,l32,l03,l13,l23,l33
 
-				sse_64_storel_vector_u(pred, c0c1c2c3);	//c0
-				sse_64_storeh_vector_u(pred+2*pred_stride, c0c1c2c3);//c2
+				sse_64_storel_vector_u(ref_wnd, c0c1c2c3);	//c0
+				sse_64_storeh_vector_u(ref_wnd+2*ref_wnd_stride_2D, c0c1c2c3);//c2
 				c0c1c2c3 =  sse_128_shift_r_u32(c0c1c2c3,32);
-				sse_64_storel_vector_u(pred+1*pred_stride, c0c1c2c3);//c1
-				sse_64_storeh_vector_u(pred+3*pred_stride, c0c1c2c3);//c3
+				sse_64_storel_vector_u(ref_wnd+1*ref_wnd_stride_2D, c0c1c2c3);//c1
+				sse_64_storeh_vector_u(ref_wnd+3*ref_wnd_stride_2D, c0c1c2c3);//c3
 			}
 		}
 	}
@@ -685,7 +681,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 
 
-#define TRANSPOND_MATRIX_8x8(l, pred, pred_stride)												\
+#define TRANSPOND_MATRIX_8x8(l, ref_wnd, ref_wnd_stride_2D)												\
 				__m128_i16 l0l1_l = sse128_unpacklo_u8(l[0],l[1]);												\
 				__m128_i16 l0l1_h = sse128_unpackhi_u8(l[0],l[1]);												\
 				__m128_i16 l2l3_l = sse128_unpacklo_u8(l[2],l[3]);												\
@@ -713,16 +709,16 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 				__m128_i16 c12c13_l = sse128_unpacklo_u32(l0l1l2l3_hh,l4l5l6l7_hh);							\
 				__m128_i16 c14c15_l = sse128_unpackhi_u32(l0l1l2l3_hh,l4l5l6l7_hh);							\
 																											\
-				sse_64_storel_vector_u(pred, c0c1_l);													\
-				sse_64_storeh_vector_u(pred+1*pred_stride, c0c1_l);								\
-				sse_64_storel_vector_u(pred+2*pred_stride, c2c3_l);								\
-				sse_64_storeh_vector_u(pred+3*pred_stride, c2c3_l);								\
-				sse_64_storel_vector_u(pred+4*pred_stride, c4c5_l);								\
-				sse_64_storeh_vector_u(pred+5*pred_stride, c4c5_l);								\
-				sse_64_storel_vector_u(pred+6*pred_stride, c6c7_l);								\
-				sse_64_storeh_vector_u(pred+7*pred_stride, c6c7_l);								
+				sse_64_storel_vector_u(ref_wnd, c0c1_l);													\
+				sse_64_storeh_vector_u(ref_wnd+1*ref_wnd_stride_2D, c0c1_l);								\
+				sse_64_storel_vector_u(ref_wnd+2*ref_wnd_stride_2D, c2c3_l);								\
+				sse_64_storeh_vector_u(ref_wnd+3*ref_wnd_stride_2D, c2c3_l);								\
+				sse_64_storel_vector_u(ref_wnd+4*ref_wnd_stride_2D, c4c5_l);								\
+				sse_64_storeh_vector_u(ref_wnd+5*ref_wnd_stride_2D, c4c5_l);								\
+				sse_64_storel_vector_u(ref_wnd+6*ref_wnd_stride_2D, c6c7_l);								\
+				sse_64_storeh_vector_u(ref_wnd+7*ref_wnd_stride_2D, c6c7_l);								
 
-void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
+void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
 	int i, j, jj;
 	int is_DC_mode = cu_mode < 2;
@@ -736,7 +732,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 	int inv_angle = et->ed->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
-	int16_t *dst;
+	uint8_t *dst;
 	int cu_size = 8; 
 	abs_angle = et->ed->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
@@ -747,11 +743,11 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 		uint16_t dcval = sse_pred_intra_calc_dc(adi_ptr, cu_size, cu_size, ctu->top, ctu->left);
 		__m128_u8 _128_dcval = sse_128_vector_i8((byte)dcval);
 
-		dst = pred;
+		dst = ref_wnd;
 		for (j=0;j<cu_size;j++)
 		{
 			sse_64_storel_vector_u(dst, _128_dcval);
-			dst+=pred_stride;
+			dst+=ref_wnd_stride_2D;
 		}
 
 		if(cu_mode == DC_IDX && is_luma)
@@ -759,20 +755,20 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 			__m128_u8 _128_two = sse_128_vector_i16(2);
 			__m128_u8 _128_three = sse_128_vector_i16(3);
 			__m128_u8 aux, aux2;
-			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);//			pred[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);
+			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);//			ref_wnd[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);
 
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) + 1;
 
-			aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(pred)),_128_three);
+			aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(ref_wnd)),_128_three);
 			aux2 = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_load_vector_u(adi_ptr), aux), _128_two), 2);
-			sse_64_storel_vector_u(pred, sse128_packs_i16_u8(aux2,aux2));
-			pred[0] = ref0;
+			sse_64_storel_vector_u(ref_wnd, sse128_packs_i16_u8(aux2,aux2));
+			ref_wnd[0] = ref0;
 
 	
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) - 1;
 			for(j=1;j<cu_size;j++)		
 			{
-				pred[j*pred_stride] = ((adi_ptr[-j] + 3*(int16_t)pred[j*pred_stride] + 2)>>2);
+				ref_wnd[j*ref_wnd_stride_2D] = ((adi_ptr[-j] + 3*(int16_t)ref_wnd[j*ref_wnd_stride_2D] + 2)>>2);
 			}
 		}
 
@@ -824,8 +820,8 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 
 		if (pred_angle == 0)
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 
 			if(is_Hor_mode)
 			{
@@ -838,7 +834,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 				}
 
 				{
-					TRANSPOND_MATRIX_8x8(l, pred, pred_stride)
+					TRANSPOND_MATRIX_8x8(l, ref_wnd, ref_wnd_stride_2D)
 				}
 			}
 			else
@@ -848,7 +844,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 					__m128_i16 aux = sse_128_load_vector_u(refMain+i+1);
 					for (j=0;j<cu_size;j++)
 					{
-						sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+						sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 					}
 				}
 			}
@@ -858,14 +854,14 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 			{
 				for (i=0;i<cu_size;i++)
 				{
-					pred[i*aux_stride] = clip(pred[i*aux_stride] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
+					ref_wnd[i*aux_stride] = clip(ref_wnd[i*aux_stride] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
 				}
 			}
 		}
 		else
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 			int pos_delta=0;
 			int aux_delta;
 			int fract_delta;
@@ -905,7 +901,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 					}
 				}
 				{
-					TRANSPOND_MATRIX_8x8(l, pred, pred_stride)
+					TRANSPOND_MATRIX_8x8(l, ref_wnd, ref_wnd_stride_2D)
 				}
 			}
 			else
@@ -920,7 +916,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 						for (i=0;i<cu_size;i+=8)
 						{
 							__m128_i16 aux = sse_128_load_vector_u(refMain+i+aux_delta+1);
-							sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+							sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 						}
 					}
 				}
@@ -937,7 +933,7 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 
 						ref_main_idx = aux_delta+1;//i+aux_delta+1;
 						aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+1), _128_frac_delta)),_128_round),5);
-						sse_64_storel_vector_u(pred+(j*pred_stride), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
+						sse_64_storel_vector_u(ref_wnd+(j*ref_wnd_stride_2D), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
 					}
 				}
 			}
@@ -949,17 +945,17 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 
 
 
-#define TRANSPOND_MATRIX_4x4(l, pred, pred_stride)												\
+#define TRANSPOND_MATRIX_4x4(l, ref_wnd, ref_wnd_stride_2D)												\
 				__m128_i16 l0l1_l = sse128_unpacklo_u8(l[0],l[1]);										\
 				__m128_i16 l2l3_l = sse128_unpacklo_u8(l[2],l[3]);										\
 				__m128_i16 c0c1c2c3 = sse128_unpacklo_u16(l0l1_l,l2l3_l);								\
-				sse_64_storel_vector_u(pred, c0c1c2c3);												\
-				sse_64_storeh_vector_u(pred+2*pred_stride, c0c1c2c3);							\
+				sse_64_storel_vector_u(ref_wnd, c0c1c2c3);												\
+				sse_64_storeh_vector_u(ref_wnd+2*ref_wnd_stride_2D, c0c1c2c3);							\
 				c0c1c2c3 =  sse_128_shift_r_u32(c0c1c2c3,32);											\
-				sse_64_storel_vector_u(pred+1*pred_stride, c0c1c2c3);							\
-				sse_64_storeh_vector_u(pred+3*pred_stride, c0c1c2c3);//c3
+				sse_64_storel_vector_u(ref_wnd+1*ref_wnd_stride_2D, c0c1c2c3);							\
+				sse_64_storeh_vector_u(ref_wnd+3*ref_wnd_stride_2D, c0c1c2c3);//c3
 
-void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
+void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
 	int i, j, jj;
 	int is_DC_mode = cu_mode < 2;
@@ -973,7 +969,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 	int16_t  *__restrict adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 	int inv_angle = et->ed->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
-	int16_t *dst;
+	uint8_t *dst;
 	int cu_size = 4; 
 	abs_angle = et->ed->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
@@ -985,11 +981,11 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 		
 		__m128_u8 _128_dcval = sse_128_vector_i8((byte)dcval);
 
-		dst = pred;
+		dst = ref_wnd;
 		for (j=0;j<cu_size;j++)
 		{
 			sse_64_storel_vector_u(dst, _128_dcval);
-			dst+=pred_stride;
+			dst+=ref_wnd_stride_2D;
 		}
 
 		if(cu_mode == DC_IDX && is_luma)
@@ -997,20 +993,20 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 			__m128_u8 _128_two = sse_128_vector_i16(2);
 			__m128_u8 _128_three = sse_128_vector_i16(3);
 			__m128_u8 aux, aux2;
-			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);//			pred[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)pred[0] + 2)>>2);
+			uint8_t ref0 = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);//			ref_wnd[0] = ((adi_ptr[-1] + adi_ptr[1] + 2*(int16_t)ref_wnd[0] + 2)>>2);
 
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) + 1;
 
-			aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(pred)),_128_three);
+			aux = sse_128_mul_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(ref_wnd)),_128_three);
 			aux2 = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_load_vector_u(adi_ptr), aux), _128_two), 2);
-			sse_64_storel_vector_u(pred, sse128_packs_i16_u8(aux2,aux2));
-			pred[0] = ref0;
+			sse_64_storel_vector_u(ref_wnd, sse128_packs_i16_u8(aux2,aux2));
+			ref_wnd[0] = ref0;
 
 	
 			adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size) - 1;
 			for(j=1;j<cu_size;j++)		
 			{
-				pred[j*pred_stride] = ((adi_ptr[-j] + 3*(int16_t)pred[j*pred_stride] + 2)>>2);
+				ref_wnd[j*ref_wnd_stride_2D] = ((adi_ptr[-j] + 3*(int16_t)ref_wnd[j*ref_wnd_stride_2D] + 2)>>2);
 			}
 		}
 
@@ -1057,8 +1053,8 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 
 		if (pred_angle == 0)
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 
 			if(is_Hor_mode)
 			{
@@ -1070,7 +1066,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 					l[j] = sse128_packs_i16_u8(aux,aux);
 				}
 				{
-					TRANSPOND_MATRIX_4x4(l, pred, pred_stride)
+					TRANSPOND_MATRIX_4x4(l, ref_wnd, ref_wnd_stride_2D)
 				}
 			}
 			else
@@ -1080,7 +1076,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 					__m128_i16 aux = sse_128_load_vector_u(refMain+i+1);
 					for (j=0;j<cu_size;j++)
 					{
-						sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+						sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 					}
 				}
 			}
@@ -1090,14 +1086,14 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 			{
 				for (i=0;i<cu_size;i++)
 				{
-					pred[i*aux_stride] = clip(pred[i*aux_stride] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
+					ref_wnd[i*aux_stride] = clip(ref_wnd[i*aux_stride] + (( refSide[i+1] - refSide[0] ) >> 1) , 0, (1<<bit_depth)-1);
 				}
 			}
 		}
 		else
 		{
-			int aux_stride = is_Hor_mode?1:pred_stride;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
-			int aux_stride2 = is_Hor_mode?pred_stride:1;
+			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//si is_Hor_mode le damos la vuelta (cambiando el stride de x e y)
+			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 			int pos_delta=0;
 			int aux_delta;
 			int fract_delta;
@@ -1137,7 +1133,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 					}
 				}
 				{
-					TRANSPOND_MATRIX_4x4(l, pred, pred_stride)
+					TRANSPOND_MATRIX_4x4(l, ref_wnd, ref_wnd_stride_2D)
 				}
 			}
 			else
@@ -1152,7 +1148,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 						for (i=0;i<cu_size;i+=8)
 						{
 							__m128_i16 aux = sse_128_load_vector_u(refMain+i+aux_delta+1);
-							sse_64_storel_vector_u(pred+j*pred_stride+i, sse128_packs_i16_u8(aux,aux));
+							sse_64_storel_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse128_packs_i16_u8(aux,aux));
 						}
 					}
 				}
@@ -1169,7 +1165,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 
 						ref_main_idx = aux_delta+1;//i+aux_delta+1;
 						aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+1), _128_frac_delta)),_128_round),5);
-						sse_64_storel_vector_u(pred+(j*pred_stride), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
+						sse_64_storel_vector_u(ref_wnd+(j*ref_wnd_stride_2D), sse128_packs_i16_u8(aux,aux));//8x8 y 4x4
 					}
 				}
 			}
@@ -1178,14 +1174,14 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 }
 
 
-void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)
+void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)
 {
 	if(cu_size==4)
-		sse_create_intra_angular_prediction_4x4(et, ctu, pred, pred_stride, adi_pred_buff, adi_size, cu_mode, is_luma);
+		sse_create_intra_angular_prediction_4x4(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_mode, is_luma);
 	else if(cu_size==8)
-		sse_create_intra_angular_prediction_8x8(et, ctu, pred, pred_stride, adi_pred_buff, adi_size, cu_mode, is_luma);
+		sse_create_intra_angular_prediction_8x8(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_mode, is_luma);
 	else
-		sse_create_intra_angular_prediction_nxn(et, ctu, pred, pred_stride, adi_pred_buff, adi_size, cu_size, cu_mode, is_luma);
+		sse_create_intra_angular_prediction_nxn(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_size, cu_mode, is_luma);
 }
 
 

@@ -54,23 +54,23 @@ uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, uint8_t * pred,
 
 //------------------------------------------------------predict -------------------------------------------------------------------------
 
-void sse_aligned_predict(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride, int size);
+void sse_aligned_predict(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride, int size);
 
-void sse_aligned_predict_4x4(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_8x8(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_16x16(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_32x32(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_64x64(uint8_t *  orig, int orig_stride, uint8_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_4x4(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_8x8(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_16x16(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_32x32(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_64x64(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
 
 void sse_adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, int partition_size, int max_cu_size_shift, int intra_smooth_enable, int bit_depth);
 //------------------------------------------------------reconst -------------------------------------------------------------------------
-void sse_aligned_reconst(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride, int size);
+void sse_aligned_reconst(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride, int size);
 
-void sse_aligned_reconst_4x4(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride);
-void sse_aligned_reconst_8x8(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride);
-void sse_aligned_reconst_16x16(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride);
-void sse_aligned_reconst_32x32(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride);
-void sse_aligned_reconst_64x64(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride);
+void sse_aligned_reconst_4x4(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
+void sse_aligned_reconst_8x8(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
+void sse_aligned_reconst_16x16(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
+void sse_aligned_reconst_32x32(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
+void sse_aligned_reconst_64x64(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
 
 //------------------------------------------------------transform -------------------------------------------------------------------------
 void sse_transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);

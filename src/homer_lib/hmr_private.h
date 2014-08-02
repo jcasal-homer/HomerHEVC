@@ -30,7 +30,7 @@
 
 //#define WRITE_REF_FRAMES		1
 
-//#define COMPUTE_SSE_FUNCS		1
+#define COMPUTE_SSE_FUNCS		1
 #define COMPUTE_AS_HM			1
 #define COMPUTE_METRICS			1
 

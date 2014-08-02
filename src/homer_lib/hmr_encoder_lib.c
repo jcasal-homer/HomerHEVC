@@ -720,15 +720,15 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-/*			if(cpu_info[2] & 0x100000)
+			if(cpu_info[2] & 0x100000)
 			{
 				printf("tenemos SSE42!!");
 
-				phvenc->funcs.sad = sad;
+				phvenc->funcs.sad = sse_aligned_sad;
 				phvenc->funcs.ssd = ssd;
 				phvenc->funcs.modified_variance = modified_variance;
-				phvenc->funcs.predict = predict;
-				phvenc->funcs.reconst = reconst;
+				phvenc->funcs.predict = predict;//sse_aligned_predict;
+				phvenc->funcs.reconst = reconst;//sse_aligned_reconst;
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
 
@@ -751,9 +751,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				phvenc->funcs.transform = sse_transform;
 				phvenc->funcs.itransform = sse_itransform;
-			}
+*/			}
 			else
-*/			{
+			{
 				phvenc->funcs.sad = sad;
 				phvenc->funcs.ssd = ssd;
 				phvenc->funcs.modified_variance = modified_variance;
