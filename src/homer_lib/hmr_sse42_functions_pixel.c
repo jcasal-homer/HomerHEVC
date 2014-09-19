@@ -33,17 +33,6 @@
 
 uint32_t sse_aligned_sad_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
-	//both methods below are equivalent in performance
-/*	int i;
-	uint32_t sad = 0;
-	__m128_u8	_128u8_src, _128u8_pred, _128u8_aux;
-	__m128_u32	_128u32_aux, _128u32_result = sse_128_zero_vector();
-
-	CALC_ALIGNED_SAD_2x4(_128u32_result, src, src+src_stride, pred, pred+pred_stride)	
-	CALC_ALIGNED_SAD_2x4(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride)	
-
-	return sad = sse_128_get_data_u32(_128u32_result,0);//+sse_128_get_data_u32(_128u32_result,2);
-*/
 	uint32_t sad = 0;
 
 	__m128_u32	_128u32_zero = sse_128_zero_vector();
@@ -246,6 +235,7 @@ uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uin
 	else// if(size==64)
 		return sse_aligned_sad_64x64(src, src_stride, pred, pred_stride);
 }
+
 
 
 //---------------------------------------------ssd ------------------------------------------------------------------
@@ -502,21 +492,20 @@ uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uin
 void sse_aligned_predict_4x4(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
-	int j;
-	for(j=0;j<4;j++)
+//	int j;
+/*	for(j=0;j<4;j++)
 	{
 		CALC_ALIGNED_PREDICT_4(orig, pred, residual, _128_zero)
 		orig+=orig_stride;
 		pred+=pred_stride;
 		residual+=residual_stride;
 	}
-
-/*
+*/	
 	CALC_ALIGNED_PREDICT_4(orig, pred, residual, _128_zero)
 	CALC_ALIGNED_PREDICT_4(orig+orig_stride, pred+pred_stride, residual+residual_stride, _128_zero)
 	CALC_ALIGNED_PREDICT_4(orig+2*orig_stride, pred+2*pred_stride, residual+2*residual_stride, _128_zero)
 	CALC_ALIGNED_PREDICT_4(orig+3*orig_stride, pred+3*pred_stride, residual+3*residual_stride, _128_zero)
-*/
+
 }
 
 void sse_aligned_predict_8x8(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
@@ -530,6 +519,16 @@ void sse_aligned_predict_8x8(uint8_t *orig, int orig_stride, int16_t *pred, int 
 		pred+=pred_stride;
 		residual+=residual_stride;
 	}
+
+/*	CALC_ALIGNED_PREDICT_8(orig, pred, residual, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+orig_stride, pred+pred_stride, residual+residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+2*orig_stride, pred+2*pred_stride, residual+2*residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+3*orig_stride, pred+3*pred_stride, residual+3*residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+4*orig_stride, pred+4*pred_stride, residual+4*residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+5*orig_stride, pred+5*pred_stride, residual+5*residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+6*orig_stride, pred+6*pred_stride, residual+6*residual_stride, _128_zero)
+	CALC_ALIGNED_PREDICT_8(orig+7*orig_stride, pred+7*pred_stride, residual+7*residual_stride, _128_zero)
+*/
 }
 
 
@@ -702,6 +701,7 @@ void sse_aligned_reconst(int16_t *pred, int pred_stride, int16_t *residual, int 
 
 
 //--------------------------------------- variance -----------------------------------------
+
 uint32_t sse_variance_16nx16n(uint8_t *__restrict p, int size, int stride, int modif)
 {
 	int i,j;

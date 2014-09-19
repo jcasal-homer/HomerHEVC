@@ -38,7 +38,7 @@
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
 #define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
-#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//"output_32_.265"
+#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//bin"//"output_32_.265"
 #define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
 
@@ -205,7 +205,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int num_frames = 16;
+	int num_frames = 15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -220,8 +220,10 @@ int main (int argc, char **argv)
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
+#ifdef FILE_REF
 	strcpy(file_ref_name, FILE_REF);
-#define P_FRAME_DEVELOPMENT
+#endif
+//#define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
@@ -234,7 +236,7 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_pred_partition_depth = 2;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
@@ -247,15 +249,16 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.M = 1;
-	HmrCfg.N = 1;
+	HmrCfg.intra_period = 1;
+	HmrCfg.num_b = 0;
+	HmrCfg.gop_size = 0;	
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 2;
-	HmrCfg.max_intra_tr_depth = 1;
-	HmrCfg.max_inter_tr_depth = 1;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 3;
+	HmrCfg.max_inter_tr_depth = 3;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
@@ -277,11 +280,13 @@ int main (int argc, char **argv)
 		exit(0);
 	}
 
+#ifdef FILE_REF
 	if(!(reffile = fopen(file_ref_name, "wb")))
 	{
 		printf("Error opening raw output file: %s\r\n", file_ref_name);
 		exit(0);
 	}
+#endif // FILE_REF
 
 	memset(&input_frame, 0, sizeof(input_frame));
 	memset(&output_stream, 0, sizeof(output_stream));
@@ -316,6 +321,12 @@ int main (int argc, char **argv)
 		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
 			bCoding = 0;
 
+/*		if(encoded_frames<11)
+		{
+			encoded_frames++;
+			continue;
+		}
+*/
 		input_frame.stream = stream;
 
 		if(bCoding)
@@ -358,14 +369,13 @@ int main (int argc, char **argv)
 			}
 		}
 
-
-
 		if(!bCoding)
 			break;
 	}
 
 	fclose(infile);
 	fclose(outfile);
-	fclose(reffile);
+	if(reffile)
+		fclose(reffile);
 	return 0;
 }

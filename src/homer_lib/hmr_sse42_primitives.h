@@ -24,7 +24,7 @@
 #ifndef __HOMER_HEVC_SSE42_PRIMITIVES__
 #define __HOMER_HEVC_SSE42_PRIMITIVES__
 
-#include "hmr_os_primitives.h"
+//#include "hmr_os_primitives.h"
 #include <smmintrin.h>
 
 typedef __m128i	__m128_;				//generico
@@ -95,6 +95,7 @@ typedef __m128i	__m128_i8;
 #define sse_128_add_i32(a,b)				_mm_add_epi32(a,b)
 #define sse_128_add_i64(a,b)				_mm_add_epi64(a,b)
 
+#define sse_128_adds_u16(a,b)				_mm_adds_epu16(a,b)
 #define sse_128_adds_i16(a,b)				_mm_adds_epi16(a,b)
 
 #define sse_128_hsub_i16(a,b)				_mm_hsub_epi16(a,b)

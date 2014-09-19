@@ -196,7 +196,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 					cu_mode = luma_mode;
 				}
 
-				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, FALSE, FALSE);//don't create filtered adi samples
+				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, CHR_COMP, FALSE);//don't create filtered adi samples
 
 				//create prediction
 				if(cu_mode== PLANAR_IDX)
@@ -317,7 +317,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
 				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
-				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, FALSE, FALSE);//don't create filtered adi samples
+				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, CHR_COMP, FALSE);//don't create filtered adi samples
 
 				if(cu_mode== PLANAR_IDX)
 					et->funcs->create_intra_planar_prediction(et, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, curr_part_size_shift);//creamos el array de prediccion planar

@@ -187,7 +187,7 @@ uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t modified_variance(uint8_t *p, int size, int stride, int modif);
-void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int is_luma, int is_filtered);
+void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int component, int is_filtered);
 void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t* pred, int pred_stride, short  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 void create_intra_planar_prediction(henc_thread_t* et, int16_t* pred, int pred_stride, short  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
 void synchronize_reference_buffs_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);

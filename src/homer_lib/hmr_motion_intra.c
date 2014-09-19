@@ -221,7 +221,7 @@ void adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, in
 	}
 }
 
-void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int is_luma, int is_filtered)
+void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int comp, int is_filtered)
 {
 	int i, aux, aux2;
 	int  dc = 1 << (et->bit_depth - 1);//dc value depending on bit-depth
@@ -263,11 +263,19 @@ void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_inf
 		ptr = et->adi_pred_buff;
 		if(partition_info->left_bottom_neighbour)
 		{
-			for(i=0;i<partition_size;i++)
+			int left_bottom_size = min(partition_size, et->pict_height[comp]-(ctu->y[comp]+(comp==Y_COMP?partition_info->y_position:partition_info->y_position_chroma)+partition_size));
+
+			//int left_bottom_size = partition_size;//min(partition_size, et->pict_width[comp]-(ctu->x[comp]+2*partition_size));
+			for(i=0;i<left_bottom_size;i++)
 			{
 				*ptr++ = ref_ptr[(-i)*decoded_buff_stride];
 			}
-			first_sample = ptr[-partition_size];//not used
+			first_sample = ptr[-left_bottom_size];
+			if(left_bottom_size!=partition_size)//pic width is not multiple of ctu. we have to pad 
+			{
+				ptr_padding_left = ptr;
+				padding_left_size = partition_size-left_bottom_size;			
+			}
 		}
 		else
 		{
@@ -305,11 +313,18 @@ void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_inf
 
 		if(partition_info->top_right_neighbour)
 		{
-			for(i=0;i<partition_size;i++)
+			int top_right_size = min(partition_size, et->pict_width[comp]-(ctu->x[comp]+(comp==Y_COMP?partition_info->x_position:partition_info->x_position_chroma)+partition_size));
+
+			for(i=0;i<top_right_size;i++)
 			{
 				*ptr++ = (int16_t)*ref_ptr++;
 			}
-			last_sample = ptr[-1];//not used
+			last_sample = ptr[-1];
+			if(top_right_size!=partition_size)//pic height is not multiple of ctu. we have to pad
+			{
+				ptr_padding_top = ptr;
+				padding_top_size = partition_size-top_right_size;			
+			}
 		}
 		else
 		{
@@ -1053,7 +1068,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	is_filtered = (cu_mode!=DC_IDX) && ((diff > intra_filter[inv_depth - 2]) ? 1 : 0);//is_luma?((diff > intra_filter[inv_depth - 2]) ? 1 : 0):0;
 
 	PROFILER_RESET(intra_luma_generate_prediction)
-	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, TRUE, is_filtered);//create filtered and non filtered adi buf
+	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, is_filtered);//create filtered and non filtered adi buf
 
 	//predIntraLumaAng
 	if(cu_mode== PLANAR_IDX)
@@ -1132,7 +1147,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	int best_bit_cost;
 	best_pred_modes[0] = best_pred_modes[1] = best_pred_modes[2] = PRED_MODE_INVALID;
 
-	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, TRUE, TRUE);//create filtered and non filtered adi buf
+	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, TRUE);//create filtered and non filtered adi buf
 
 	ctu_rd->intra_mode[Y_COMP] = et->intra_mode_buffs[Y_COMP][curr_depth];//for rd
 	num_preds = get_intra_dir_luma_predictor(ctu_rd, curr_partition_info, preds, NULL);  
@@ -1222,7 +1237,7 @@ void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_r
 	int is_filtered;
 	double distortion;
 	uint cost;
-	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, TRUE, TRUE);//create filtered and non filtered adi buf
+	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, TRUE);//create filtered and non filtered adi buf
 	//64x64 intra pred
 	for(cu_mode=0;cu_mode<NUM_LUMA_MODES;cu_mode++)
 	{
@@ -1320,14 +1335,19 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	memset(&ctu_rd->part_size_type[curr_partition_info->abs_index], part_size_type, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 	memset(&ctu_rd->pred_depth[curr_partition_info->abs_index], depth-(part_size_type==SIZE_NxN), curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 
+	if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+	{
+		int iiiiii=0;
+	}
+
 	PROFILER_RESET(intra_luma_bucle1)
 #ifdef COMPUTE_AS_HM
 	hm_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
 #else
 	bitcost_cu_mode = homer_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
 #endif
-	PROFILER_ACCUMULATE(intra_luma_bucle1)
 
+	PROFILER_ACCUMULATE(intra_luma_bucle1)
 
 	if(depth==0 && et->max_cu_size == MAX_CU_SIZE)
 	{
@@ -1508,6 +1528,11 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 			{
 				distortion = parent_part_info->children[0]->distortion+parent_part_info->children[1]->distortion+parent_part_info->children[2]->distortion+parent_part_info->children[3]->distortion;
 				cost = distortion;
+
+				if(ctu->ctu_number == 10 && curr_depth==1)// && */curr_partition_info->abs_index == 64)
+				{
+					int iiiiii=0;
+				}
 
 				depth_state[curr_depth] = 0;
 				if(et->rd_mode == 1)
@@ -1712,7 +1737,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		position = curr_partition_info->list_index - et->partition_depth_start[curr_depth];
 		quant_wnd = &et->transform_quant_wnd[curr_depth];
 		decoded_wnd = &et->decoded_mbs_wnd[curr_depth];
-		
+
 		cost_luma = cost_chroma = 0;
 
 		if(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
@@ -1731,6 +1756,11 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 #endif
 			{
+				if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 6 && curr_depth==2  && abs_index == 64)
+				{
+					int iiiiii=0;
+				}
+
 				//encode
 				PROFILER_RESET(intra_luma)
 				cost_luma = encode_intra_luma(et, ctu, gcnt, curr_depth, position, part_size_type);

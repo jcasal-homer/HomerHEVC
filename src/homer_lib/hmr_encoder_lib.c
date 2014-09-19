@@ -33,8 +33,8 @@
 #include	"hmr_sse42_functions.h"
 
 
-static const ushort ang_table[] = {0,    2,    5,   9,  13,  17,  21,  26,  32}; 
-static const ushort inv_ang_table[] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle
+static const uint16_t ang_table[] = {0,    2,    5,   9,  13,  17,  21,  26,  32}; 
+static const uint16_t inv_ang_table[] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle
 
 #ifdef COMPUTE_METRICS
 profiler_t frame_metrics = PROFILER_INIT("frame_metrics");
@@ -147,7 +147,7 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-//	phvenc->debug_file  = fopen("C:\\Patrones\\refs.bin","wb");//refs.yuv","wb")
+//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
 
 
@@ -502,8 +502,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->profile = cfg->profile;
 			phvenc->intra_period = cfg->intra_period;
-			phvenc->gop_size = phvenc->intra_period==1?0:cfg->gop_size;
-			phvenc->num_b = cfg->num_b;
+			phvenc->gop_size = phvenc->intra_period==1?1:cfg->gop_size;
+			phvenc->num_b = phvenc->intra_period==1?0:cfg->num_b;
 			phvenc->num_ref_frames = phvenc->gop_size>0?cfg->num_ref_frames:0;
 			//conformance wnd
 			min_cu_size = phvenc->min_cu_size;
@@ -722,7 +722,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #endif
 			if(cpu_info[2] & 0x100000)
 			{
-				printf("tenemos SSE42!!");
+				printf("SSE42 avaliable!!");
 
 				phvenc->funcs.sad = sse_aligned_sad;
 				phvenc->funcs.ssd = ssd;
@@ -990,7 +990,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->vps.max_num_reorder_pics[i] = 0;
-				phvenc->vps.max_dec_pic_buffering[i] = phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
+				phvenc->vps.max_dec_pic_buffering[i] = (phvenc->intra_period==1)?1:phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->vps.max_latency_increase[i] = 0;
 			}
 	
@@ -1019,7 +1019,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->sps.max_num_reorder_pics[i] = 0;
-				phvenc->sps.max_dec_pic_buffering[i] = phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
+				phvenc->sps.max_dec_pic_buffering[i] = (phvenc->intra_period==1)?1:phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->sps.max_latency_increase[i] = 0;
 			}
 
