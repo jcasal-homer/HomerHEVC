@@ -927,7 +927,7 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 }
 
 
-void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)
+void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)
 {
 	if(cu_size==4)
 		sse_create_intra_angular_prediction_4x4(et, ctu, ref_wnd, ref_wnd_stride_2D, adi_pred_buff, adi_size, cu_mode, is_luma);

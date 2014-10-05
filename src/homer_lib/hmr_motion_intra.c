@@ -1335,7 +1335,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	memset(&ctu_rd->part_size_type[curr_partition_info->abs_index], part_size_type, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 	memset(&ctu_rd->pred_depth[curr_partition_info->abs_index], depth-(part_size_type==SIZE_NxN), curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 
-	if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+	if(ctu->ctu_number == 457 && curr_partition_info->abs_index == 239)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
 	{
 		int iiiiii=0;
 	}
@@ -1529,7 +1529,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 				distortion = parent_part_info->children[0]->distortion+parent_part_info->children[1]->distortion+parent_part_info->children[2]->distortion+parent_part_info->children[3]->distortion;
 				cost = distortion;
 
-				if(ctu->ctu_number == 10 && curr_depth==1)// && */curr_partition_info->abs_index == 64)
+				if(ctu->ctu_number == 1403 && curr_depth==1)// && */curr_partition_info->abs_index == 64)
 				{
 					int iiiiii=0;
 				}
@@ -1739,6 +1739,9 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		decoded_wnd = &et->decoded_mbs_wnd[curr_depth];
 
 		cost_luma = cost_chroma = 0;
+
+
+
 
 		if(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{

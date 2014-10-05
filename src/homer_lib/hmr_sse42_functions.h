@@ -112,9 +112,8 @@ void sse_create_intra_angular_prediction_8x8(henc_thread_t* et, ctu_info_t* ctu,
 void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, uint16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 
 //void sse_create_intra_planar_prediction(uint8_t* ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
-void sse_create_intra_planar_prediction(henc_thread_t* et, uint8_t* ref_wnd, int ref_wnd_stride_2D, int16_t *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
-void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, uint16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
-
+void sse_create_intra_planar_prediction(henc_thread_t* et, int16_t* pred, int pred_stride, short  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
+void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 
 //----------------------------------------------variance ------------------------------------------------
 uint32_t sse_modified_variance(uint8_t * p, int size, int stride, int modif);

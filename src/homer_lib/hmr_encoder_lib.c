@@ -147,7 +147,7 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
+	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
 
 
@@ -466,6 +466,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
 
+			if(cfg->width%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)) || cfg->height%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)))
+			{
+				printf("HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
+				goto config_error;
+			}
 			phvenc->max_inter_pred_depth = 0;
 //			while((phvenc->max_cu_size>>phvenc->max_inter_pred_depth)>8)phvenc->max_inter_pred_depth++;
 //			if(phvenc->max_inter_pred_depth>phvenc->max_pred_partition_depth)
@@ -726,20 +731,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				phvenc->funcs.sad = sse_aligned_sad;
 				phvenc->funcs.ssd = ssd;
-				phvenc->funcs.modified_variance = modified_variance;
-				phvenc->funcs.predict = predict;//sse_aligned_predict;
-				phvenc->funcs.reconst = reconst;//sse_aligned_reconst;
-				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
-				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
-
-				phvenc->funcs.quant = sse_aligned_quant;
-				phvenc->funcs.inv_quant = sse_aligned_inv_quant;
-
-				phvenc->funcs.transform = sse_transform;
-				phvenc->funcs.itransform = sse_itransform;
-
-/*				phvenc->funcs.sad = sse_aligned_sad;
-				phvenc->funcs.ssd = sse_aligned_ssd;
 				phvenc->funcs.modified_variance = sse_modified_variance;
 				phvenc->funcs.predict = sse_aligned_predict;
 				phvenc->funcs.reconst = sse_aligned_reconst;
@@ -751,7 +742,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				phvenc->funcs.transform = sse_transform;
 				phvenc->funcs.itransform = sse_itransform;
-*/			}
+			}
 			else
 			{
 				phvenc->funcs.sad = sad;
@@ -838,12 +829,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//----------------------------current thread processing buffers allocation	-----
 				//alloc processing windows and buffers
 				henc_th->adi_size = 2*henc_th->ctu_height[0]+2*henc_th->ctu_width[0]+1;//vecinos de la columna izq y fila superior + la esquina
-				henc_th->adi_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->adi_filtered_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->top_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->left_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->bottom_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
+				henc_th->adi_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->adi_filtered_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->top_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->left_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->bottom_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
 
 
 				wnd_realloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
@@ -1101,11 +1092,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 		break;
 
 	}   
-
 	if(err)     
     	return (FALSE);
 	else
 		return (TRUE);
+config_error:
+	return (FALSE);
 }
 
 int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
@@ -1463,6 +1455,11 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 				motion_intra(et, ctu, gcnt);
 			}
 			PROFILER_ACCUMULATE(intra)
+
+			if(ctu->ctu_number == 457)
+			{
+				int iiiii=0;
+			}
 			mem_transfer_decoded_blocks(et, ctu);
 
 			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_cu)
@@ -1473,7 +1470,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			PROFILER_RESET(cabac)
 			ctu->coeff_wnd = &et->transform_quant_wnd[0];
 
-			if(et->ed->num_encoded_frames == 1)
+			if(et->cu_current+1 == et->pict_total_cu)//if(et->ed->num_encoded_frames == 1)
 			{
 				int iiiii=0;
 			}

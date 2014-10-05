@@ -191,6 +191,10 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 //		mem_transfer_2d2d((uint8_t*)decoded_buff_src, (uint8_t*)decoded_buff_dst, copy_width*sizeof(decoded_buff_src[0]), copy_height, src_stride*sizeof(decoded_buff_src[0]), dst_stride*sizeof(decoded_buff_dst[0]));
 		for(j=0;j<copy_height;j++)
 		{
+			if(ctu->ctu_number == 457 && j==60)
+			{
+				int iiii=0;
+			}
 			for(i=0;i<copy_width;i++)
 			{
 				decoded_buff_dst[i] = decoded_buff_src[i];
