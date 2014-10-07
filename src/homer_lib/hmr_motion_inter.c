@@ -481,11 +481,6 @@ void get_mv_candidates(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *
 
 	mv_candidate_list->num_mv_candidates = 0;
 
-	if(ctu->ctu_number == 5 && curr_cu_info->abs_index==80)// && curr_cu_info->depth == 1)
-	{
-		int iiiii=0;
-	}
-
 	//get spatial candidates
 	partition_info_lb->left_bottom_neighbour = curr_cu_info->left_bottom_neighbour;
 	ctu_left_bottom = get_pu_left_bottom(et, ctu, partition_info_lb, &part_idx_lb);
@@ -707,7 +702,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-		if(et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 8)//&& ctu->ctu_number==11 && curr_cu_info->depth == 1)
+		if(et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 88 && ctu->ctu_number == 3)//&& ctu->ctu_number==11 && curr_cu_info->depth == 1)
 		{
 			int iiiiiii=0;
 		}
@@ -1083,7 +1078,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==4 && et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_cu_info->abs_index == 64)// && curr_cu_info->depth == 1)
+			if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == (64+24))// && curr_cu_info->depth == 1)
 			{
 				int iiiiiii=0;
 			}

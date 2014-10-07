@@ -764,7 +764,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 //						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
-					if(sub_part_idx==48)
+					if(ctu->ctu_number == 3 && sub_part_idx==88)
 					{
 						int iiii=0;
 					}
@@ -1622,8 +1622,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 		{	
 			if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 			{
-				if(ctu->ctu_number == 481 && curr_partition_info->abs_index >= 151)
-//				if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==1403)
+				if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 3 && curr_partition_info->abs_index >= 88)
 				{
 					int iiiii=0;
 				}

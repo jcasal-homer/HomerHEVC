@@ -35,7 +35,7 @@
 #endif
 
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-//#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+//#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 #define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 #define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//bin"//"output_32_.265"
@@ -223,7 +223,7 @@ int main (int argc, char **argv)
 #ifdef FILE_REF
 	strcpy(file_ref_name, FILE_REF);
 #endif
-//#define P_FRAME_DEVELOPMENT
+#define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
@@ -236,7 +236,7 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = 25;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 2;
+	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;

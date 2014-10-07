@@ -641,10 +641,11 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 	int cu_min_tu_size_shift = max((et->max_cu_size_shift - (et->max_pred_partition_depth+max(et->max_intra_tr_depth, et->max_inter_tr_depth)-1)), MIN_TU_SIZE_SHIFT);//(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth-1))>MIN_TU_SIZE_SHIFT?(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth)):MIN_TU_SIZE_SHIFT;//+ interSplitFlag + intraSplitFlag	//(part_size_type==SIZE_NxN));//
 	int max_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 	int ctu_valid_lines = (ctu->y[Y_COMP]+ctu->size)>et->pict_height[Y_COMP]?(et->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_height)?(et->pict_height-ctu->y[Y_COMP]):ctu->size;
-	int ctu_valid_colums = (ctu->x[Y_COMP]+ctu->size)>et->pict_width[Y_COMP]?(et->pict_width[Y_COMP]-ctu->y[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_width)?(et->pict_width-ctu->y[Y_COMP]):ctu->size;
+	int ctu_valid_colums = (ctu->x[Y_COMP]+ctu->size)>et->pict_width[Y_COMP]?(et->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_width)?(et->pict_width-ctu->y[Y_COMP]):ctu->size;
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
-		if(et->ed->num_encoded_frames == 3 && ctu->ctu_number == 7 && curr_partition_info->abs_index >= 0)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+//		if(et->ed->num_encoded_frames == 3 && ctu->ctu_number == 7 && curr_partition_info->abs_index >= 0)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 3 && curr_partition_info->abs_index==88)
 		{
 			int iiiiii=0;
 		}
