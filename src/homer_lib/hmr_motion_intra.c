@@ -259,8 +259,10 @@ void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_inf
 			padding_left_size = partition_size;
 		}
 
-		ref_ptr = decoded_buff+(2*partition_size)*decoded_buff_stride;
-		ptr = et->adi_pred_buff;
+//		ref_ptr = decoded_buff+(2*partition_size)*decoded_buff_stride;
+//		ptr = et->adi_pred_buff;
+		ref_ptr = decoded_buff+(partition_size+1)*decoded_buff_stride;
+		ptr = et->adi_pred_buff+partition_size-1;
 		if(partition_info->left_bottom_neighbour)
 		{
 			int left_bottom_size = min(partition_size, et->pict_height[comp]-(ctu->y[comp]+(comp==Y_COMP?partition_info->y_position:partition_info->y_position_chroma)+partition_size));
@@ -268,18 +270,18 @@ void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_inf
 			//int left_bottom_size = partition_size;//min(partition_size, et->pict_width[comp]-(ctu->x[comp]+2*partition_size));
 			for(i=0;i<left_bottom_size;i++)
 			{
-				*ptr++ = ref_ptr[(-i)*decoded_buff_stride];
+				*ptr-- = ref_ptr[(i)*decoded_buff_stride];
 			}
-			first_sample = ptr[-left_bottom_size];
+			first_sample = ptr[1];//ptr[-left_bottom_size];
 			if(left_bottom_size!=partition_size)//pic width is not multiple of ctu. we have to pad 
 			{
-				ptr_padding_left = ptr;
+				ptr_padding_left = et->adi_pred_buff;//ptr;
 				padding_left_size = partition_size-left_bottom_size;			
 			}
 		}
 		else
 		{
-			ptr_padding_left = ptr;
+			ptr_padding_left = et->adi_pred_buff;
 			if(partition_info->left_neighbour)
 			{
 				padding_left_size = partition_size;
@@ -601,14 +603,10 @@ void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t
 }
 
 //can not be called for CTU
-void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size)
+//void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size)
+void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size, int ctu_valid_colums, int ctu_valid_lines)
 {
 	cu_partition_info_t	*parent = curr_part->parent;
-
-	if(curr_part->abs_index == 8)
-	{
-		int iiii=0;
-	}
 
 	if(parent->left_neighbour || curr_part->x_position)
 		curr_part->left_neighbour = 1;
@@ -622,14 +620,14 @@ void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size)
 
 
 	if((parent->left_bottom_neighbour && curr_part->x_position == parent->x_position) ||
-	  (parent->left_neighbour && curr_part->x_position == parent->x_position && curr_part->y_position == parent->y_position && parent->is_b_inside_frame))
+	  (parent->left_neighbour && curr_part->x_position == parent->x_position && curr_part->y_position == parent->y_position && ctu_valid_lines>curr_part->y_position+curr_part->size))// && parent->is_b_inside_frame))
 		curr_part->left_bottom_neighbour = 1;
 	else 
 		curr_part->left_bottom_neighbour = 0;
 
 	if((parent->top_right_neighbour && curr_part->y_position == parent->y_position) ||
-	  (parent->top_neighbour && curr_part->x_position == parent->x_position && curr_part->y_position == parent->y_position && parent->is_r_inside_frame) ||
-	  (curr_part->x_position == parent->x_position && curr_part->y_position != parent->y_position && parent->is_r_inside_frame))
+	  (parent->top_neighbour && curr_part->x_position == parent->x_position && curr_part->y_position == parent->y_position && ctu_valid_colums>curr_part->x_position+curr_part->size) ||
+	  (curr_part->x_position == parent->x_position && curr_part->y_position != parent->y_position && ctu_valid_colums>curr_part->x_position+curr_part->size))//parent->is_r_inside_frame))
 		curr_part->top_right_neighbour = 1;
 	else 
 		curr_part->top_right_neighbour = 0;
@@ -642,9 +640,15 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int cu_min_tu_size_shift = max((et->max_cu_size_shift - (et->max_pred_partition_depth+max(et->max_intra_tr_depth, et->max_inter_tr_depth)-1)), MIN_TU_SIZE_SHIFT);//(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth-1))>MIN_TU_SIZE_SHIFT?(et->max_cu_size_shift - (et->max_pred_partition_depth+et->max_intra_tr_depth)):MIN_TU_SIZE_SHIFT;//+ interSplitFlag + intraSplitFlag	//(part_size_type==SIZE_NxN));//
 	int max_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
-
+	int ctu_valid_lines = (ctu->y[Y_COMP]+ctu->size)>et->pict_height[Y_COMP]?(et->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_height)?(et->pict_height-ctu->y[Y_COMP]):ctu->size;
+	int ctu_valid_colums = (ctu->x[Y_COMP]+ctu->size)>et->pict_width[Y_COMP]?(et->pict_width[Y_COMP]-ctu->y[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_width)?(et->pict_width-ctu->y[Y_COMP]):ctu->size;
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
+		if(et->ed->num_encoded_frames == 3 && ctu->ctu_number == 7 && curr_partition_info->abs_index >= 0)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+		{
+			int iiiiii=0;
+		}
+
 		curr_depth = curr_partition_info->depth;
 		curr_partition_info->is_tl_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position < et->pict_height[Y_COMP]) && (ctu->x[Y_COMP]+curr_partition_info->x_position < et->pict_width[Y_COMP]);
 		curr_partition_info->is_b_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position+curr_partition_info->size <= et->pict_height[Y_COMP]);
@@ -660,7 +664,7 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 				curr_partition_info->top_right_neighbour = ctu->ctu_top_right?1:0; 
 			}
 			else
-				cu_partition_get_neighbours(curr_partition_info, et->max_cu_size);
+				cu_partition_get_neighbours(curr_partition_info, et->max_cu_size, ctu_valid_colums, ctu_valid_lines);
 		}
 
 		depth_state[curr_depth]++;
@@ -1335,7 +1339,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	memset(&ctu_rd->part_size_type[curr_partition_info->abs_index], part_size_type, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 	memset(&ctu_rd->pred_depth[curr_partition_info->abs_index], depth-(part_size_type==SIZE_NxN), curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 
-	if(ctu->ctu_number == 457 && curr_partition_info->abs_index == 239)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+	if(curr_partition_info->abs_index >= 156)//if(ctu->ctu_number == 482 && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
 	{
 		int iiiiii=0;
 	}
@@ -1492,6 +1496,10 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 		curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
 		curr_depth = curr_partition_info->depth;
 
+		if(ctu->ctu_number == 482 && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+		{
+			int iiiiii=0;
+		}
 		curr_partition_info->distortion = encode_intra_cu(et, ctu, curr_partition_info, depth, cu_mode, part_size_type, &curr_sum, gcnt);//depth = prediction depth
 
 		//cbf

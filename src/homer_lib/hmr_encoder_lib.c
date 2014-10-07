@@ -147,7 +147,7 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
+//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
 
 

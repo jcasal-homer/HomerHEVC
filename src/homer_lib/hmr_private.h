@@ -1192,7 +1192,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
-	FILE			*debug_file;
+//	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/
