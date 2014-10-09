@@ -1,0 +1,425 @@
+/*****************************************************************************
+* hmr_sse42_functions_inter_prediction.c : homerHEVC encoding library
+/*****************************************************************************
+ * Copyright (C) 2014 homerHEVC project
+ *
+ * Juan Casal <jcasal.homer@gmail.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
+ *****************************************************************************/
+
+
+
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
+
+#include "hmr_sse42_primitives.h"
+#include "hmr_sse42_macros.h"
+#include "hmr_os_primitives.h"
+#include "hmr_sse42_functions.h"
+
+
+#define clip(value,min,max)	( (value < min) ? min : (value > max) ? max : value )
+
+#define NTAPS_LUMA        8 ///< Number of taps for luma
+#define NTAPS_CHROMA      4 ///< Number of taps for chroma
+#define IF_INTERNAL_PREC 14 ///< Number of bits for internal precision
+#define IF_FILTER_PREC    6 ///< Log2 of sum of filter taps
+#define IF_INTERNAL_OFFS (1<<(IF_INTERNAL_PREC-1)) ///< Offset used internally
+
+
+/*int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
+{
+  {  0, 64,  0,  0 },
+  { -2, 58, 10, -2 },
+  { -4, 54, 16, -2 },
+  { -6, 46, 28, -4 },
+  { -4, 36, 36, -4 },
+  { -4, 28, 46, -6 },
+  { -2, 16, 54, -4 },
+  { -2, 10, 58, -2 }
+};
+
+//interpolate chroma from reference into prediction buff
+void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int num_taps = NTAPS_CHROMA;//argument
+	int ref_stride = ( is_vertical ) ? reference_buff_stride : 1;
+
+	int offset;
+	short maxVal;
+	int headRoom = IF_INTERNAL_PREC - bit_depth;
+	int shift = IF_FILTER_PREC;
+	int y, x;//row, col;
+	int16_t c[4];
+	int16_t	*coeffs = chroma_filter_coeffs[fraction];
+	int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 )*ref_stride);
+	
+//	reference_buff -= ( num_taps/2 - 1 ) * ref_stride;
+
+	c[0] = coeffs[0];
+	c[1] = coeffs[1];
+	c[2] = coeffs[2];
+	c[3] = coeffs[3];
+
+	if ( is_last )
+	{
+		shift += (is_first) ? 0 : headRoom;
+		offset = 1 << (shift - 1);
+		offset += (is_first) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
+		maxVal = (1 << bit_depth) - 1;
+	}
+	else
+	{
+		shift -= (is_first) ? headRoom : 0;
+		offset = (is_first) ? -IF_INTERNAL_OFFS << shift : 0;
+		maxVal = 0;
+	}
+
+	for (y = 0; y < height; y++)//row
+	{
+		for (x = 0; x < width; x++)//col
+		{
+			int sum;
+			short val;//why HM uses short?
+			sum  = ref_buff[ x + 0 * ref_stride] * c[0];
+			sum += ref_buff[ x + 1 * ref_stride] * c[1];
+			sum += ref_buff[ x + 2 * ref_stride] * c[2];
+			sum += ref_buff[ x + 3 * ref_stride] * c[3];
+
+			val = ( sum + offset ) >> shift;
+			if ( is_last)
+			{
+				val = clip(val,0,maxVal);
+			}
+			pred_buff[x] = val;
+		}
+
+		ref_buff += reference_buff_stride;
+		pred_buff += pred_buff_stride;
+	}
+}
+
+*/
+ALIGN(16) int16_t sse_chroma_filter_coeffs_horizontal[8][2*NTAPS_CHROMA] =
+{
+  {  0, 64,  0,  0,  0, 64,  0,  0 },
+  { -2, 58, 10, -2, -2, 58, 10, -2 },
+  { -4, 54, 16, -2, -4, 54, 16, -2 },
+  { -6, 46, 28, -4, -6, 46, 28, -4 },
+  { -4, 36, 36, -4, -4, 36, 36, -4 },
+  { -4, 28, 46, -6, -4, 28, 46, -6 },
+  { -2, 16, 54, -4, -2, 16, 54, -4 },
+  { -2, 10, 58, -2, -2, 10, 58, -2 }
+};
+
+
+//this function differs to hmr_interpolate_chroma and to HM in higher range values because val here is int32 and in HM is int16 and so it may overflow with high values - I think is an error in HM as it is saturated later
+void sse_hmr_interpolate_chroma_4xn(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int num_taps = NTAPS_CHROMA;//argument
+
+	int offset = 0;
+	int headRoom = IF_INTERNAL_PREC - bit_depth;
+	int shift = IF_FILTER_PREC;
+	int y = 0;
+
+	if ( is_last )
+	{
+		shift += (is_first) ? 0 : headRoom;
+		offset = 1 << (shift - 1);
+		offset += (is_first) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
+	}
+	else
+	{
+		shift -= (is_first) ? headRoom : 0;
+		offset = (is_first) ? -IF_INTERNAL_OFFS << shift : 0;
+	}
+
+
+
+	if(!is_vertical)
+	{
+		//horizontal
+		int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 ));
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)//row
+		{
+			__m128_i16 pixels01 = sse128_unpacklo_u64(sse_128_load_vector_u(ref_buff), sse_128_load_vector_u(ref_buff+1));
+			__m128_i16 pixels23 = sse128_unpacklo_u64(sse_128_load_vector_u(ref_buff+2), sse_128_load_vector_u(ref_buff+3));
+			__m128_i32 sum12 = sse_128_madd_i16_i32(pixels01, coeff);
+			__m128_i32 sum23 = sse_128_madd_i16_i32(pixels23, coeff);
+			__m128_i32 sum = sse_128_hadd_i32(sum12, sum23);
+			__m128_i32 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum, _m128_offset), shift), _m128_offset);// in HM val is type short. 
+			if ( is_last)
+			{
+				val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+			}
+			sse_64_storel_vector_u(pred_buff, val);
+
+			ref_buff += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}
+	}
+	else
+	{
+		//vertical
+		int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 )*reference_buff_stride);
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)//row
+		{
+			__m128_i16 l0l1 = sse128_unpacklo_u16(sse_128_load_vector_u(ref_buff), sse_128_load_vector_u(ref_buff+reference_buff_stride));
+			__m128_i16 l2l3 = sse128_unpacklo_u16(sse_128_load_vector_u(ref_buff+2*reference_buff_stride), sse_128_load_vector_u(ref_buff+3*reference_buff_stride));
+			__m128_i16 c0c1 = sse128_unpacklo_u32(l0l1,l2l3);
+			__m128_i16 c2c3 = sse128_unpackhi_u32(l0l1,l2l3);
+			__m128_i32 sum12 = sse_128_madd_i16_i32(c0c1, coeff);
+			__m128_i32 sum23 = sse_128_madd_i16_i32(c2c3, coeff);
+			__m128_i32 sum = sse_128_hadd_i32(sum12, sum23);
+			__m128_i32 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum, _m128_offset), shift), _m128_offset);//_m128_offset is whatever
+			if ( is_last)
+			{
+				val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+			}
+			sse_64_storel_vector_u(pred_buff, val);
+
+			ref_buff += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}	
+	}
+}
+
+
+//this function differs to hmr_interpolate_chroma and to HM in higher range values because val here is int32 and in HM is int16 and so it may overflow with high values - I think is an error in HM as it is saturated later
+void sse_hmr_interpolate_chroma_8xn(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int num_taps = NTAPS_CHROMA;//argument
+
+	int offset = 0;
+	int headRoom = IF_INTERNAL_PREC - bit_depth;
+	int shift = IF_FILTER_PREC;
+	int y;
+
+	if ( is_last )
+	{
+		shift += (is_first) ? 0 : headRoom;
+		offset = 1 << (shift - 1);
+		offset += (is_first) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
+	}
+	else
+	{
+		shift -= (is_first) ? headRoom : 0;
+		offset = (is_first) ? -IF_INTERNAL_OFFS << shift : 0;
+	}
+
+	if(!is_vertical)
+	{
+		//horizontal
+		int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 ));
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)
+		{
+			__m128_i16 pixels04 = sse_128_load_vector_u(ref_buff);
+			__m128_i16 pixels15 = sse_128_load_vector_u(ref_buff+1);
+			__m128_i16 pixels26 = sse_128_load_vector_u(ref_buff+2);
+			__m128_i16 pixels37 = sse_128_load_vector_u(ref_buff+3);
+			__m128_i32 sum04 = sse_128_madd_i16_i32(pixels04, coeff);
+			__m128_i32 sum15 = sse_128_madd_i16_i32(pixels15, coeff);
+			__m128_i32 sum26 = sse_128_madd_i16_i32(pixels26, coeff);
+			__m128_i32 sum37 = sse_128_madd_i16_i32(pixels37, coeff);
+			__m128_i32 sum0426 = sse_128_hadd_i32(sum04, sum26);
+			__m128_i32 sum1537 = sse_128_hadd_i32(sum15, sum37);
+			__m128_i32 sum0145 = sse128_unpacklo_u32(sum0426, sum1537);
+			__m128_i32 sum2367 = sse128_unpackhi_u32(sum0426, sum1537);
+			__m128_i32 sum0123 = sse128_unpacklo_u64(sum0145, sum2367);
+			__m128_i32 sum4567 = sse128_unpackhi_u64(sum0145, sum2367);
+			__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+			if ( is_last)
+			{
+				val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+			}
+			sse_128_store_vector_u(pred_buff, val);
+
+			ref_buff += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}
+	}
+	else
+	{
+		//vertical
+		int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 )*reference_buff_stride);
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)//row
+		{
+			__m128_i16 l0 = sse_128_load_vector_u(ref_buff);
+			__m128_i16 l1 = sse_128_load_vector_u(ref_buff+reference_buff_stride);
+			__m128_i16 l0l1_l = sse128_unpacklo_u16(l0, l1);
+			__m128_i16 l0l1_h = sse128_unpackhi_u16(l0, l1);
+			__m128_i16 l2 = sse_128_load_vector_u(ref_buff+2*reference_buff_stride);
+			__m128_i16 l3 = sse_128_load_vector_u(ref_buff+3*reference_buff_stride);
+			__m128_i16 l2l3_l = sse128_unpacklo_u16(l2, l3);
+			__m128_i16 l2l3_h = sse128_unpackhi_u16(l2, l3);
+			__m128_i16 pixels01 = sse128_unpacklo_u32(l0l1_l, l2l3_l);
+			__m128_i16 pixels23 = sse128_unpackhi_u32(l0l1_l, l2l3_l);
+			__m128_i16 pixels45 = sse128_unpacklo_u32(l0l1_h, l2l3_h);
+			__m128_i16 pixels67 = sse128_unpackhi_u32(l0l1_h, l2l3_h);
+			__m128_i32 sum01 = sse_128_madd_i16_i32(pixels01, coeff);
+			__m128_i32 sum23 = sse_128_madd_i16_i32(pixels23, coeff);
+			__m128_i32 sum45 = sse_128_madd_i16_i32(pixels45, coeff);
+			__m128_i32 sum67 = sse_128_madd_i16_i32(pixels67, coeff);
+			__m128_i32 sum0123 = sse_128_hadd_i32(sum01, sum23);
+			__m128_i32 sum4567 = sse_128_hadd_i32(sum45, sum67);
+			__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+			if ( is_last)
+			{
+				val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+			}
+			sse_128_store_vector_u(pred_buff, val);
+
+			ref_buff += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}	
+	}
+}
+
+
+//this function differs to hmr_interpolate_chroma and to HM in higher range values because val here is int32 and in HM is int16 and so it may overflow with high values - I think is an error in HM as it is saturated later
+void sse_hmr_interpolate_chroma_nxn(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int num_taps = NTAPS_CHROMA;//argument
+
+	int offset = 0;
+	int headRoom = IF_INTERNAL_PREC - bit_depth;
+	int shift = IF_FILTER_PREC;
+	int y, x;
+
+	if ( is_last )
+	{
+		shift += (is_first) ? 0 : headRoom;
+		offset = 1 << (shift - 1);
+		offset += (is_first) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
+	}
+	else
+	{
+		shift -= (is_first) ? headRoom : 0;
+		offset = (is_first) ? -IF_INTERNAL_OFFS << shift : 0;
+	}
+
+	if(!is_vertical)
+	{
+		//horizontal
+		int16_t *ref_buff_init = reference_buff - (( num_taps/2 - 1 ));
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)
+		{
+			for (x = 0; x < width; x+=8)
+			{
+				int16_t *ref_buff = ref_buff_init+x;
+				int16_t *predict_buff = pred_buff+x;
+				__m128_i16 pixels04 = sse_128_load_vector_u(ref_buff);
+				__m128_i16 pixels15 = sse_128_load_vector_u(ref_buff+1);
+				__m128_i16 pixels26 = sse_128_load_vector_u(ref_buff+2);
+				__m128_i16 pixels37 = sse_128_load_vector_u(ref_buff+3);
+				__m128_i32 sum04 = sse_128_madd_i16_i32(pixels04, coeff);
+				__m128_i32 sum15 = sse_128_madd_i16_i32(pixels15, coeff);
+				__m128_i32 sum26 = sse_128_madd_i16_i32(pixels26, coeff);
+				__m128_i32 sum37 = sse_128_madd_i16_i32(pixels37, coeff);
+				__m128_i32 sum0426 = sse_128_hadd_i32(sum04, sum26);
+				__m128_i32 sum1537 = sse_128_hadd_i32(sum15, sum37);
+				__m128_i32 sum0145 = sse128_unpacklo_u32(sum0426, sum1537);
+				__m128_i32 sum2367 = sse128_unpackhi_u32(sum0426, sum1537);
+				__m128_i32 sum0123 = sse128_unpacklo_u64(sum0145, sum2367);
+				__m128_i32 sum4567 = sse128_unpackhi_u64(sum0145, sum2367);
+				__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+				if ( is_last)
+				{
+					val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+				}
+				sse_128_store_vector_u(predict_buff, val);
+			}
+			ref_buff_init += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}
+	}
+	else
+	{
+		//vertical
+		int16_t *ref_buff_init = reference_buff - (( num_taps/2 - 1 )*reference_buff_stride);
+		__m128_i16 coeff = sse_128_load_vector_u(sse_chroma_filter_coeffs_horizontal[fraction]);
+
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)
+		{
+			for (x = 0; x < width; x+=8)
+			{
+				int16_t *ref_buff = ref_buff_init+x;
+				int16_t *predict_buff = pred_buff+x;
+				__m128_i16 l0 = sse_128_load_vector_u(ref_buff);
+				__m128_i16 l1 = sse_128_load_vector_u(ref_buff+reference_buff_stride);
+				__m128_i16 l0l1_l = sse128_unpacklo_u16(l0, l1);
+				__m128_i16 l0l1_h = sse128_unpackhi_u16(l0, l1);
+				__m128_i16 l2 = sse_128_load_vector_u(ref_buff+2*reference_buff_stride);
+				__m128_i16 l3 = sse_128_load_vector_u(ref_buff+3*reference_buff_stride);
+				__m128_i16 l2l3_l = sse128_unpacklo_u16(l2, l3);
+				__m128_i16 l2l3_h = sse128_unpackhi_u16(l2, l3);
+				__m128_i16 pixels01 = sse128_unpacklo_u32(l0l1_l, l2l3_l);
+				__m128_i16 pixels23 = sse128_unpackhi_u32(l0l1_l, l2l3_l);
+				__m128_i16 pixels45 = sse128_unpacklo_u32(l0l1_h, l2l3_h);
+				__m128_i16 pixels67 = sse128_unpackhi_u32(l0l1_h, l2l3_h);
+				__m128_i32 sum01 = sse_128_madd_i16_i32(pixels01, coeff);
+				__m128_i32 sum23 = sse_128_madd_i16_i32(pixels23, coeff);
+				__m128_i32 sum45 = sse_128_madd_i16_i32(pixels45, coeff);
+				__m128_i32 sum67 = sse_128_madd_i16_i32(pixels67, coeff);
+				__m128_i32 sum0123 = sse_128_hadd_i32(sum01, sum23);
+				__m128_i32 sum4567 = sse_128_hadd_i32(sum45, sum67);
+				__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+				if ( is_last)
+				{
+					val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+				}
+				sse_128_store_vector_u(predict_buff, val);
+			}
+			ref_buff_init += reference_buff_stride;
+			pred_buff += pred_buff_stride;
+		}	
+	}
+}
+
+void sse_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	if(width==4)
+		sse_hmr_interpolate_chroma_4xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+	else if(width==8)
+		sse_hmr_interpolate_chroma_8xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+	else
+		sse_hmr_interpolate_chroma_nxn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+}

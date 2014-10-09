@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_transform.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_tables.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_transform.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_inter_prediction.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\homer_lib\hmr_cabac_tables.h" />

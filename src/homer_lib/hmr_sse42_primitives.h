@@ -65,6 +65,7 @@ typedef __m128i	__m128_i8;
 
 #define sse128_packs_i16_u8(a,b)			_mm_packus_epi16(a, b)
 //#define sse128_packs_i16_i8(a,b)			_mm_packs_epi16(a, b)
+#define sse128_packs_i32_i16(a,b)			_mm_packs_epi32(a, b)
 #define sse128_packs_u32_u16(a,b)			_mm_packs_epi32(a, b)//this is not correct but widely used. It should be _mm_packus_epi32. It must be checked before being changed
 
 

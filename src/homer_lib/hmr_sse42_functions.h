@@ -101,7 +101,7 @@ void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, short *  src, short *
 void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *  src, short *  dst, int depth, int comp, int is_intra, int cu_size);
 
 
-//-----------------------------------------------create_intra_planar_prediction -------------------------------------------
+//----------------------------------------------- intra prediction -------------------------------------------
 void sse_create_intra_planar_prediction_4(uint16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size);
 void sse_create_intra_planar_prediction_8(uint16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size);
 void sse_create_intra_planar_prediction_16_32_64(uint16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
@@ -114,6 +114,10 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 //void sse_create_intra_planar_prediction(uint8_t* ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
 void sse_create_intra_planar_prediction(henc_thread_t* et, int16_t* pred, int pred_stride, short  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
 void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t *pred, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
+
+
+//----------------------------------------------- inter prediction -------------------------------------------
+void sse_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 
 //----------------------------------------------variance ------------------------------------------------
 uint32_t sse_modified_variance(uint8_t * p, int size, int stride, int modif);

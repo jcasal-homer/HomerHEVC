@@ -200,6 +200,7 @@ void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* cur
 //hmr_motion_inter.c
 int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 void hmr_motion_inter_uni(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride,  int curr_part_global_x, int curr_part_global_y, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv);
+void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 
 //hmr_motion_intra_chroma.c
 void create_chroma_dir_list(int* list, int luma_mode);

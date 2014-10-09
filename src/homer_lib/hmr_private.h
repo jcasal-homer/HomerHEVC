@@ -935,6 +935,8 @@ struct low_level_funcs_t
 	void (*create_intra_planar_prediction)(henc_thread_t* et, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
 	void (*create_intra_angular_prediction)(henc_thread_t* et, ctu_info_t* ctu, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 
+	void (*interpolate_chroma)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+
 	void (*quant)(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
 	void (*inv_quant)(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int depth, int comp, int is_intra, int cu_size);
 

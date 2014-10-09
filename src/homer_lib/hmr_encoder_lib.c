@@ -725,7 +725,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(cpu_info[2] & 0x100000)
+			if(cpu_info[2] & 0x100000)//if(0)//
 			{
 				printf("SSE42 avaliable!!");
 
@@ -736,6 +736,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.reconst = sse_aligned_reconst;
 				phvenc->funcs.create_intra_planar_prediction = sse_create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = sse_create_intra_angular_prediction;
+				
+				phvenc->funcs.interpolate_chroma = sse_interpolate_chroma;
 
 				phvenc->funcs.quant = sse_aligned_quant;
 				phvenc->funcs.inv_quant = sse_aligned_inv_quant;
@@ -752,6 +754,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.reconst = reconst;
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
+
+				phvenc->funcs.interpolate_chroma = hmr_interpolate_chroma;
 
 				phvenc->funcs.quant = quant;
 				phvenc->funcs.inv_quant = iquant;

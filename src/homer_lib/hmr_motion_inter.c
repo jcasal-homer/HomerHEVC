@@ -351,7 +351,7 @@ int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
   { -2, 10, 58, -2 }
 };
 
-void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int16_t* coeffs, int width, int height, int is_vertical, int is_first, int is_last)
+void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	int bit_depth = 8;
 	int num_taps = NTAPS_CHROMA;//argument
@@ -362,7 +362,9 @@ void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, 
 	int headRoom = IF_INTERNAL_PREC - bit_depth;
 	int shift = IF_FILTER_PREC;
 	int row, col;
-	short c[4];
+	int16_t c[4];
+	int16_t	*coeffs = chroma_filter_coeffs[fraction];
+
 
 	reference_buff -= ( num_taps/2 - 1 ) * ref_stride;
 
@@ -410,6 +412,7 @@ void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, 
 }
 
 
+
 void hmr_motion_compensation_chroma(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
 {
 	int is_bi_predict = 0;
@@ -440,12 +443,12 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, int16_t *reference_buff, 
 	else if(x_fraction == 0)
 	{
 		//vertical filter 
-		hmr_interpolate_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
+		et->funcs->interpolate_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, y_fraction, curr_part_size, curr_part_size, 1, TRUE, !is_bi_predict);
 	}
 	else if(y_fraction == 0)
 	{
 		//horizontal filter 
-		hmr_interpolate_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size, 0, TRUE, !is_bi_predict);	
+		et->funcs->interpolate_chroma(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, x_fraction, curr_part_size, curr_part_size, 0, TRUE, !is_bi_predict);	
 	}
 	else //if(x_fraction!=0 && y_fraction!=0)
 	{
@@ -454,9 +457,9 @@ void hmr_motion_compensation_chroma(henc_thread_t* et, int16_t *reference_buff, 
 		int16_t *temp_buff = WND_DATA_PTR(int16_t *, et->filtered_blocks_temp_wnd[0], Y_COMP);
 		int temp_buff_stride = WND_STRIDE_2D(et->filtered_blocks_temp_wnd[0], Y_COMP);
 		//horizontal
-		hmr_interpolate_chroma(reference_buff - (half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, chroma_filter_coeffs[x_fraction], curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
+		et->funcs->interpolate_chroma(reference_buff - (half_filter_size-1)*reference_buff_stride, reference_buff_stride, temp_buff, temp_buff_stride, x_fraction, curr_part_size, curr_part_size+half_filter_size+1, 0, TRUE, FALSE);
 		//vertical filter 
-		hmr_interpolate_chroma(temp_buff + (half_filter_size-1)*temp_buff_stride, temp_buff_stride, pred_buff, pred_buff_stride, chroma_filter_coeffs[y_fraction], curr_part_size, curr_part_size, 1, FALSE, !is_bi_predict);
+		hmr_interpolate_chroma(temp_buff + (half_filter_size-1)*temp_buff_stride, temp_buff_stride, pred_buff, pred_buff_stride, y_fraction, curr_part_size, curr_part_size, 1, FALSE, !is_bi_predict);
 	}
 
 }
@@ -701,12 +704,6 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
 		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
-
-		if(et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == 88 && ctu->ctu_number == 3)//&& ctu->ctu_number==11 && curr_cu_info->depth == 1)
-		{
-			int iiiiiii=0;
-		}
-
 
 		get_mv_candidates(et, ctu, curr_cu_info, REF_PIC_LIST_0, part_size_type);//get candidates for motion search from the neigbour CUs
 
@@ -1078,7 +1075,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == (64+24))// && curr_cu_info->depth == 1)
+			if(curr_cu_info->depth == 3)//if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == (64+24))// && curr_cu_info->depth == 1)
 			{
 				int iiiiiii=0;
 			}
