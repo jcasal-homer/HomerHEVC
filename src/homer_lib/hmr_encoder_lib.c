@@ -445,6 +445,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			int prev_num_sub_streams, prev_num_ee, prev_num_ec;
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
 
+#ifdef COMPUTE_AS_HM
+			cfg->rd_mode = 0;			//0 no rd
+			cfg->performance_mode = 0;//0 full computation(HM)
+#endif
 			if(phvenc->run==1)
 			{
 				phvenc->run = 0;
@@ -1010,7 +1014,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.conf_win_bottom_offset = phvenc->pad_bottom/pad_unit_y[phvenc->sps.chroma_format_idc];
 			phvenc->sps.bit_depth_luma_minus8 = phvenc->sps.bit_depth_chroma_minus8 = phvenc->bit_depth-8;
 			phvenc->sps.pcm_enabled_flag = 0;
-			phvenc->sps.log2_max_pic_order_cnt_lsb_minus4 = 4; //bits for poc=8
+			phvenc->sps.log2_max_pic_order_cnt_lsb_minus4 = 0;//4; //bits for poc=8 - must be bigger than idr period
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->sps.max_num_reorder_pics[i] = 0;

@@ -187,7 +187,7 @@ void hmr_motion_inter_uni(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_
 static const int diamond_small[][2] = {{0,-1},{-1,0},{1,0},{0,1}};
 static const int diamond_big[][2] = {{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{1,1},{0,2}};
 
-uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
+uint32_t hmr_motion_estimation_HM(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
 						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
 {
 	int i,j; 
@@ -306,6 +306,348 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 	return best_sad;
 }
+
+
+/*uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
+						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
+{
+	int i,j; 
+	int xlow, xhigh, ylow, yhigh;
+	uint32_t curr_best_sad, best_sad;
+	int curr_best_x, curr_best_y, best_x, best_y;
+	int dist = 1;
+	mv_candiate_list_t	*mv_candidate_list = &et->mv_candidates[REF_PIC_LIST_0];
+
+	xlow=((curr_part_global_x - search_range_x)<0)?-curr_part_global_x:-search_range_x;
+	xhigh=((curr_part_global_x + search_range_x)>(frame_size_x-curr_part_size))?frame_size_x-curr_part_global_x-curr_part_size:search_range_x;
+	ylow=((curr_part_global_y - search_range_y)<0)?-curr_part_global_y:-search_range_y;
+	yhigh=((curr_part_global_y + search_range_y)>(frame_size_y-curr_part_size))?frame_size_y-curr_part_global_y-curr_part_size:search_range_y;
+
+	curr_best_x = init_x;
+	curr_best_y = init_y;
+
+	if (curr_best_x<xlow)
+		curr_best_x=xlow;
+	if (curr_best_x>xhigh)
+		curr_best_x=xhigh;
+	if (curr_best_y<ylow)
+		curr_best_y=ylow;
+	if (curr_best_y>yhigh)
+		curr_best_y=yhigh;
+
+	curr_best_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+//	curr_best_x = 0;
+//	curr_best_y = 0;
+
+	for(i=0;i<mv_candidate_list->num_mv_candidates;i++)
+	{
+		uint32_t curr_sad;
+		int curr_x = mv_candidate_list->mv_candidates[i].hor_vector>>2;
+		int curr_y = mv_candidate_list->mv_candidates[i].ver_vector>>2;
+
+		if(curr_x == 0 && curr_y == 0)
+		{
+			continue;
+		}
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
+	{
+		int curr_x = best_x+diamond_small[i][0];
+		int curr_y = best_y+diamond_small[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_x = curr_best_x-1;
+	best_y = curr_best_y-1;
+	for(dist = 1; 2*dist<search_range_x; )//dist*=2)
+	{
+		if(best_x != curr_best_x || best_y != curr_best_y)
+		{
+			best_sad = curr_best_sad;
+			best_x = curr_best_x;
+			best_y = curr_best_y;
+		}
+		else
+			dist*=2;
+
+		for(i=0;i<sizeof(diamond_big)/sizeof(diamond_big[0]);i++)
+		{
+			int curr_x = best_x+diamond_big[i][0]*dist;
+			int curr_y = best_y+diamond_big[i][1]*dist;
+			uint32_t curr_sad;
+
+			if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+			{
+				curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+				if(curr_sad < curr_best_sad)
+				{
+					curr_best_sad = curr_sad;
+					curr_best_x = curr_x;
+					curr_best_y = curr_y;
+				}
+			}
+		}
+	}
+
+
+	for(i=0;i<sizeof(diamond_big)/sizeof(diamond_big[0]);i++)
+	{
+		int curr_x = best_x+diamond_big[i][0];
+		int curr_y = best_y+diamond_big[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
+	{
+		int curr_x = best_x+diamond_small[i][0];
+		int curr_y = best_y+diamond_small[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	mv->hor_vector = best_x<<2;
+	mv->ver_vector = best_y<<2;
+
+	return best_sad;
+}
+*/
+
+uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
+						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv)
+{
+	int i,j, l; 
+	int xlow, xhigh, ylow, yhigh;
+	uint32_t curr_best_sad, best_sad;
+	int curr_best_x, curr_best_y, best_x, best_y;
+	int dist = 1;
+	mv_candiate_list_t	*mv_candidate_list = &et->mv_candidates[REF_PIC_LIST_0];
+
+	xlow=((curr_part_global_x - search_range_x)<0)?-curr_part_global_x:-search_range_x;
+	xhigh=((curr_part_global_x + search_range_x)>(frame_size_x-curr_part_size))?frame_size_x-curr_part_global_x-curr_part_size:search_range_x;
+	ylow=((curr_part_global_y - search_range_y)<0)?-curr_part_global_y:-search_range_y;
+	yhigh=((curr_part_global_y + search_range_y)>(frame_size_y-curr_part_size))?frame_size_y-curr_part_global_y-curr_part_size:search_range_y;
+
+	curr_best_x = init_x;
+	curr_best_y = init_y;
+
+	if (curr_best_x<xlow)
+		curr_best_x=xlow;
+	if (curr_best_x>xhigh)
+		curr_best_x=xhigh;
+	if (curr_best_y<ylow)
+		curr_best_y=ylow;
+	if (curr_best_y>yhigh)
+		curr_best_y=yhigh;
+
+	curr_best_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+//	curr_best_x = 0;
+//	curr_best_y = 0;
+
+	for(i=0;i<mv_candidate_list->num_mv_candidates;i++)
+	{
+		uint32_t curr_sad;
+		int curr_x = mv_candidate_list->mv_candidates[i].hor_vector>>2;
+		int curr_y = mv_candidate_list->mv_candidates[i].ver_vector>>2;
+
+		if(curr_x == 0 && curr_y == 0)
+		{
+			continue;
+		}
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
+	{
+		int curr_x = best_x+diamond_small[i][0];
+		int curr_y = best_y+diamond_small[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+
+	for(l = 0; l < 2; l++)
+	{
+		int end = 32>>l;
+		best_sad = curr_best_sad;
+		best_x = curr_best_x;
+		best_y = curr_best_y;
+		dist = 2;
+	//	for(dist = 1; dist<8; dist*=2)
+		while(dist < 32)
+		{
+			for(i=0;i<sizeof(diamond_big)/sizeof(diamond_big[0]);i++)
+			{
+				int curr_x = best_x+diamond_big[i][0]*dist;
+				int curr_y = best_y+diamond_big[i][1]*dist;
+				uint32_t curr_sad;
+
+				if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+				{
+					curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+					if(curr_sad < curr_best_sad)
+					{
+						curr_best_sad = curr_sad;
+						curr_best_x = curr_x;
+						curr_best_y = curr_y;
+					}
+				}
+			}
+			if(l==1 && (best_x != curr_best_x || best_y != curr_best_y))
+			{
+				best_sad = curr_best_sad;
+				best_x = curr_best_x;
+				best_y = curr_best_y;
+				dist = 2;
+			}
+			else
+				dist*=2;
+		}
+	}
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+
+	for(i=0;i<sizeof(diamond_big)/sizeof(diamond_big[0]);i++)
+	{
+		int curr_x = best_x+diamond_big[i][0];
+		int curr_y = best_y+diamond_big[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
+	{
+		int curr_x = best_x+diamond_small[i][0];
+		int curr_y = best_y+diamond_small[i][1];
+		uint32_t curr_sad;
+
+		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
+		{
+			curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			if(curr_sad < curr_best_sad)
+			{
+				curr_best_sad = curr_sad;
+				curr_best_x = curr_x;
+				curr_best_y = curr_y;
+			}
+		}
+	}
+
+	best_sad = curr_best_sad;
+	best_x = curr_best_x;
+	best_y = curr_best_y;
+
+	mv->hor_vector = best_x<<2;
+	mv->ver_vector = best_y<<2;
+
+	return best_sad;
+}
+
 
 
 void hmr_motion_compensation_luma(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t* curr_cu_info, int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv)
@@ -559,20 +901,20 @@ void get_mv_candidates(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *
 	}
 }
 
-void select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int ref_pic_list, motion_vector_t *mv)
+
+//xCheckBestMVP
+int select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int ref_pic_list, motion_vector_t *mv)
 {
 	mv_candiate_list_t	*mv_candidate_list = &et->mv_candidates[ref_pic_list];
 	int idx;
 	int best_cost = INT_MAX, best_idx = 0;
 
-	if(curr_cu_info->abs_index == 48)
-	{
-		int iiii=0;
-	}
-
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost = abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector) + abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
+		int cost_mvx = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		int cost = 3+cost_mvx+cost_mvy;
+
 		if(best_cost>cost)
 		{
 			best_cost = cost;
@@ -582,6 +924,7 @@ void select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, i
 	curr_cu_info->best_candidate_idx[ref_pic_list] = best_idx;
 	curr_cu_info->best_dif_mv->hor_vector = mv->hor_vector-mv_candidate_list->mv_candidates[best_idx].hor_vector;
 	curr_cu_info->best_dif_mv->ver_vector = mv->ver_vector-mv_candidate_list->mv_candidates[best_idx].ver_vector;
+	return best_cost;
 }
 
 
@@ -642,6 +985,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 	motion_vector_t mv;
 	int ref_idx = 0;
 	int num_partitions, npart, part_incr = 1;
+	int mv_cost = 0;
 	//rate-control - en motion_intra_chroma se modifica
 //	ctu->qp = currslice->qp;
 //	ctu->per = ctu->qp/6;
@@ -708,10 +1052,13 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		get_mv_candidates(et, ctu, curr_cu_info, REF_PIC_LIST_0, part_size_type);//get candidates for motion search from the neigbour CUs
 
 	//	hmr_motion_inter_uni(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_global_x, curr_part_global_y, curr_part_size, curr_part_size_shift, &mv);
-		sad = hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
-
+#ifdef COMPUTE_AS_HM
+		sad = hmr_motion_estimation_HM(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
 		select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
-
+#else
+		sad = hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
+		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+#endif
 		//set mvs and ref_idx
 		curr_cu_info->inter_mv[REF_PIC_LIST_0] = mv;
 		SET_INTER_MV_BUFFS(et, ctu, curr_cu_info, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);
@@ -727,6 +1074,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		et->funcs->predict(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, residual_buff_v, residual_buff_stride_chroma, curr_part_size_chroma);
 		curr_cu_info+=part_incr;
 	}
+	return mv_cost;
 }
 
 
@@ -802,8 +1150,12 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		if(cu_min_tu_size_shift>tu_log_max_size)
 			cu_min_tu_size_shift=tu_log_max_size;
 	}
-	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 
+#ifdef COMPUTE_AS_HM
+	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+#else
+	max_tr_processing_depth = depth==0?1:depth;//et->max_cu_size_shift-cu_min_tu_size_shift;
+#endif
 	//skip first level 
 	if(et->max_inter_tr_depth==1 && part_size_type != SIZE_2Nx2N && curr_depth==depth && log2cu_size>max_tr_processing_depth)
 	{
@@ -1075,22 +1427,30 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
+			int mv_cost;
 			if(curr_cu_info->depth == 3)//if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == (64+24))// && curr_cu_info->depth == 1)
 			{
 				int iiiiiii=0;
 			}
 
 			//encode
-			predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 			cost = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+#ifndef COMPUTE_AS_HM
+			cost += mv_cost;
+#endif
 			curr_cu_info->cost = cost;//cost_luma+cost_chroma;//+cost_bits*et->rd.sqrt_lambda;;
+
+
 
 //			if((curr_depth+1)==et->max_inter_pred_depth && curr_cu_info->size>8)
 			if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
 			{
-				predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
 				cost_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
-
+#ifndef COMPUTE_AS_HM
+				cost_aux += mv_cost;
+#endif
 				consolidate_inter_prediction_info(et, ctu, curr_cu_info, cost, cost_aux, TRUE);
 			}
 		}
