@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1
+#define COMPUTE_AS_HM			1
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -684,6 +684,7 @@ struct cu_partition_info_t
 	cu_partition_info_t	*parent;//pointer to parent partition
 	cu_partition_info_t	*children[4];//pointers to child partitions
 	
+	uint qp;
 //	uint16_t mode;
 //	uint16_t mode_chroma;
 	//intra
@@ -740,9 +741,9 @@ struct ctu_info_t
 	int				left;
 	
 	//quant
-	int				qp, qp_chroma;/*, prev_qp, prev_dqp*/
-    int				per;//, per_chroma;
-    int				rem;//, rem_chroma;
+//	int				/*qp, */qp_chroma;/*, prev_qp, prev_dqp*/
+//    int				per;//, per_chroma;
+//    int				rem;//, rem_chroma;
 //    int				qpbits;
 //	uint			variance;
 };
@@ -853,11 +854,24 @@ struct enc_env_t
 typedef struct rate_distortion_t rate_distortion_t;
 struct rate_distortion_t
 {
-  double                  lambda;
-  double                  sqrt_lambda;
-  uint                    lambda_SAD;
-  uint                    lambda_SSE;
-  double                  frame_lambda;
+	double    lambda;
+	double    sqrt_lambda;
+	uint      lambda_SAD;
+	uint      lambda_SSE;
+	double    frame_lambda;
+};
+
+
+typedef struct rate_control_t rate_control_t;
+struct rate_control_t
+{
+	double	vbv_size;
+	double	average_pict_size;
+	double	vbv_fullness;
+	double  average_bits_per_ctu;
+	double	target_pict_size;
+	double	consumed_bitrate;
+	int		consumed_ctus;
 };
 
 
@@ -937,8 +951,8 @@ struct low_level_funcs_t
 
 	void (*interpolate_chroma)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 
-	void (*quant)(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
-	void (*inv_quant)(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int depth, int comp, int is_intra, int cu_size);
+	void (*quant)(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
+	void (*inv_quant)(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
 
 	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
 	void (*itransform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
@@ -972,8 +986,8 @@ struct henc_thread_t
 	//Encoder Cfg	
 	//Encoding layer
 	int				pict_width[3], pict_height[3];
-	int				pict_width_in_cu, pict_height_in_cu;
-	int				pict_total_cu;
+	int				pict_width_in_ctu, pict_height_in_ctu;
+	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
 
@@ -1050,6 +1064,11 @@ struct henc_thread_t
 
 	//rate distortion
 	rate_distortion_t	rd;
+
+	//rate control
+	int					num_encoded_ctus;
+	int					num_bits;
+	int					target_pict_size;
 	low_level_funcs_t	*funcs;
 };
 
@@ -1094,8 +1113,8 @@ struct hvenc_t
 	unsigned int	pad_left, pad_right;
 	unsigned int	pad_top, pad_bottom;
 	int				pict_width[3], pict_height[3];
-	int				pict_width_in_cu, pict_height_in_cu;
-	int				pict_total_cu;
+	int				pict_width_in_ctu, pict_height_in_ctu;
+	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
 	int				blocks_per_macroblock;
@@ -1148,12 +1167,17 @@ struct hvenc_t
 	uint8_t			*deblock_filter_strength_bs[2];
 
 	int				slice_type;
-	int				pict_qp;
 
 	//intra predicition
 	ctu_info_t			*ctu_info;//[MAX_MB_GROUP_SIZE];
 	int					performance_mode;
 	int					rd_mode;
+	int					bitrate_mode;
+	double				bitrate;
+	double				vbv_size;
+	double				vbv_init;
+	int					qp_depth;//granularity of qp diff
+	int					pict_qp;//for fixed qp mode or initial qp in cbr or vbr
 
 	//scan tables	 
 	//-------these are for abs_index partitions---------------------
@@ -1181,6 +1205,9 @@ struct hvenc_t
 
 	//rate distortion
 	rate_distortion_t	rd;
+	//rate control
+	rate_control_t		rc;
+
 	low_level_funcs_t	funcs;
 
 	//input and output

@@ -97,8 +97,8 @@ void sse_aligned_inv_dct_32x32(int16_t *src, int16_t *dst, int stride, int16_t *
 
 
 //-----------------------------------------------quant -------------------------------------------
-void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, short *  src, short *  dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
-void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *  src, short *  dst, int depth, int comp, int is_intra, int cu_size);
+void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
+void sse_aligned_inv_quant(henc_thread_t* et, short *src, short *dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
 
 
 //----------------------------------------------- intra prediction -------------------------------------------

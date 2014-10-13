@@ -1535,13 +1535,13 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 
 /*	if(width%et->max_cu_size || height%et->max_cu_size)
 	{
-		uiRealEndAddress = (et->pict_total_cu-1)*et->num_partitions_in_cu + ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height
+		uiRealEndAddress = (et->pict_total_ctu-1)*et->num_partitions_in_cu + ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height
 	}
 	else if(width%et->max_cu_size)
 	{
 		int cu_size_in_partitions = et->max_cu_size>>2;
 		int aux = ((cu_size_in_partitions*cu_size_in_partitions-cu_size_in_partitions) + ((width%et->max_cu_size)>>2));
-		uiRealEndAddress = (et->pict_total_cu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
+		uiRealEndAddress = (et->pict_total_ctu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
 	}
 */	if(width%et->max_cu_size || height%et->max_cu_size)
 	{
@@ -1555,14 +1555,14 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 			height_rem -= 1;
 		aux = height_rem*cu_size_in_partitions + width_rem;//((cu_size_in_partitions*cu_size_in_partitions-cu_size_in_partitions) + ((height%et->max_cu_size)>>2));
 //		int aux = ((cu_size_in_partitions*cu_size_in_partitions-cu_size_in_partitions) + ((height%et->max_cu_size)>>2));
-		uiRealEndAddress = (et->pict_total_cu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
+		uiRealEndAddress = (et->pict_total_ctu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
 	}
 	else// if(height%et->max_cu_size)
 	{
-		uiRealEndAddress = et->pict_total_cu*et->num_partitions_in_cu;
+		uiRealEndAddress = et->pict_total_ctu*et->num_partitions_in_cu;
 	}
 //	else
-//		uiRealEndAddress = et->pict_total_cu*et->num_partitions_in_cu;
+//		uiRealEndAddress = et->pict_total_ctu*et->num_partitions_in_cu;
 
 	uiGranularityWidth = et->max_cu_size;//ctu_width[0];
 	pos_x = ctu->x[Y_COMP]+curr_partition_info->x_position;
@@ -1629,7 +1629,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
-				if(et->cu_current+1 == et->pict_total_cu)// && curr_partition_info->abs_index>=192)//if(ctu->ctu_number == et->pict_total_cu-1 && curr_partition_info->abs_index==12)
+				if(et->cu_current+1 == et->pict_total_ctu)// && curr_partition_info->abs_index>=192)//if(ctu->ctu_number == et->pict_total_ctu-1 && curr_partition_info->abs_index==12)
 				{
 					int iiiii=0;
 				}

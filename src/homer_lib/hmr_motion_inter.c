@@ -49,9 +49,8 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	int curr_part_size = curr_cu_info->size;
 	int curr_part_size_shift = et->max_cu_size_shift-curr_depth;
 	int curr_scan_mode = find_scan_mode(TRUE, TRUE, curr_part_size, cu_mode, 0);
-
-	ctu->per = ctu->qp/6;
-	ctu->rem = ctu->qp%6;
+	int	 per = curr_cu_info->qp/6;
+	int	 rem = curr_cu_info->qp%6;
 
 	quant_wnd = &et->transform_quant_wnd[curr_depth + 1 + (part_size_type!=SIZE_2Nx2N)];
 	decoded_wnd = &et->decoded_mbs_wnd[curr_depth + 1  + (part_size_type!=SIZE_2Nx2N)];
@@ -76,13 +75,13 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	//2d -> 1D buffer
 	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
 
-	et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 	curr_cu_info->sum = *curr_sum;
 
 	curr_cu_info->inter_cbf[Y_COMP] = (( curr_cu_info->sum ? 1 : 0 ) << (curr_depth - depth));// + (part_size_type == SIZE_NxN)));
 	curr_cu_info->inter_tr_idx = (curr_depth - depth);// + (part_size_type == SIZE_NxN));
 
-	et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, Y_COMP, 0, curr_part_size);
+	et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, Y_COMP, 0, curr_part_size, per, rem);
 
 	//1D ->2D buffer
 	et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
@@ -99,6 +98,9 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	return ssd_;
 }
 
+
+ 
+extern const uint8_t chroma_scale_conversion_table[];
 
 int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int component, int depth, PartSize part_size_type, int *curr_sum, int gcnt)//depth = prediction depth
 {		
@@ -118,10 +120,11 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	int curr_part_size = processing_partition_info->size_chroma;
 	int curr_part_size_shift = et->max_cu_size_shift-curr_depth-1;//420
 	int curr_scan_mode = find_scan_mode(TRUE, TRUE, curr_part_size, cu_mode, 0);
-	double weight = pow( 2.0, (ctu->qp-ctu->qp_chroma)/3.0 ); 
+	int qp_chroma = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
+	double weight = pow( 2.0, (curr_cu_info->qp-qp_chroma)/3.0 ); 
 
-	ctu->per = ctu->qp_chroma/6;
-	ctu->rem = ctu->qp_chroma%6;
+	int per = qp_chroma/6;
+	int rem = qp_chroma%6;
 
 	quant_wnd = &et->transform_quant_wnd[original_depth+1+(part_size_type!=SIZE_2Nx2N)];
 	decoded_wnd = &et->decoded_mbs_wnd[original_depth+1+(part_size_type!=SIZE_2Nx2N)];
@@ -149,14 +152,14 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	PROFILER_ACCUMULATE(inter_luma_tr)
 
 	PROFILER_RESET(inter_luma_q)
-	et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 	curr_cu_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(inter_luma_q)
 
 
 	curr_cu_info->inter_cbf[component] = (( curr_cu_info->sum ? 1 : 0 ) << (original_depth-depth));//+(part_size_type==SIZE_NxN)));
 
-	et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, component, 0, curr_part_size);
+	et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, component, 0, curr_part_size, per, rem);
 
 	//1D ->2D buffer
 	et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
@@ -986,10 +989,6 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 	int ref_idx = 0;
 	int num_partitions, npart, part_incr = 1;
 	int mv_cost = 0;
-	//rate-control - en motion_intra_chroma se modifica
-//	ctu->qp = currslice->qp;
-//	ctu->per = ctu->qp/6;
-//	ctu->rem = ctu->qp%6;
 
 	curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
 
@@ -1105,15 +1104,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	int ref_idx = 0;
 	int processing_buff_depth;
 	int tu_log_max_size = et->max_tu_size_shift;
-
-	//rate-control - en motion_intra_chroma se modifica
-	ctu->qp = currslice->qp;
-	ctu->per = ctu->qp/6;
-	ctu->rem = ctu->qp%6;
-
-//	curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
-
-//	parent_part_info = curr_cu_info->parent;
+	int qp, rem, per;
 
 	best_cost = INT_MAX;
 //	curr_depth = curr_cu_info->depth;
@@ -1127,6 +1118,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		parent_part_info->cost = INT_MAX;//the parent is consolidated if 2Nx2N
 		initial_state = part_position & 0x3;//initial_state = 0;
 		end_state = initial_state;//end_state = 1;
+		qp = parent_part_info->qp;
 	}
 	else
 	{
@@ -1134,8 +1126,9 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		parent_part_info = curr_cu_info->parent;
 		initial_state = part_position & 0x3;
 		end_state = initial_state+1;
+		qp = curr_cu_info->qp;
 	}
-
+	
 	curr_depth = curr_cu_info->depth;
 
 	max_tr_depth = et->max_inter_tr_depth;
@@ -1174,19 +1167,14 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 //	processing_buff_depth = depth+(part_size_type==SIZE_NxN);
 
 	PROFILER_RESET(intra_luma_bucle3)
-	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)
+	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)//transform loop
 	{
 //		int fast_end_loop = FALSE;
 		uint bit_cost = 0;
 		uint dist_y, dist_u, dist_v;
 		curr_cu_info = (parent_part_info==NULL)?curr_cu_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
+		curr_cu_info->qp = qp;
 		curr_depth = curr_cu_info->depth;
-
-//		if(ctu->ctu_number == 2 && curr_cu_info->abs_index==28 && depth==2 && part_size_type == SIZE_NxN)// && curr_cu_info->depth == 1)
-		if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==4 && part_size_type == SIZE_NxN && et->ed->current_pict.slice.slice_type == P_SLICE)//&& curr_cu_info->abs_index == 92 && depth == 1)
-		{
-			int iiiiiii=0;
-		}
 
 		dist_y = encode_inter_cu(et, ctu, curr_cu_info, depth, part_size_type, &curr_sum_y, gcnt);//depth = prediction depth
 
@@ -1422,16 +1410,15 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		abs_index = curr_cu_info->abs_index;
 //		part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
-		
+
+		//rc
+		curr_cu_info->qp = hmr_rc_get_cu_qp(et, curr_cu_info);
+
 		cost = 0;
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
 			int mv_cost;
-			if(curr_cu_info->depth == 3)//if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_cu_info->abs_index == (64+24))// && curr_cu_info->depth == 1)
-			{
-				int iiiiiii=0;
-			}
 
 			//encode
 			mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
@@ -1441,9 +1428,6 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 #endif
 			curr_cu_info->cost = cost;//cost_luma+cost_chroma;//+cost_bits*et->rd.sqrt_lambda;;
 
-
-
-//			if((curr_depth+1)==et->max_inter_pred_depth && curr_cu_info->size>8)
 			if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
 			{
 				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);

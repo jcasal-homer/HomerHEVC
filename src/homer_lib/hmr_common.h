@@ -169,7 +169,7 @@ void init_quant_pyramids( hvenc_t* ed, int* quant_pyramid, int* dequant_pyramid,
 short* get_default_qtable(int size_mode, int list_index);
 void create_abs2raster_tables( unsigned short **zigzag, int total_depth, int depth, int start_value);
 void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigzag, int max_cu_width, int max_cu_height, int total_depth);
-void init_rd(hvenc_t* ed, slice_t *currslice);
+void hmr_rd_init(hvenc_t* ed, slice_t *currslice);
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode);
 
 
@@ -218,8 +218,8 @@ void itransform(int bitDepth, short *block,short *coeff, int block_size, int iWi
 
 //hmr_quant.c
 void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU, int width, int height );
-void quant(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
-void iquant(henc_thread_t* et, ctu_info_t *ctu, short * src, short * dst, int depth, int comp, int is_intra, int cu_size);
+void quant(henc_thread_t* et, short * src, short * dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
+void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
 
 
 //hmr_deblocking_filter.c
@@ -251,5 +251,14 @@ void bc_init_next_state_table();//() for fast-rd
 //hmr_metrics.c 
 void homer_psnr(picture_t *orig, wnd_t* decoded, int pic_width[3], int pic_height[3], double psnr[3]);
 
+
+
+//hmr_rate_control.c
+void hmr_rc_init(hvenc_t* ed);
+void hmr_rc_init_seq(hvenc_t* ed);
+void hmr_rc_gop(hvenc_t* ed);//, int np, int nb)
+void hmr_rc_init_pic(hvenc_t* ed);
+void hmr_rc_end_pic(hvenc_t* ed);
+int hmr_rc_get_cu_qp(henc_thread_t* et, cu_partition_info_t	*curr_cu_info);
 
 #endif //__HOMER_HEVC_COMMON_H__

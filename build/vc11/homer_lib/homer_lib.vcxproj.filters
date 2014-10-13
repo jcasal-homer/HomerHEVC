@@ -68,10 +68,13 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter_chroma.c">
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_deblocking_filter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\homer_lib\hmr_deblocking_filter.c">
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_inter_prediction.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_rate_control.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

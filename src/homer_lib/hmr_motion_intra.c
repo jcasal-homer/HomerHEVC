@@ -1051,6 +1051,8 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	int curr_adi_size = 2*2*curr_part_size+1;
 
 	int curr_scan_mode = find_scan_mode(TRUE, TRUE, curr_part_size, cu_mode, 0);
+	int per = curr_partition_info->qp/6;
+	int rem = curr_partition_info->qp%6; 
 
 	quant_wnd = &et->transform_quant_wnd[curr_depth];
 	decoded_wnd = &et->decoded_mbs_wnd[curr_depth];
@@ -1092,7 +1094,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	PROFILER_ACCUMULATE(intra_luma_tr)
 
 	PROFILER_RESET(intra_luma_q)
-	et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 	curr_partition_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(intra_luma_q)
 
@@ -1103,7 +1105,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	if(curr_partition_info->sum)
 	{
 		PROFILER_RESET(intra_luma_iq)
-		et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, Y_COMP, 1, curr_part_size);
+		et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, Y_COMP, 1, curr_part_size, per, rem);
 		PROFILER_ACCUMULATE(intra_luma_iq)
 
 		//1D ->2D buffer
@@ -1314,10 +1316,15 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	int log2cu_size;
 
 //	ctu->qp = currslice->qp;
-	ctu->per = ctu->qp/6;
-	ctu->rem = ctu->qp%6;
+	int qp;
+//	int per;// = ctu->qp/6;
+//	int rem;// = ctu->qp%6;
 
 	curr_partition_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
+
+	qp = curr_partition_info->qp;
+//	per = qp/6;
+//	rem = qp%6;
 
 	parent_part_info = curr_partition_info->parent;
 
@@ -1395,6 +1402,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 		while(depth_state[curr_depth]!=end_state)
 		{
 			curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
+			curr_partition_info->qp = qp;
 			curr_depth = curr_partition_info->depth;
 			num_part_in_cu =  curr_partition_info->num_part_in_cu;
 
@@ -1495,6 +1503,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 	{		
 		uint bit_cost = 0;
 		curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
+		curr_partition_info->qp = qp;
 		curr_depth = curr_partition_info->depth;
 
 		if(ctu->ctu_number == 482 && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
@@ -1502,10 +1511,6 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 			int iiiiii=0;
 		}
 		curr_partition_info->distortion = encode_intra_cu(et, ctu, curr_partition_info, depth, cu_mode, part_size_type, &curr_sum, gcnt);//depth = prediction depth
-
-		//cbf
-//		if(curr_depth == max_tr_depth)
-//			cbf_split[curr_depth] |= (curr_sum ? 1 : 0);
 
 		curr_partition_info->cost = curr_partition_info->distortion;
 
@@ -1749,8 +1754,8 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		cost_luma = cost_chroma = 0;
 
-
-
+		//rc
+		curr_partition_info->qp = hmr_rc_get_cu_qp(et, curr_partition_info);
 
 		if(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{

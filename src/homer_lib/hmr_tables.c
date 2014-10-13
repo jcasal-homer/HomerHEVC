@@ -309,7 +309,7 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
-void init_rd(hvenc_t* ed, slice_t *currslice)
+void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
 {
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;

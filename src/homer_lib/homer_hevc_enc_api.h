@@ -52,6 +52,25 @@ enum HOMER_TIER {
   TIER_HIGH
 };
 
+enum HOMER_RD_MODES {
+	RD_DIST_ONLY = 0,
+	RD_FULL,
+	RD_FAST,
+	NUM_RD_MODES
+};
+
+enum HOMER_BR_MODES {
+	BR_FIXED_QP = 0,
+	BR_CBR,
+	NUM_BR_MODES
+};
+
+enum HOMER_PERFORMANCE_MODES {
+	PERF_FULL_COMPUTATION = 0,
+	PERF_FAST_COMPUTATION,
+	PERF_UFAST_COMPUTATION,//fastest
+	NUM_PERF_MODES
+};
 
 
 #define MAX_STREAMS	8
@@ -104,18 +123,24 @@ struct HVENC_Cfg{
 	int intra_period;
 	int gop_size; 
 	int num_b; 
-	int qp;
 	int frame_rate;
 	int num_ref_frames;
 	int cu_size;
-	int max_pred_partition_depth;//esto no se si sirve para mucho. Con el tiempo quizas habria que quitarlo
+	int max_pred_partition_depth;
 	int max_intra_tr_depth;
 	int max_inter_tr_depth;
 	int wfpp_enable;
 	int wfpp_num_threads;
 	int sign_hiding;
-	int performance_mode;//0 = accurate+high quality, 2= fast-less quality
-	int	rd_mode;//0 = no rd, 1 = rd enable, 2=fast rd
+	int	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
+	int qp;//for fixed qp mode, or initial qp if cbr or vbr
+	int bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
+	int bitrate;//in kbps
+	int vbv_size;//in kbps
+	int vbv_init;//in kbps
+	int qp_depth;//
+	int performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
+
 };
 
 void *HOMER_enc_init();

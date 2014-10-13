@@ -443,7 +443,8 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 				ctu_aux = get_pu_top(ctu, sub_cu_info, &aux_abs_idx, FALSE);
 			}
 
-			qp = (ctu_aux->qp+ctu->qp+1)>>1;
+			//qp = (ctu_aux->qp+ctu->qp+1)>>1;
+			qp = (sub_cu_info->qp + sub_cu_info->qp)>>1;
 
 			bit_depth_scale = 1<<(ed->bit_depth-8);			
 
@@ -620,7 +621,8 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 				aux_decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
 				aux_decoded_buff += edge*num_peels_in_partition*offset;
 
-				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
+//				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
+				qp = (sub_cu_info->qp + sub_cu_info->qp)>>1+chr_qp_offset;
 
 				chr_qp = chroma_scale_conversion_table[clip(qp,0,57)];
 
@@ -849,7 +851,7 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
-		for(ctu_num = 0;ctu_num < ed->pict_total_cu;ctu_num++)
+		for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
 		{	
 			ctu = &ed->ctu_info[ctu_num];
 

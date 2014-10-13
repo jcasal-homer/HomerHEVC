@@ -299,7 +299,7 @@ void hmr_put_pic_header(hvenc_t* ed)
 	hmr_bitstream_write_bits(bs, pps->transform_skip_enabled_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cu_qp_delta_enabled_flag,1);
 	if(pps->cu_qp_delta_enabled_flag)
-		hmr_bitstream_write_bits(bs, pps->diff_cu_qp_delta_depth,1);
+		hmr_bitstream_write_bits_uvlc(bs, pps->diff_cu_qp_delta_depth);
 	
 	hmr_bitstream_write_bits_svlc(bs, pps->cb_qp_offset);
 	hmr_bitstream_write_bits_svlc(bs, pps->cr_qp_offset);
@@ -343,7 +343,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 	bitstream_t	*bs = &ed->slice_bs;//
 	sps_t	*sps = currslice->sps;
 	pps_t	*pps = currslice->pps;
-	int max_add_outer = ed->pict_total_cu;
+	int max_add_outer = ed->pict_total_ctu;
 	int bits_outer = 0;
 	int max_addr_inner, req_bits_inner = 0;
 	int slice_address;

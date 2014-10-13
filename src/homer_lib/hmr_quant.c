@@ -169,7 +169,7 @@ void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU
 }
 
 
-void quant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * __restrict dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size)
+void quant(henc_thread_t* et, short * __restrict src, short * __restrict dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
 {
 	int iLevel, auxLevel;
 	int  iSign;
@@ -178,9 +178,9 @@ void quant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * _
 	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//et->max_cu_size_shift
 	uint *scan = et->ed->scan_pyramid[scan_mode][inv_depth-1];
 	int scan_type = (is_intra?0:3) + comp;
-	int *quant_coeff = et->ed->quant_pyramid[inv_depth-2][scan_type][ctu->rem];
+	int *quant_coeff = et->ed->quant_pyramid[inv_depth-2][scan_type][rem];
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
-	int qbits = QUANT_SHIFT + ctu->per + transform_shift;                
+	int qbits = QUANT_SHIFT + per + transform_shift;                
 	int qbits8 = qbits-8;
 	int add = (currslice->slice_type==I_SLICE ? 171 : 85) << (qbits-9);
 	short *deltaU = et->aux_buff;
@@ -221,20 +221,20 @@ void quant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * _
 
 
 
-void iquant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size)
+void iquant(henc_thread_t* et, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
 {
 	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));
 	int scan_type = (is_intra?0:3) + comp;
-	int *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][ctu->rem];
+	int *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][rem];
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int iq_shift = QUANT_IQUANT_SHIFT - QUANT_SHIFT - transform_shift + 4;
-	int iq_add = (iq_shift>ctu->per)? 1 << (iq_shift - ctu->per - 1): 0;
+	int iq_add = (iq_shift>per)? 1 << (iq_shift - per - 1): 0;
 
-	if(iq_shift>ctu->per)
+	if(iq_shift>per)
 	{
 		int n;
-		iq_shift=iq_shift-ctu->per;
+		iq_shift=iq_shift-per;
 		for( n = 0; n < cu_size*cu_size; n++ )
 		{	
 			iLevel  = src[n];
@@ -245,7 +245,7 @@ void iquant(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * 
 	else 
 	{
 		int n;
-		iq_shift=(ctu->per-iq_shift);
+		iq_shift=(per-iq_shift);
 		iq_add = 0;
 		for( n = 0; n < cu_size*cu_size; n++ )
 		{	

@@ -105,6 +105,7 @@ void create_chroma_dir_list(int* list, int luma_mode)
 	}
 }	
 
+extern const uint8_t chroma_scale_conversion_table[];
 
 int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
@@ -142,12 +143,20 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	double weight;
 	int initial_state, end_state;
 	int luma_mode;
+	int qp_chroma, per, rem;// = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
+	
+	curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
+
+	qp_chroma = chroma_scale_conversion_table[clip(curr_partition_info->qp,0,57)];
+	weight = pow( 2.0, (curr_partition_info->qp-qp_chroma)/3.0 ); 
+	per = qp_chroma/6;
+	rem = qp_chroma%6;
 
 //	ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
-	ctu->per = ctu->qp_chroma/6;
-	ctu->rem = ctu->qp_chroma%6;
+//	ctu->per = ctu->qp_chroma/6;
+//	ctu->rem = ctu->qp_chroma%6;
 
-	weight = pow( 2.0, (currslice->qp-ctu->qp_chroma)/3.0 ); 
+//	weight = pow( 2.0, (currslice->qp-ctu->qp_chroma)/3.0 ); 
 
 	if(depth==0 && et->max_cu_size == MAX_CU_SIZE)
 	{
@@ -159,6 +168,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 		parent_part_info = curr_partition_info->parent;
 	}
+
 
 	luma_mode = et->intra_mode_buffs[Y_COMP][depth][curr_partition_info->abs_index] ;
 	create_chroma_dir_list(mode_list, luma_mode);
@@ -187,7 +197,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
 				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
-				decoded_buff = WND_POSITION_2D(uint8_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
 
 				cu_mode = mode_list[cu_mode_idx];
@@ -277,6 +287,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		while(!(curr_depth==(depth-(part_size_type==SIZE_NxN)) && depth_state[curr_depth]==(part_position&0x3)+1))
 		{
 			curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];
+
 			tr_depth_luma = et->tr_idx_buffs[depth][curr_partition_info->abs_index]+depth-(part_size_type==SIZE_NxN);
 
 			while(curr_depth<tr_depth_luma)
@@ -327,7 +338,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				//intra code
 				et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
 				et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, REG_DCT, quant_buff);//usamos quant buff como auxiliar
-				et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+				et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 
 				//set cbf
 				memset(&cbf_buff[ch_component][curr_partition_info->abs_index], ((curr_sum ? 1 : 0) << (original_depth-depth+(part_size_type==SIZE_NxN)))|((curr_sum ? 1 : 0) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[ch_component][0]));//(width*width)>>4 num parts of 4x4 in partition
@@ -336,7 +347,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				if(curr_sum)
 				{
 					//intra decode 
-					et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size);
+					et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size, per, rem);
 					et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, REG_DCT, et->pred_aux_buff);
 					et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
 				}

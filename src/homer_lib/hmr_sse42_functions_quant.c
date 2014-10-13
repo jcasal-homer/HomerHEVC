@@ -31,7 +31,7 @@
 
 
 
-void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size)
+void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
 {
 	int16_t *psrc = src, *pdst = dst;
 	int iLevel, auxLevel;
@@ -41,10 +41,10 @@ void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t
 	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//ed->max_cu_size_shift
 	uint32_t *scan = et->ed->scan_pyramid[scan_mode][inv_depth-1];
 	int scan_type = (is_intra?0:3) + comp;
-	int32_t *quant_coeff = et->ed->quant_pyramid[inv_depth-2][scan_type][ctu->rem];
+	int32_t *quant_coeff = et->ed->quant_pyramid[inv_depth-2][scan_type][rem];
 	uint bit_depth = et->bit_depth;
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
-	int qbits = QUANT_SHIFT + ctu->per + transform_shift;                // Right shift of non-RDOQ quantizer;  level = (coeff*uiQ + offset)>>q_bits
+	int qbits = QUANT_SHIFT + per + transform_shift;                // Right shift of non-RDOQ quantizer;  level = (coeff*uiQ + offset)>>q_bits
 	int qbits8 = qbits-8;
 	int add = (currslice->slice_type==I_SLICE ? 171 : 85) << (qbits-9);
 	short *deltaU = et->aux_buff;//[32*32];//hay que usar el buffer auxiliar
@@ -134,25 +134,25 @@ void sse_aligned_quant(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t
 }
 
 
-void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *src, short *dst, int depth, int comp, int is_intra, int cu_size)
+void sse_aligned_inv_quant(henc_thread_t* et, short *src, short *dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
 {
 	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));//ed->max_cu_size_shift
 	int scan_type = is_intra?0:3 + comp;
-	int32_t *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][ctu->rem];
+	int32_t *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][rem];
 	uint bit_depth = et->bit_depth;
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int iq_shift = QUANT_IQUANT_SHIFT - QUANT_SHIFT - transform_shift + 4;
-	int iq_add = (iq_shift>ctu->per)? 1 << (iq_shift - ctu->per - 1): 0;
+	int iq_add = (iq_shift>per)? 1 << (iq_shift - per - 1): 0;
 	int n;
 
 	__m128i _128one = sse_128_vector_i16(1);
 //	__m128i _128zero = sse_128_vector_i16(0);
 
-	if(iq_shift>ctu->per)
+	if(iq_shift>per)
 	{
 		__m128i _128add = sse_128_vector_i32(iq_add);
-		iq_shift=iq_shift-ctu->per;
+		iq_shift=iq_shift-per;
 
 		for(n=0;n<(cu_size*cu_size);n+=16)
 		{
@@ -199,7 +199,7 @@ void sse_aligned_inv_quant(henc_thread_t* et, ctu_info_t *ctu, short *src, short
 	}
 	else 
 	{
-		iq_shift=(ctu->per-iq_shift);
+		iq_shift=(per-iq_shift);
 
 		for(n=0;n<(cu_size*cu_size);n+=16)
 		{

@@ -349,7 +349,7 @@ void HOMER_enc_close(void* h)
 
 	if(phvenc->ctu_info!=NULL)
 	{
-		for(i=0;i<phvenc->pict_total_cu;i++)
+		for(i=0;i<phvenc->pict_total_ctu;i++)
 		{
 			free(phvenc->ctu_info[i].cbf[Y_COMP]);
 			//intra mode
@@ -446,8 +446,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
 
 #ifdef COMPUTE_AS_HM
-			cfg->rd_mode = 0;			//0 no rd
-			cfg->performance_mode = 0;//0 full computation(HM)
+			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
+			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
 #endif
 			if(phvenc->run==1)
 			{
@@ -456,12 +457,18 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				if(phvenc->encoder_thread!=NULL)
 					JOINT_THREAD(phvenc->encoder_thread);
 			}
-
-			phvenc->performance_mode = clip(cfg->performance_mode,0,2);
-			phvenc->rd_mode = clip(cfg->rd_mode,0,2);
 			phvenc->ctu_width[0] = phvenc->ctu_height[0] = cfg->cu_size;
 			phvenc->ctu_width[1] = phvenc->ctu_width[2] = cfg->cu_size>>1;
 			phvenc->ctu_height[1] = phvenc->ctu_height[2] = cfg->cu_size>>1;
+
+			phvenc->performance_mode = clip(cfg->performance_mode,0,NUM_PERF_MODES-1);
+			phvenc->rd_mode = clip(cfg->rd_mode,0,NUM_RD_MODES-1);
+			phvenc->bitrate_mode = clip(cfg->bitrate_mode,0,NUM_BR_MODES-1);
+			phvenc->bitrate = cfg->bitrate;
+			phvenc->vbv_size = cfg->vbv_size;
+			phvenc->vbv_init = cfg->vbv_init;
+			phvenc->qp_depth = cfg->qp_depth;
+
 			phvenc->pict_qp = cfg->qp;
 
 			phvenc->max_cu_size = cfg->cu_size;//MAX_CU_SIZE;
@@ -476,8 +483,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				goto config_error;
 			}
 			phvenc->max_inter_pred_depth = 0;
-//			while((phvenc->max_cu_size>>phvenc->max_inter_pred_depth)>8)phvenc->max_inter_pred_depth++;
-//			if(phvenc->max_inter_pred_depth>phvenc->max_pred_partition_depth)
 			phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
 
 			//depth of TU tree 
@@ -644,14 +649,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->bit_depth = 8;
 
-			phvenc->pict_width_in_cu = (phvenc->pict_width[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_width[0]%phvenc->max_cu_size)!=0);
-			phvenc->pict_height_in_cu = (phvenc->pict_height[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_height[0]%phvenc->max_cu_size)!=0);
+			phvenc->pict_width_in_ctu = (phvenc->pict_width[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_width[0]%phvenc->max_cu_size)!=0);
+			phvenc->pict_height_in_ctu = (phvenc->pict_height[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_height[0]%phvenc->max_cu_size)!=0);
 
-			phvenc->pict_total_cu = phvenc->pict_width_in_cu*phvenc->pict_height_in_cu;
+			phvenc->pict_total_ctu = phvenc->pict_width_in_ctu*phvenc->pict_height_in_ctu;
 
 			if(phvenc->ctu_info!=NULL)
 			{
-				for(i=0;i<phvenc->pict_total_cu;i++)
+				for(i=0;i<phvenc->pict_total_ctu;i++)
 				{
 					free(phvenc->ctu_info[i].cbf[Y_COMP]);
 					//intra mode
@@ -675,9 +680,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 				free(phvenc->ctu_info);
 			}
-			phvenc->ctu_info = (ctu_info_t*)calloc (phvenc->pict_total_cu, sizeof(ctu_info_t));
+			phvenc->ctu_info = (ctu_info_t*)calloc (phvenc->pict_total_ctu, sizeof(ctu_info_t));
 
-			for(i=0;i<phvenc->pict_total_cu;i++)
+			for(i=0;i<phvenc->pict_total_ctu;i++)
 			{
 				//------- ctu encoding info -------
 				//cbf
@@ -769,7 +774,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			}
 
 
-			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
+			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)
 			{
 				int depth_aux;
 				int j;
@@ -793,9 +798,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				memcpy(henc_th->pict_width, phvenc->pict_width, sizeof(henc_th->pict_width));
 				memcpy(henc_th->pict_height, phvenc->pict_height, sizeof(henc_th->pict_height));
-				henc_th->pict_width_in_cu = phvenc->pict_width_in_cu; 
-				henc_th->pict_height_in_cu = phvenc->pict_height_in_cu;			
-				henc_th->pict_total_cu = phvenc->pict_total_cu;
+				henc_th->pict_width_in_ctu = phvenc->pict_width_in_ctu; 
+				henc_th->pict_height_in_ctu = phvenc->pict_height_in_ctu;			
+				henc_th->pict_total_ctu = phvenc->pict_total_ctu;
 
 				memcpy(henc_th->ctu_width, phvenc->ctu_width, sizeof(henc_th->ctu_width));
 				memcpy(henc_th->ctu_height, phvenc->ctu_height, sizeof(henc_th->ctu_height));
@@ -918,7 +923,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
-
 			}
 
 			//exterchange wait and signal semaphores between sucessive threads
@@ -978,7 +982,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
 				}
 			}
-//			phvenc->ref_pic_set_index = 0;
+
+			hmr_rc_init(phvenc);
 
 			//----------------- start vps ------------------
 			phvenc->vps.video_parameter_set_id = 0;
@@ -1059,7 +1064,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->pps.constrained_intra_pred_flag = 0;
 			phvenc->pps.transform_skip_enabled_flag = 0;
-			phvenc->pps.cu_qp_delta_enabled_flag = 0;
+			phvenc->pps.cu_qp_delta_enabled_flag = (phvenc->bitrate_mode==BR_FIXED_QP)?0:1;
+			phvenc->pps.diff_cu_qp_delta_depth = phvenc->qp_depth;
 
 			phvenc->pps.cb_qp_offset = 0;
 			phvenc->pps.cr_qp_offset = 0;
@@ -1211,7 +1217,7 @@ void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
 	}
 }
 
-void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
+void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 {
 	currslice->qp =  ed->pict_qp;
 	currslice->poc = ed->last_poc;
@@ -1219,7 +1225,7 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->pps = &ed->pps;
 	currslice->slice_index = 0;
 	currslice->curr_cu_address = currslice->first_cu_address = 0;
-	currslice->last_cu_address = ed->pict_total_cu*ed->num_partitions_in_cu;
+	currslice->last_cu_address = ed->pict_total_ctu*ed->num_partitions_in_cu;
 
 	currslice->num_ref_idx[REF_PIC_LIST_0] = ed->num_refs_idx_active_list[REF_PIC_LIST_0];
 	currslice->num_ref_idx[REF_PIC_LIST_1] = ed->num_refs_idx_active_list[REF_PIC_LIST_1];
@@ -1293,18 +1299,18 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 	}
 	else
 	{
-		ctu->ctu_top = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu];	
+		ctu->ctu_top = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu];	
 
 		if(ctu->x[Y_COMP]==0)
 			ctu->ctu_top_left = NULL;
 		else
-			ctu->ctu_top_left = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu-1];	
+			ctu->ctu_top_left = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu-1];	
 
-		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_cu) == (et->pict_width_in_cu-1)))
+		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_ctu) == (et->pict_width_in_ctu-1)))
 			ctu->ctu_top_right = NULL;
 		else
 		{
-			ctu->ctu_top_right = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_cu+1];
+			ctu->ctu_top_right = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu+1];
 		}
 	}
 }
@@ -1378,7 +1384,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
 
-	ctu = &et->ed->ctu_info[et->cu_current_y*et->pict_width_in_cu];
+	ctu = &et->ed->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
 
 
 	if(et->index==0)
@@ -1398,10 +1404,10 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 #define  GRAIN					1
 #define  GRAIN_MASK				(GRAIN-1)
 
-	while(et->cu_current < et->pict_total_cu)//all ctus loop
+	while(et->cu_current < et->pict_total_ctu)//all ctus loop
 	{
-		et->cu_current = et->pict_width_in_cu*(et->cu_current_y)+et->cu_current_x;
-		et->cu_next = et->cu_current+min(1,et->pict_width_in_cu-et->cu_current_x);
+		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
+		et->cu_next = et->cu_current+min(1,et->pict_width_in_ctu-et->cu_current_x);
 
 		if(et->cu_current_y > 0 && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
@@ -1437,8 +1443,8 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			ctu->size = et->max_cu_size;
 			ctu->num_part_in_ctu = et->num_partitions_in_cu;
 			ctu->partition_list = &et->partition_info[0];
-			ctu->qp = currslice->qp;
-			ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+			//ctu->qp = currslice->qp;
+			//ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
 
 
 			CuGetNeighbors(et, ctu);//raster order
@@ -1470,7 +1476,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			}
 			mem_transfer_decoded_blocks(et, ctu);
 
-			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_cu)
+			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_ctu)
 			{
 				SEM_POST(et->synchro_signal);
 			}
@@ -1478,7 +1484,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			PROFILER_RESET(cabac)
 			ctu->coeff_wnd = &et->transform_quant_wnd[0];
 
-			if(et->cu_current+1 == et->pict_total_cu)//if(et->ed->num_encoded_frames == 1)
+			if(et->cu_current+1 == et->pict_total_ctu)//if(et->ed->num_encoded_frames == 1)
 			{
 				int iiiii=0;
 			}
@@ -1487,7 +1493,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			et->cu_current_x++;
 		}
 
-		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_cu)
+		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
 				ee_copy_entropy_model(et->ee, et->ed->ee_list[(2*et->index+1)%et->ed->num_ee]);
@@ -1495,13 +1501,13 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 		}
 
 		//notify sinchronization
-		if(et->cu_current_x==et->pict_width_in_cu && et->cu_current_y+1 != et->pict_height_in_cu)
+		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			SEM_POST(et->synchro_signal);
 		}
-		if(et->cu_current_x==et->pict_width_in_cu)
+		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
-			if(et->cu_current+1 == et->pict_total_cu)
+			if(et->cu_current+1 == et->pict_total_ctu)
 			{
 				int iiii=0;
 			}
@@ -1513,7 +1519,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			et->cu_current_x=0;
 		}
 
-		et->cu_current = et->pict_width_in_cu*(et->cu_current_y)+et->cu_current_x;
+		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 	}
 	
 	if(!et->wfpp_enable)
@@ -1630,9 +1636,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		profiler_start(&frame_metrics);
 #endif
 
-		init_slice(ed, &ed->current_pict, &currpict->slice);
-		init_rd(ed, &currpict->slice);
+		hmr_slice_init(ed, &ed->current_pict, &currpict->slice);
+		hmr_rd_init(ed, &currpict->slice);
 
+		if(ed->bitrate_mode != BR_FIXED_QP)
+			hmr_rc_init_pic(ed);
 		//get free img for decoded blocks
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
 		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
@@ -1657,6 +1665,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->pps_nalu.temporal_id = ed->pps_nalu.rsvd_zero_bits = 0;
 			output_nalu_list[output_nalu_cnt++] = &ed->pps_nalu;
 			hmr_put_pic_header(ed);//pic header
+
+			hmr_rc_init_seq(ed);
 		}
 
 		apply_reference_picture_set(ed, currslice);
@@ -1672,10 +1682,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
 
-		if(ed->num_encoded_frames == 9)//if(currslice->slice_type != I_SLICE)
-		{
-			int iiiii=0;
-		}
+		if(ed->bitrate_mode != BR_FIXED_QP)
+			hmr_rc_end_pic(ed);
 
 		hmr_deblock_filter(ed, currslice);
 
