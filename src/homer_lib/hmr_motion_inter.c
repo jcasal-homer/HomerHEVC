@@ -1448,7 +1448,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			}
 		}
 #ifndef COMPUTE_AS_HM
-		if(dist<curr_cu_info->size*440 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
+		if(dist<curr_cu_info->size*20*20 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 //		if(dist<curr_cu_info->size*curr_cu_info->variance*1.5 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 		{
 			consolidate_inter_prediction_info(et, ctu, curr_cu_info, curr_cu_info->cost, 2*curr_cu_info->cost, FALSE);	
