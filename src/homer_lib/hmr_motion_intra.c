@@ -1774,7 +1774,6 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				cost_chroma = 0;//UINT_MAX;
 			}
 			else
-
 #endif
 			{
 				if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 6 && curr_depth==2  && abs_index == 64)

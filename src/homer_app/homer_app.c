@@ -34,16 +34,16 @@
 #include <sys/time.h>
 #endif
 
-//#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
-#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
+//#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 #define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//bin"//"output_32_.265"
 //#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
 
-#define HOR_SIZE	1920//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	1080//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	1280//1920//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	720//1080//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 
 
 #ifdef _MSC_VER
