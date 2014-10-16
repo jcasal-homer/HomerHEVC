@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-#define COMPUTE_AS_HM			1
+//#define COMPUTE_AS_HM			1	//for debugging against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -71,6 +71,10 @@
 #define     MAX_NUM_PARTITIONS		256							//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
 
 #define QUANT_DEFAULT_DC	16
+
+#define CU_DQP_TU_CMAX 5                   //max number bins for truncated unary
+#define CU_DQP_EG_k 0                      //expgolomb order
+
 
 //for intra prediction
 #define NUM_INTRA_MODES					35
@@ -176,6 +180,7 @@ typedef unsigned int	uint;
 typedef long			int64;
 typedef unsigned long	uint64;
 
+#define BSIGN(x)				(x>0?0:1)
 #define SIGN(x)					(x<0?-1:1)
 #define QP_BITS                 15
 
@@ -202,7 +207,7 @@ typedef unsigned long	uint64;
 
 #define INTER_MODE				0           
 #define INTRA_MODE				1	
-
+#define NONE_MODE				2	
 
 // partition types
 typedef enum 
@@ -722,6 +727,7 @@ struct ctu_info_t
 	uint8_t			*part_size_type;//[MAX_NUM_PARTITIONS];
 	uint8_t			*pred_mode;//[MAX_NUM_PARTITIONS];//intra or inter
 	uint8_t			*skipped;//[MAX_NUM_PARTITIONS];//intra or inter
+	uint8_t			*qp;
 	wnd_t			*coeff_wnd;
 
 	//inter
@@ -1066,9 +1072,11 @@ struct henc_thread_t
 	rate_distortion_t	rd;
 
 	//rate control
-	int					num_encoded_ctus;
-	int					num_bits;
-	int					target_pict_size;
+	uint				num_encoded_ctus;
+	uint				num_bits;
+	uint				target_pict_size;
+	int					write_qp_flag;
+
 	low_level_funcs_t	*funcs;
 };
 
@@ -1166,7 +1174,7 @@ struct hvenc_t
 	uint8_t			*deblock_edge_filter[2];
 	uint8_t			*deblock_filter_strength_bs[2];
 
-	int				slice_type;
+//	int				slice_type;
 
 	//intra predicition
 	ctu_info_t			*ctu_info;//[MAX_MB_GROUP_SIZE];

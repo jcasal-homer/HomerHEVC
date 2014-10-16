@@ -516,8 +516,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 		{
 			hmr_bitstream_write_bits_uvlc(bs, 5 - currslice->max_num_merge_candidates);//five_minus_max_num_merge_cand			
 		}
-		
-		hmr_bitstream_write_bits_svlc(bs, ed->pict_qp - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
+		hmr_bitstream_write_bits_svlc(bs, currslice->qp/*ed->pict_qp*/ - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
 		
 		if(pps->slice_chroma_qp_offsets_present_flag)
 		{

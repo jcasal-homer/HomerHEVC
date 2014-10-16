@@ -147,8 +147,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	
 	curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 
+	weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp,0,57)])/3.0 ); 
 	qp_chroma = chroma_scale_conversion_table[clip(curr_partition_info->qp,0,57)];
-	weight = pow( 2.0, (curr_partition_info->qp-qp_chroma)/3.0 ); 
 	per = qp_chroma/6;
 	rem = qp_chroma%6;
 

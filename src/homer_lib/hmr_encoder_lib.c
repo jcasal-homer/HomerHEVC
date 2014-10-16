@@ -369,6 +369,7 @@ void HOMER_enc_close(void* h)
 //			free(phvenc->ctu_info[i].mv_ref1);
 			
 //			free(phvenc->ctu_info[i].ref_idx1);
+			free(phvenc->ctu_info[i].qp);
 		}
 
 		free(phvenc->ctu_info);
@@ -447,7 +448,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 #ifdef COMPUTE_AS_HM
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
-			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+//			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
 #endif
 			if(phvenc->run==1)
@@ -677,6 +678,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 //					free(phvenc->ctu_info[i].mv_ref1);
 					
 //					free(phvenc->ctu_info[i].ref_idx1);
+					free(phvenc->ctu_info[i].qp);
 				}
 				free(phvenc->ctu_info);
 			}
@@ -700,7 +702,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				
+				phvenc->ctu_info[i].qp = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				//inter
 				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
@@ -1244,6 +1246,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;
+		currslice->qp = ed->pict_qp;
 	}
 	else if(ed->num_b==0)
 	{
@@ -1253,7 +1256,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;	
-
+		currslice->qp = ed->pict_qp+2;
 	}
 
 	hmr_select_reference_picture_set(ed, currslice);
@@ -1406,6 +1409,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 	while(et->cu_current < et->pict_total_ctu)//all ctus loop
 	{
+		int bits_allocated;
 		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 		et->cu_next = et->cu_current+min(1,et->pict_width_in_ctu-et->cu_current_x);
 
@@ -1455,6 +1459,8 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 			copy_ctu(ctu, et->ctu_rd);
 
+			bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+
 			PROFILER_RESET(intra)
 
 			//map spatial features and neighbours in recursive partition structure
@@ -1490,6 +1496,9 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			}
 			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 			PROFILER_ACCUMULATE(cabac)
+
+			et->num_encoded_ctus++;
+			et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 			et->cu_current_x++;
 		}
 
@@ -1640,7 +1649,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		hmr_rd_init(ed, &currpict->slice);
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
-			hmr_rc_init_pic(ed);
+			hmr_rc_init_pic(ed, &currpict->slice);
 		//get free img for decoded blocks
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
 		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
@@ -1685,7 +1694,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed);
 
-		hmr_deblock_filter(ed, currslice);
+		if(ed->intra_period>1)
+			hmr_deblock_filter(ed, currslice);
 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;

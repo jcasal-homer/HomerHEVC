@@ -1506,7 +1506,7 @@ int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, i
 		curr_partition_info->qp = qp;
 		curr_depth = curr_partition_info->depth;
 
-		if(ctu->ctu_number == 482 && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
+		if(ctu->ctu_number == 1 && curr_partition_info->abs_index==128)// && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
 		{
 			int iiiiii=0;
 		}
@@ -1739,6 +1739,10 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		analyse_intra_recursive_info(et, ctu, gcnt);
 #endif
 
+	if(ctu->ctu_number == 1)
+	{
+		int iiiiii=0;
+	}
 
 	memset(cbf_split, 0, sizeof(cbf_split));
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
@@ -1755,7 +1759,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		cost_luma = cost_chroma = 0;
 
 		//rc
-		curr_partition_info->qp = hmr_rc_get_cu_qp(et, curr_partition_info);
+		curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info);
 
 		if(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
@@ -1814,6 +1818,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			int max_processing_depth;// = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
 			//if we fill this in here we don't have to consolidate
+			memset(&ctu->qp[abs_index], curr_partition_info->qp, curr_partition_info->num_part_in_cu*sizeof(ctu->qp[0]));
 			memset(&ctu->pred_depth[abs_index], curr_depth-(part_size_type==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 			memset(&ctu->part_size_type[abs_index], part_size_type, num_part_in_cu*sizeof(ctu->part_size_type[0]));
 			if(et->rd_mode==1)//rd
@@ -1876,7 +1881,6 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				//choose best
 				if(cost<best_cost || !(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame))//if we get here, tl should be inside the frame
 				{
-					//Aqui consolidamos los resultados bottom-up
 					//here we consolidate the bottom-up results for being preferred to the top-down computation
 					int part_size_type2 = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 
@@ -1905,7 +1909,13 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 					if(curr_depth==et->max_pred_partition_depth)
 					{
+						int nchild;
 						//if we fill this in here we don't have to consolidate
+						for(nchild=0;nchild<4;nchild++)
+						{
+							cu_partition_info_t *cu_info = parent_part_info->children[nchild];
+							memset(&ctu->qp[cu_info->abs_index], cu_info->qp, cu_info->num_part_in_cu*sizeof(ctu->qp[0]));
+						}
 						memset(&ctu->pred_depth[abs_index], curr_depth-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 						memset(&ctu->part_size_type[abs_index], part_size_type2, num_part_in_cu*sizeof(ctu->part_size_type[0]));
 						if(et->rd_mode==1)
@@ -1917,9 +1927,10 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				}
 				else
 				{
-					//Aqui prevalecen los resultados de la computacion top-down
 					//top-down computation results are prefered
 					int part_size_type2 = (curr_depth-1<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
+
+					memset(&ctu->qp[abs_index], parent_part_info->qp, parent_part_info->num_part_in_cu*sizeof(ctu->qp[0]));
 
 					//if we fill this in here we don't have to consolidate
 					memset(&ctu->pred_depth[abs_index], curr_depth-1-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));

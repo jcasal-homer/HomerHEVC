@@ -105,6 +105,8 @@ extern const uint8_t chroma_scale_conversion_table[];
 int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int component, int depth, PartSize part_size_type, int *curr_sum, int gcnt)//depth = prediction depth
 {		
 	int ssd_;
+	picture_t *currpict = &et->ed->current_pict;
+	slice_t *currslice = &currpict->slice;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, residual_dec_buff_stride, decoded_buff_stride;
 	uint8_t *orig_buff;
 	int16_t *pred_buff, *residual_buff, *residual_dec_buff, *quant_buff, *iquant_buff, *decoded_buff;
@@ -121,7 +123,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	int curr_part_size_shift = et->max_cu_size_shift-curr_depth-1;//420
 	int curr_scan_mode = find_scan_mode(TRUE, TRUE, curr_part_size, cu_mode, 0);
 	int qp_chroma = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
-	double weight = pow( 2.0, (curr_cu_info->qp-qp_chroma)/3.0 ); 
+	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp,0,57)])/3.0 );
 
 	int per = qp_chroma/6;
 	int rem = qp_chroma%6;
@@ -914,8 +916,8 @@ int select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, in
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost_mvx = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-		int cost_mvy = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		int cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
 		int cost = 3+cost_mvx+cost_mvy;
 
 		if(best_cost>cost)
@@ -980,7 +982,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int max_tr_depth, max_tr_processing_depth;
 	int initial_state, end_state;
-	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+//	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 //	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int bitcost_cu_mode;
 	int log2cu_size;
@@ -1166,6 +1168,11 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 
 //	processing_buff_depth = depth+(part_size_type==SIZE_NxN);
 
+	if(et->ed->num_encoded_frames == 7 && ctu->ctu_number == 1 && curr_cu_info->abs_index == 64)
+	{
+		int iiii=0;
+	}
+
 	PROFILER_RESET(intra_luma_bucle3)
 	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)//transform loop
 	{
@@ -1331,7 +1338,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 	int abs_index = parent_part_info->abs_index;
 	int num_part_in_cu = parent_part_info->num_part_in_cu;
 	int curr_depth = parent_part_info->depth + 1;
-	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
+//	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
 	int gcnt = 0;
 	//choose best
 	if(children_cost<parent_cost || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
@@ -1354,21 +1361,14 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 			{
 				cu_partition_info_t *cu_info = parent_part_info->children[nchild];
 				SET_INTER_INFO_BUFFS(et, ctu, cu_info, cu_info->abs_index, cu_info->num_part_in_cu, REF_PIC_LIST_0)
+				memset(&ctu->qp[cu_info->abs_index], cu_info->qp, cu_info->num_part_in_cu*sizeof(ctu->qp[0]));
 			}
-/*			cbf_split[Y_COMP] = (ctu->cbf[Y_COMP][abs_index]&2) || (ctu->cbf[Y_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[Y_COMP][abs_index+3*num_part_in_sub_cu]&2);
-			cbf_split[U_COMP] = (ctu->cbf[U_COMP][abs_index]&2) || (ctu->cbf[U_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[U_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[U_COMP][abs_index+3*num_part_in_sub_cu]&2);
-			cbf_split[V_COMP] = (ctu->cbf[V_COMP][abs_index]&2) || (ctu->cbf[V_COMP][abs_index+num_part_in_sub_cu]&2) || (ctu->cbf[V_COMP][abs_index+2*num_part_in_sub_cu]&2) || (ctu->cbf[V_COMP][abs_index+3*num_part_in_sub_cu]&2);
-			//consolidate cbf flags
-			for(ll=abs_index;ll<abs_index+num_part_in_cu;ll++)
-			{
-				ctu->cbf[Y_COMP][ll] |= cbf_split[Y_COMP];
-				ctu->cbf[U_COMP][ll] |= cbf_split[U_COMP];
-				ctu->cbf[V_COMP][ll] |= cbf_split[V_COMP];
-			}
-*/			//if we fill this in here we don't have to consolidate
+			//if we fill this in here we don't have to consolidate
 			memset(&ctu->pred_depth[abs_index], curr_depth-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 			memset(&ctu->part_size_type[abs_index], part_size_type2, num_part_in_cu*sizeof(ctu->part_size_type[0]));
+
 		}
+
 	}
 	else
 	{
@@ -1381,6 +1381,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, parent_depth, abs_index, num_part_in_cu)
 		SET_INTER_INFO_BUFFS(et, ctu, parent_part_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)
 
+		memset(&ctu->qp[abs_index], parent_part_info->qp, parent_part_info->num_part_in_cu*sizeof(ctu->qp[0]));
 		//if we fill this in here we don't have to consolidate
 		memset(&ctu->pred_depth[abs_index], parent_part_info->depth-(part_size_type2==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 		memset(&ctu->part_size_type[abs_index], part_size_type2, num_part_in_cu*sizeof(ctu->part_size_type[0]));
@@ -1390,7 +1391,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 
 int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
-	double cost, cost_aux, best_cost;//, cost_luma, cost_chroma;
+	double dist, cost, dist_aux, cost_aux, best_cost;//, cost_luma, cost_chroma;
 	int position = 0;
 	int curr_depth = 0;
 	ctu_info_t *ctu_rd = et->ctu_rd;
@@ -1401,10 +1402,11 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	int abs_index;
 	int num_part_in_cu;
 	int ll;
-	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
+//	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
 
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
+		int stop_recursion = FALSE;
 		curr_depth = curr_cu_info->depth;
 		num_part_in_cu = curr_cu_info->num_part_in_cu;
 		abs_index = curr_cu_info->abs_index;
@@ -1412,7 +1414,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
 
 		//rc
-		curr_cu_info->qp = hmr_rc_get_cu_qp(et, curr_cu_info);
+		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info);
 
 		cost = 0;
 
@@ -1420,9 +1422,15 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int mv_cost;
 
+			if(et->ed->num_encoded_frames == 7 && ctu->ctu_number == 1 && curr_cu_info->abs_index == 64)
+			{
+				int iiii=0;
+			}
+
 			//encode
 			mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-			cost = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			cost = dist;
 #ifndef COMPUTE_AS_HM
 			cost += mv_cost;
 #endif
@@ -1431,19 +1439,19 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
 			{
 				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
-				cost_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+				dist_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+				cost_aux = dist_aux;
 #ifndef COMPUTE_AS_HM
 				cost_aux += mv_cost;
 #endif
 				consolidate_inter_prediction_info(et, ctu, curr_cu_info, cost, cost_aux, TRUE);
 			}
 		}
-
 		depth_state[curr_depth]++;
 
 //		cost_sum[curr_depth]+=curr_cu_info->cost;
 
-		if((curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_tl_inside_frame)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
+		if((curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
 		{
 			curr_depth++;
 			parent_part_info = curr_cu_info;
@@ -1461,10 +1469,6 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				depth_state[curr_depth] = 0;
 				best_cost = parent_part_info->cost;
 
-				if(parent_part_info->abs_index == 96)
-				{
-					int iiiii=0;
-				}
 				consolidate_inter_prediction_info(et, ctu, parent_part_info, best_cost, cost, is_max_depth);
 
 				curr_depth--;
