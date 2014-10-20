@@ -468,7 +468,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->bitrate = cfg->bitrate;
 			phvenc->vbv_size = cfg->vbv_size;
 			phvenc->vbv_init = cfg->vbv_init;
-			phvenc->qp_depth = cfg->qp_depth;
+			phvenc->qp_depth = 0;//cfg->qp_depth;//if rc enabled qp_depth == 0
 
 			phvenc->pict_qp = cfg->qp;
 

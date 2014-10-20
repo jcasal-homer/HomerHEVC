@@ -138,7 +138,7 @@ struct HVENC_Cfg{
 	int bitrate;//in kbps
 	int vbv_size;//in kbps
 	int vbv_init;//in kbps
-	int qp_depth;//
+//	int qp_depth;//
 	int performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
 
 };

@@ -1327,10 +1327,11 @@ int get_last_valid_partition_idx(henc_thread_t* et, ctu_info_t* ctu, int abs_ind
 	return last_valid_partition_index;
 }
 
-int get_last_coded_qp(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t*  curr_partition_info)//ctu_info_t* ctu, cu_partition_info_t*  curr_partition_info)
+int get_last_coded_qp(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t *curr_partition_info)//ctu_info_t* ctu, cu_partition_info_t*  curr_partition_info)
 {
 	int abs_index = curr_partition_info->abs_index;
-	uint part_index_mask = ~((1<<((et->max_cu_depth - et->ed->pps.diff_cu_qp_delta_depth)<<1))-1);
+	int qp_depth = et->ed->pps.diff_cu_qp_delta_depth;
+	uint part_index_mask = ~((1<<((et->max_cu_depth - qp_depth)<<1))-1);
 	int last_valid_part_idx = get_last_valid_partition_idx(et, ctu, abs_index & part_index_mask);
 
 /*	if (abs_index < ctu->num_part_in_ctu && (getSCUAddr()+iLastValidPartIdx < getSliceStartCU(m_uiAbsIdxInLCU+uiAbsPartIdx)))
@@ -1343,9 +1344,13 @@ int get_last_coded_qp(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t*  
 	}
 	else
 	{
-		if(curr_partition_info->parent != NULL && curr_partition_info->parent->abs_index>0)//if ( getZorderIdxInCU() > 0 )
+		cu_partition_info_t*  qp_depth_partition = curr_partition_info;
+		while(qp_depth_partition->depth>qp_depth)
+			qp_depth_partition = qp_depth_partition->parent;
+
+		if(qp_depth_partition->abs_index>0)//if ( getZorderIdxInCU() > 0 )
 		{
-			return ctu->qp[curr_partition_info->parent->abs_index];//return getPic()->getCU( getAddr() )->getLastCodedQP( getZorderIdxInCU() );
+			return ctu->qp[qp_depth_partition->parent->abs_index];//return getPic()->getCU( getAddr() )->getLastCodedQP( getZorderIdxInCU() );
 		}
 		 //( getPic()->getPicSym()->getInverseCUOrderMap(getAddr()) > 0
 		//&& getPic()->getPicSym()->getTileIdxMap(getAddr()) == getPic()->getPicSym()->getTileIdxMap(getPic()->getPicSym()->getCUOrderMap(getPic()->getPicSym()->getInverseCUOrderMap(getAddr())-1))
@@ -1612,7 +1617,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			}
 
 
-			if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==1 && curr_partition_info->abs_index == 80)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+			if(et->ed->num_encoded_frames == 7 && ctu->ctu_number==5)// && curr_partition_info->abs_index == 80)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
 			{
 				int iiiiii=0;
 			}
@@ -1809,7 +1814,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->ed->num_encoded_frames == 9 && ctu->ctu_number == 1)// && curr_partition_info->abs_index >= 88)
+		if(et->ed->num_encoded_frames == 7 && ctu->ctu_number == 5)// && curr_partition_info->abs_index >= 88)
 		{
 			int iiiii=0;
 		}
