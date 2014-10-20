@@ -386,7 +386,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	int num_partitions;
 	int max_cu_width_units = (ed->max_cu_size>>2);		
 
-	if(ed->num_encoded_frames== 1 && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
+	if(ed->num_encoded_frames== 6 && ctu->ctu_number == 2)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
 	{
 		int iiiii=0;
 	}
@@ -778,12 +778,6 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 	curr_depth = curr_cu_info->depth;
 	memset(depth_state, 0, sizeof(depth_state));
 
-
-	if(ctu->ctu_number == 7)//ed->num_encoded_frames== 1)// && ctu->ctu_number == 1)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
-	{
-		int iiiii=0;
-	}
-
 	memset(ed->deblock_filter_strength_bs[dir], 0, ed->num_partitions_in_cu*sizeof(ed->deblock_filter_strength_bs[dir][0]));
 	memset(ed->deblock_edge_filter[dir], 0, ed->num_partitions_in_cu*sizeof(ed->deblock_edge_filter[dir][0]));
 
@@ -864,15 +858,15 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			ctu = &ed->ctu_info[ctu_num];
 
 			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
-			if(ctu->ctu_number == 7 && dir==EDGE_VER)
+			if(ctu->ctu_number == 2 && dir==EDGE_VER)
 			{
 				int iiiii=0;
 			}
 
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
-//		if(dir==EDGE_VER)
-//			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
+		if(dir==EDGE_VER)
+			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
 	}
 
 }

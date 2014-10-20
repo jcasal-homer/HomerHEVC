@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//for debugging against HM
+#define COMPUTE_AS_HM			1	//for debugging against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1076,7 +1076,8 @@ struct henc_thread_t
 	uint				num_bits;
 	uint				target_pict_size;
 	int					write_qp_flag;
-
+	int					curr_ref_qp;//for qp modification when cbf=0
+	int					found_zero_cbf;//for qp modification when cbf=0
 	low_level_funcs_t	*funcs;
 };
 
@@ -1229,7 +1230,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
-//	FILE			*debug_file;
+	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

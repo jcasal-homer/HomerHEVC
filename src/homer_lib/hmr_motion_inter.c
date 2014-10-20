@@ -916,8 +916,8 @@ int select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, in
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-		int cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		int cost_mvx = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 15*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
 		int cost = 3+cost_mvx+cost_mvy;
 
 		if(best_cost>cost)
@@ -1449,7 +1449,6 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		}
 #ifndef COMPUTE_AS_HM
 		if(dist<curr_cu_info->size*20*20 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-//		if(dist<curr_cu_info->size*curr_cu_info->variance*1.5 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 		{
 			consolidate_inter_prediction_info(et, ctu, curr_cu_info, curr_cu_info->cost, 2*curr_cu_info->cost, FALSE);	
 			stop_recursion = TRUE;
