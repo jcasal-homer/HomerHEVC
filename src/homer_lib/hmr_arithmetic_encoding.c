@@ -1359,8 +1359,9 @@ int get_last_coded_qp(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t *c
 		//if there are no tiles, tilemap values are all 0,
 		else if (ctu->ctu_number>0 && !(et->wfpp_enable && (ctu->ctu_number % et->pict_width_in_ctu)==0))
 		{
+			ctu_info_t *prev_ctu = &et->ed->ctu_info[ctu->ctu_number-1];
 //			get_last_coded_qp(et, &et->ed->ctu_info[ctu->ctu_number-1], ctu->num_part_in_ctu);
-			return et->ed->ctu_info[ctu->ctu_number-1].qp[ctu->num_part_in_ctu-1];//getPic()->getCU( getPic()->getPicSym()->getCUOrderMap(getPic()->getPicSym()->getInverseCUOrderMap(getAddr())-1) )->getLastCodedQP( getPic()->getNumPartInCU() );
+			return prev_ctu->qp[prev_ctu->last_valid_partition];//getPic()->getCU( getPic()->getPicSym()->getCUOrderMap(getPic()->getPicSym()->getInverseCUOrderMap(getAddr())-1) )->getLastCodedQP( getPic()->getNumPartInCU() );
 //			return getPic()->getCU( getPic()->getPicSym()->getCUOrderMap(getPic()->getPicSym()->getInverseCUOrderMap(getAddr())-1) )->getLastCodedQP( getPic()->getNumPartInCU() );
 		}
 		else
@@ -1617,7 +1618,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			}
 
 
-			if(et->ed->num_encoded_frames == 7 && ctu->ctu_number==5)// && curr_partition_info->abs_index == 80)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
 			{
 				int iiiiii=0;
 			}
@@ -1627,7 +1628,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 				// dQP: only for LCU once
 				if ( et->ed->pps.cu_qp_delta_enabled_flag )
 				{
-					int qp_depht_mask = ctu->partition_list[et->ed->partition_depth_start[et->ed->pps.diff_cu_qp_delta_depth]].num_part_in_cu - 1;
+//					int qp_depht_mask = ctu->partition_list[et->ed->partition_depth_start[et->ed->pps.diff_cu_qp_delta_depth]].num_part_in_cu - 1;
 
 					if(et->write_qp_flag)//if((curr_partition_info->abs_index & qp_depht_mask)==0)//if (depth/*curr_depth*/<=et->ed->pps.diff_cu_qp_delta_depth)
 					{
@@ -1753,11 +1754,12 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 	int aux = ((cu_size_in_partitions*cu_size_in_partitions-cu_size_in_partitions) + ((width%et->max_cu_size)>>2));
 	uiRealEndAddress = (et->pict_total_ctu)*et->num_partitions_in_cu - et->num_partitions_in_cu + et->ed->raster2abs_table[aux-1]+1; //+ ((width%et->max_cu_size)>>2)*((height%et->max_cu_size)>>2);//2^2 width and height	
 	}
-	*/	if(width%et->max_cu_size || height%et->max_cu_size)
+	*/	
+	if(width%ctu->size || height%ctu->size)
 	{
-		int cu_size_in_partitions = et->max_cu_size>>2;
-		int width_rem = (width%et->max_cu_size)>>2;
-		int height_rem = (height%et->max_cu_size)>>2;
+		int cu_size_in_partitions = ctu->size>>2;
+		int width_rem = (width%ctu->size)>>2;
+		int height_rem = (height%ctu->size)>>2;
 		int aux;
 		if(height_rem==0)
 			height_rem = cu_size_in_partitions-1;
@@ -1771,10 +1773,12 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 	{
 		uiRealEndAddress = et->pict_total_ctu*et->num_partitions_in_cu;
 	}
+
+//	uiRealEndAddress = (et->pict_total_ctu)*et->num_partitions_in_cu - et->num_partitions_in_cu + ctu->last_valid_partition+1;
 	//	else
 	//		uiRealEndAddress = et->pict_total_ctu*et->num_partitions_in_cu;
 
-	uiGranularityWidth = et->max_cu_size;//ctu_width[0];
+	uiGranularityWidth = ctu->size;//ctu_width[0];
 	pos_x = ctu->x[Y_COMP]+curr_partition_info->x_position;
 	pos_y = ctu->y[Y_COMP]+curr_partition_info->y_position;
 	granularityBoundary=((pos_x+curr_partition_info->size)%uiGranularityWidth==0 || (pos_x+curr_partition_info->size)==width) && ((pos_y+curr_partition_info->size)%uiGranularityWidth==0 || (pos_y+curr_partition_info->size)==height);
@@ -1825,6 +1829,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 				encode_split_flag(ee, ctu, curr_partition_info);
 		}
 
+			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+			{
+				int iiiiii=0;
+			}
+
 		//try to implement qp modification in here - setQPSubCUs in HM
 		if(curr_partition_info->depth==et->ed->pps.diff_cu_qp_delta_depth && et->ed->pps.cu_qp_delta_enabled_flag)
 		{
@@ -1855,7 +1864,8 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 				if(et->ed->pps.cu_qp_delta_enabled_flag && !et->found_zero_cbf)
 				{
 					int tr_depth = curr_partition_info->depth-pred_depth;
-					if(CBF(ctu, curr_partition_info->abs_index, Y_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, U_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, V_COMP, tr_depth))
+//					if(CBF(ctu, curr_partition_info->abs_index, Y_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, U_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, V_COMP, tr_depth))
+					if(ctu->cbf[Y_COMP][curr_partition_info->abs_index] || ctu->cbf[U_COMP][curr_partition_info->abs_index] || ctu->cbf[V_COMP][curr_partition_info->abs_index])
 					{
 						et->found_zero_cbf = TRUE;
 						if(depth_state[curr_depth]>1)

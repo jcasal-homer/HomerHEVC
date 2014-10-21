@@ -1373,6 +1373,46 @@ const uint8_t chroma_scale_conversion_table[58]=
   45,46,47,48,49,50,51
 };
 
+
+ctu_info_t* init_ctu(henc_thread_t* et)
+{
+	ctu_info_t *ctu;
+	int ctu_width, ctu_height;
+	
+	ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
+	ctu->ctu_number = et->cu_current;
+	ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
+	ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
+	ctu->x[U_COMP] = ctu->x[V_COMP] = et->cu_current_x*et->ctu_width[U_COMP];
+	ctu->y[U_COMP] = ctu->y[V_COMP] = et->cu_current_y*et->ctu_height[U_COMP];
+	ctu->size = et->max_cu_size;
+	ctu->num_part_in_ctu = et->num_partitions_in_cu;
+	ctu->num_part_in_ctu = et->num_partitions_in_cu;
+	ctu->partition_list = &et->partition_info[0];
+
+	ctu_width = ((ctu->x[Y_COMP]+ctu->size)<et->pict_width[Y_COMP])?(ctu->size):et->pict_width[Y_COMP]-ctu->x[Y_COMP];
+	ctu_height = ((ctu->y[Y_COMP]+ctu->size)<et->pict_height[Y_COMP])?(ctu->size):et->pict_height[Y_COMP]-ctu->y[Y_COMP];
+
+	if(ctu_width!=ctu->size || ctu_height!=ctu->size)
+	{
+		int width_in_partitions = ctu_width>>2;
+		int height_in_partitions = ctu_height>>2;
+		int cu_size_in_partitions = ctu->size>>2;
+//		if(height_in_partitions == cu_size_in_partitions)
+//			height_in_partitions = cu_size_in_partitions-1;
+//		else if(width_in_partitions == cu_size_in_partitions)
+		height_in_partitions -= 1;
+		ctu->last_valid_partition =	et->ed->raster2abs_table[height_in_partitions*cu_size_in_partitions+width_in_partitions-1];
+	}
+	else
+	{
+		ctu->last_valid_partition = et->num_partitions_in_cu-1;
+	}
+	
+	CuGetNeighbors(et, ctu);//raster order
+	return ctu;
+}
+
 THREAD_RETURN_TYPE intra_encode_thread(void *h)
 {
 	henc_thread_t* et = (henc_thread_t*)h;
@@ -1437,8 +1477,9 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 //		for(et->cu_current;et->cu_current<et->cu_next;et->cu_current++)
 		{
 			//init ctu
-//			et->curr_ctu_group_info = &et->ed->ctu_info[et->cu_current];
-			ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
+			ctu = init_ctu(et);
+//			
+/*			ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
 			ctu->ctu_number = et->cu_current;
 			ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
 			ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
@@ -1446,12 +1487,11 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			ctu->y[U_COMP] = ctu->y[V_COMP] = et->cu_current_y*et->ctu_height[U_COMP];
 			ctu->size = et->max_cu_size;
 			ctu->num_part_in_ctu = et->num_partitions_in_cu;
+			ctu->num_part_in_ctu = et->num_partitions_in_cu;
 			ctu->partition_list = &et->partition_info[0];
+*/
 			//ctu->qp = currslice->qp;
 			//ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
-
-
-			CuGetNeighbors(et, ctu);//raster order
 			
 			//Prepare Memory
 			mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd

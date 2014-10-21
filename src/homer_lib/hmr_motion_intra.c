@@ -1848,6 +1848,11 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		}
 #endif 
 
+	if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+	{
+		int iiiiii=0;
+	}
+
 		if(!fast_skip && curr_depth<et->max_pred_partition_depth && curr_partition_info->is_tl_inside_frame)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
 		{
 			curr_depth++;
@@ -1898,7 +1903,8 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					if(part_size_type2==SIZE_NxN)
 					{
 						int num_part_in_sub_cu = parent_part_info->children[0]->num_part_in_cu;
-						cbf_split[Y_COMP] = (et->cbf_buffs[Y_COMP][curr_depth][abs_index]&2) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+num_part_in_sub_cu]&2) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+2*num_part_in_sub_cu]&2) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+3*num_part_in_sub_cu]&2);
+						int cbf_mask = 1<<curr_depth-1;
+						cbf_split[Y_COMP] = (et->cbf_buffs[Y_COMP][curr_depth][abs_index]&cbf_mask) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+num_part_in_sub_cu]&cbf_mask) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+2*num_part_in_sub_cu]&cbf_mask) || (et->cbf_buffs[Y_COMP][curr_depth][abs_index+3*num_part_in_sub_cu]&cbf_mask);
 						//consolidate cbf flags
 						for(ll=abs_index;ll<abs_index+num_part_in_cu;ll++)
 						{

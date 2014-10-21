@@ -716,7 +716,7 @@ struct ctu_info_t
 	int				x[3],y[3];//global coordinates in frame
 	int				size;
 	int				num_part_in_ctu;
-
+	int				last_valid_partition;
 	cu_partition_info_t	*partition_list;
 
 	uint8_t			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];

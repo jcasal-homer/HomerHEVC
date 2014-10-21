@@ -848,8 +848,8 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	ctu_info_t* ctu;
 	int dir;
 
-//	if(ed->debug_file!=NULL)
-//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
+	if(ed->debug_file!=NULL)
+		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
@@ -865,8 +865,8 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
-		if(dir==EDGE_VER)
-			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
+//		if(dir==EDGE_VER)
+//			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
 	}
 
 }
