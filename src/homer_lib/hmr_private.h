@@ -702,6 +702,7 @@ struct cu_partition_info_t
 	//inter prediction. Trying to avoid buffer consolidation
 	uint inter_distortion, inter_distortion_chroma;
 	uint inter_cost, inter_cost_chroma;
+	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
 	motion_vector_t	inter_mv[2];
 	motion_vector_t	best_dif_mv[2];
@@ -1230,7 +1231,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
-	FILE			*debug_file;
+//	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

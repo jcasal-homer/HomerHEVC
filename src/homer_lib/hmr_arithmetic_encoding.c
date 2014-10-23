@@ -1805,7 +1805,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
-	if(et->ed->num_encoded_frames == 9 && ctu->ctu_number==1)// && currslice->slice_type == P_SLICE)
+	if(/*et->ed->num_encoded_frames == 9 && */ctu->ctu_number==97)// && currslice->slice_type == P_SLICE)
 	{
 		int iiiiii=0;
 	}
