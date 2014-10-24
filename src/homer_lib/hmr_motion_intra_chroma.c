@@ -144,11 +144,12 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	int initial_state, end_state;
 	int luma_mode;
 	int qp_chroma, per, rem;// = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
-	
+	int chr_qp_offset = et->ed->chroma_qp_offset;
+
 	curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 
-	weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp,0,57)])/3.0 ); 
-	qp_chroma = chroma_scale_conversion_table[clip(curr_partition_info->qp,0,57)];
+	weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 ); 
+	qp_chroma = chroma_scale_conversion_table[clip(curr_partition_info->qp+chr_qp_offset,0,57)];
 	per = qp_chroma/6;
 	rem = qp_chroma%6;
 

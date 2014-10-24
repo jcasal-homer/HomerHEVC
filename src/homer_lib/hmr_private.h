@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-#define COMPUTE_AS_HM			1	//for debugging against HM
+//#define COMPUTE_AS_HM			1	//to debug against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -874,11 +874,14 @@ struct rate_control_t
 {
 	double	vbv_size;
 	double	average_pict_size;
-	double	vbv_fullness;
 	double  average_bits_per_ctu;
+	double	vbv_fullness;
 	double	target_pict_size;
-	double	consumed_bitrate;
-	int		consumed_ctus;
+	double	target_bits_per_ctu;
+	double  acc_rate;
+	double  acc_avg;
+//	double	consumed_bitrate;
+//	int		consumed_ctus;
 };
 
 
@@ -919,7 +922,7 @@ struct slice_t
 	sps_t		*sps;
 	pps_t		*pps;
 	
-	unsigned int qp;
+	int qp;
 	unsigned int poc;
 	unsigned int depth;
 	unsigned int sublayer;//TLayer
@@ -1187,7 +1190,7 @@ struct hvenc_t
 	double				vbv_size;
 	double				vbv_init;
 	int					qp_depth;//granularity of qp diff
-	int					pict_qp;//for fixed qp mode or initial qp in cbr or vbr
+	int					pict_qp, chroma_qp_offset;//for fixed qp mode or initial qp in cbr or vbr
 
 	//scan tables	 
 	//-------these are for abs_index partitions---------------------

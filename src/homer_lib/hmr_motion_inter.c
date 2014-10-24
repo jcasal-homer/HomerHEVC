@@ -122,8 +122,9 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	int curr_part_size = processing_partition_info->size_chroma;
 	int curr_part_size_shift = et->max_cu_size_shift-curr_depth-1;//420
 	int curr_scan_mode = find_scan_mode(TRUE, TRUE, curr_part_size, cu_mode, 0);
-	int qp_chroma = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
-	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp,0,57)])/3.0 );
+	int chr_qp_offset = et->ed->chroma_qp_offset;
+	int qp_chroma = chroma_scale_conversion_table[clip(curr_cu_info->qp+chr_qp_offset,0,57)];
+	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 );
 
 	int per = qp_chroma/6;
 	int rem = qp_chroma%6;
@@ -1395,6 +1396,8 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 
 int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
+	picture_t *currpict = &et->ed->current_pict;
+	slice_t *currslice = &currpict->slice;
 	double dist, cost, dist_aux, cost_aux, best_cost;//, cost_luma, cost_chroma;
 	int position = 0;
 	int curr_depth = 0;
@@ -1418,7 +1421,13 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
 
 		//rc
-		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info);
+		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
+		if(currslice->slice_type != I_SLICE)
+		{
+			int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
+			uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
+			curr_cu_info->variance = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);//for intra imgs this is done in analyse_intra_recursive_info
+		}
 
 		cost = 0;
 

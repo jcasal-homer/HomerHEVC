@@ -449,6 +449,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 //			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
+//			cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
 			{
@@ -470,6 +471,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->qp_depth = 0;//cfg->qp_depth;//if rc enabled qp_depth == 0
 
 			phvenc->pict_qp = cfg->qp;
+			phvenc->chroma_qp_offset = cfg->chroma_qp_offset;
 
 			phvenc->max_cu_size = cfg->cu_size;//MAX_CU_SIZE;
 			phvenc->max_cu_size_shift = 0;//MAX_CU_SIZE_SHIFT;
@@ -1061,15 +1063,18 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->pps.num_ref_idx_l0_default_active_minus1 = 0;
 			phvenc->pps.num_ref_idx_l1_default_active_minus1 = 0;
 			
+#ifdef COMPUTE_AS_HM
 			phvenc->pps.pic_init_qp_minus26 = 0;
-
+#else
+			phvenc->pps.pic_init_qp_minus26 = phvenc->pict_qp - 26;
+#endif
 			phvenc->pps.constrained_intra_pred_flag = 0;
 			phvenc->pps.transform_skip_enabled_flag = 0;
 			phvenc->pps.cu_qp_delta_enabled_flag = (phvenc->bitrate_mode==BR_FIXED_QP)?0:1;
 			phvenc->pps.diff_cu_qp_delta_depth = phvenc->qp_depth;
 
-			phvenc->pps.cb_qp_offset = 0;
-			phvenc->pps.cr_qp_offset = 0;
+			phvenc->pps.cb_qp_offset = phvenc->chroma_qp_offset ;
+			phvenc->pps.cr_qp_offset = phvenc->chroma_qp_offset ;
 
 			phvenc->pps.slice_chroma_qp_offsets_present_flag = 0;
 			phvenc->pps.weighted_pred_flag = 0;
@@ -1683,12 +1688,16 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 */		}
 		profiler_start(&frame_metrics);
 #endif
-
 		hmr_slice_init(ed, &ed->current_pict, &currpict->slice);
 		hmr_rd_init(ed, &currpict->slice);
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
+		{
+			if(currslice->poc==0)
+				hmr_rc_init_seq(ed);
+
 			hmr_rc_init_pic(ed, &currpict->slice);
+		}
 		//get free img for decoded blocks
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
 		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
@@ -1713,8 +1722,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->pps_nalu.temporal_id = ed->pps_nalu.rsvd_zero_bits = 0;
 			output_nalu_list[output_nalu_cnt++] = &ed->pps_nalu;
 			hmr_put_pic_header(ed);//pic header
-
-			hmr_rc_init_seq(ed);
 		}
 
 		apply_reference_picture_set(ed, currslice);
@@ -1731,7 +1738,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
-			hmr_rc_end_pic(ed);
+			hmr_rc_end_pic(ed, currslice);
 
 		if(ed->intra_period>1)
 			hmr_deblock_filter(ed, currslice);

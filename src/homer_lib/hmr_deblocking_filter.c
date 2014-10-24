@@ -630,7 +630,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 //				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
 //				qp = (ctu_aux->qp[aux_abs_idx] + sub_cu_info->qp)>>1;
 //				qp = (sub_cu_info->qp + curr_cu_info->qp)>>1+chr_qp_offset;
-				qp = (ctu_aux->qp[aux_abs_idx] + ctu->qp[curr_cu_info->abs_index]+1)>>1+chr_qp_offset;
+				qp = ((ctu_aux->qp[aux_abs_idx] + ctu->qp[curr_cu_info->abs_index]+1)>>1)+chr_qp_offset;
 
 				chr_qp = chroma_scale_conversion_table[clip(qp,0,57)];
 
@@ -848,6 +848,9 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 	ctu_info_t* ctu;
 	int dir;
 
+//	if(ed->debug_file!=NULL)
+//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug
+
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
@@ -864,9 +867,10 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
 //		if(dir==EDGE_VER)
-//			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
+//			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
 	}
+
 //	if(ed->debug_file!=NULL)
-//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//for debugging 		
+//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
 
 }

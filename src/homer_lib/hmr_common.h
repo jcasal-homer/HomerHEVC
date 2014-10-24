@@ -258,7 +258,7 @@ void hmr_rc_init(hvenc_t* ed);
 void hmr_rc_init_seq(hvenc_t* ed);
 void hmr_rc_gop(hvenc_t* ed);//, int np, int nb)
 void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice);
-void hmr_rc_end_pic(hvenc_t* ed);
-int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info);
+void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice);
+int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice);
 
 #endif //__HOMER_HEVC_COMMON_H__

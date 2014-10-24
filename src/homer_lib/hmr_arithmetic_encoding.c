@@ -1350,6 +1350,7 @@ int get_last_coded_qp(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t *c
 
 		if(qp_depth_partition->abs_index>0)//if ( getZorderIdxInCU() > 0 )
 		{
+			//!!!!!! THIS HAS TO BE CHANGED TO REDUCE THE GRAIN OF THE RATE CONTROL 　　　　
 			return ctu->qp[qp_depth_partition->parent->abs_index];//return getPic()->getCU( getAddr() )->getLastCodedQP( getZorderIdxInCU() );
 		}
 		 //( getPic()->getPicSym()->getInverseCUOrderMap(getAddr()) > 0
@@ -1618,7 +1619,8 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			}
 
 
-			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+//			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
+			if(ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == I_SLICE)// && curr_partition_info->abs_index == 92)
 			{
 				int iiiiii=0;
 			}

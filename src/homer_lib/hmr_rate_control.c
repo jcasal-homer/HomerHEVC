@@ -61,21 +61,30 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 {
 	int ithreads;
 
-	ed->rc.consumed_bitrate = 0;
-	ed->rc.consumed_ctus = 0;
-
 	switch(currslice->slice_type)
 	{
 	case  I_SLICE:
-		ed->rc.target_pict_size = ed->rc.average_pict_size*sqrt((double)ed->intra_period);
+#ifdef COMPUTE_AS_HM
+		currslice->qp = ed->pict_qp-(ed->num_encoded_frames%4);
+#else
+		currslice->qp = ed->pict_qp;
+#endif
+		ed->rc.target_pict_size = 2*ed->rc.average_pict_size*sqrt((double)ed->intra_period);
 		break;
 	case  P_SLICE:
+#ifdef COMPUTE_AS_HM
+		currslice->qp = ed->pict_qp-(ed->num_encoded_frames%4);
+#else
+		currslice->qp = ed->pict_qp;
+#endif
 		ed->rc.target_pict_size = ed->rc.average_pict_size;
 		break;	
 	case  B_SLICE:
 		ed->rc.target_pict_size = ed->rc.average_pict_size/2;
 		break;	
 	}
+
+	ed->rc.target_bits_per_ctu = ed->rc.average_pict_size/ed->pict_total_ctu;
 
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
@@ -89,20 +98,46 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 
 
 
-void hmr_rc_end_pic(hvenc_t* ed)
+void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 {
 	int ithreads;
+	double consumed_bitrate = 0.0;
+	int consumed_ctus = 0;
 
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = ed->thread[ithreads];
 		
-		ed->rc.consumed_bitrate += henc_th->num_bits;
-		ed->rc.consumed_ctus += henc_th->num_encoded_ctus;
+		consumed_bitrate += henc_th->num_bits;
+		consumed_ctus += henc_th->num_encoded_ctus;
 	}
 
 	ed->rc.vbv_fullness += ed->rc.average_pict_size;
-	ed->rc.vbv_fullness -= ed->rc.consumed_bitrate;
+
+//	if(consumed_bitrate>1.*ed->rc.average_pict_size)
+	if(currslice->slice_type == I_SLICE)
+	{
+//		ed->rc.vbv_fullness -= 1.*ed->rc.average_pict_size;
+		ed->rc.acc_rate += consumed_bitrate - 1.*ed->rc.average_pict_size;
+		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
+		consumed_bitrate = ed->rc.average_pict_size;
+	}
+	else if(consumed_bitrate>2.*ed->rc.average_pict_size)
+	{
+		ed->rc.acc_rate += consumed_bitrate - 2.*ed->rc.average_pict_size;
+		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
+		consumed_bitrate = 2*ed->rc.average_pict_size;
+	
+	}
+//	else
+	{
+		ed->rc.vbv_fullness -= consumed_bitrate;
+		ed->rc.vbv_fullness -= ed->rc.acc_avg;
+		ed->rc.acc_rate -= ed->rc.acc_avg;
+	}
+
+
+
 
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
@@ -118,31 +153,45 @@ void hmr_rc_end_pic(hvenc_t* ed)
 }
 
 
-int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread)
+int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, cu_partition_info_t *curr_cu_info, slice_t *currslice)
 {
 	hvenc_t* ed = curr_thread->ed;
-	int ithreads, qp;
-	double buff_corrector, entropy_corrector;
-
+	int ithreads;
+	double qp;
+	double entropy_corrector;
+	double pic_corrector = 0.0;
+	double vbv_corrector;
+	double consumed_bitrate = 0.0, entropy;
+	int consumed_ctus = 0.0;
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = ed->thread[ithreads];
 		
-		ed->rc.consumed_bitrate += henc_th->num_bits;
-		ed->rc.consumed_ctus += henc_th->num_encoded_ctus;
+		consumed_bitrate += henc_th->num_bits;
+		consumed_ctus += henc_th->num_encoded_ctus;
 	}
 	
-	buff_corrector = 1.0-clip((ed->rc.vbv_fullness+(ed->rc.average_bits_per_ctu*ed->rc.consumed_ctus)-ed->rc.consumed_bitrate)/ed->rc.vbv_size, 0.0, 1.0);
+	entropy = sqrt(curr_cu_info->variance+.5*curr_cu_info->variance_chroma)/25.0;
+	if(consumed_ctus>0)
+		pic_corrector = .0125*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
+	vbv_corrector = 1.0-clip((ed->rc.vbv_fullness)/ed->rc.vbv_size, 0.0, 1.0);
 
-	qp = buff_corrector*MAX_QP;
-	return qp;
+	qp = ((pic_corrector+vbv_corrector)/1.25)*MAX_QP+entropy-5;
+
+	if(currslice->slice_type == I_SLICE)
+	{
+		qp/=1.1;
+	}
+
+	return (int)clip(qp+.5,/*MIN_QP*/1.0,MAX_QP);
 }
 
 
-int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info)
+int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice)
 {
-	uint qp;
-	uint debug_qp = 28+ctu->ctu_number%4;
+	int qp;
+#ifdef COMPUTE_AS_HM
+	double debug_qp = 20+5*ctu->ctu_number%4;
 	if(et->ed->bitrate_mode == BR_FIXED_QP)
 	{
 		qp = et->ed->current_pict.slice.qp;
@@ -156,5 +205,23 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 		else
 			qp = curr_cu_info->parent->qp;
 	}
+#else
+	if(et->ed->bitrate_mode == BR_FIXED_QP)
+	{
+		qp = et->ed->current_pict.slice.qp;
+	}
+	else//cbr, vbr
+	{
+//		if(et->ed->qp_depth==0 )
+//			qp = hmr_rc_calc_cu_qp(et);
+		if(curr_cu_info->depth <= et->ed->qp_depth)
+		{
+			qp = hmr_rc_calc_cu_qp(et, curr_cu_info, currslice);
+		}
+		else
+			qp = curr_cu_info->parent->qp;
+	}
+#endif
+
 	return qp;
 }

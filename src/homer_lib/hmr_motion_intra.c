@@ -1764,6 +1764,7 @@ void analyse_intra_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
 	double cost, cost_luma, cost_chroma, best_cost;
+	slice_t *currslice = &et->ed->current_pict.slice;
 	int position = 0;
 	int curr_depth = 0;
 	PartSize part_size_type = SIZE_2Nx2N;
@@ -1814,7 +1815,7 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		cost_luma = cost_chroma = 0;
 
 		//rc
-		curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info);
+		curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info, currslice);
 
 		if(curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
