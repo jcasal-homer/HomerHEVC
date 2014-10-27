@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -733,7 +733,7 @@ struct ctu_info_t
 
 	//inter
 	motion_vector_t		*mv_ref[2];
-	uint8_t				*mv_ref_idx[2];
+	int8_t				*mv_ref_idx[2];
 	motion_vector_t		*mv_diff[2];
 	uint8_t				*mv_diff_ref_idx[2];
 
@@ -880,6 +880,7 @@ struct rate_control_t
 	double	target_bits_per_ctu;
 	double  acc_rate;
 	double  acc_avg;
+//	int		acc_qp;
 //	double	consumed_bitrate;
 //	int		consumed_ctus;
 };
@@ -1079,6 +1080,7 @@ struct henc_thread_t
 	uint				num_encoded_ctus;
 	uint				num_bits;
 	uint				target_pict_size;
+	int					acc_qp;
 	int					write_qp_flag;
 	int					curr_ref_qp;//for qp modification when cbf=0
 	int					found_zero_cbf;//for qp modification when cbf=0

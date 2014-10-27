@@ -1509,7 +1509,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 			//map spatial features and neighbours in recursive partition structure
 			create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
-			if(currslice->slice_type != I_SLICE)
+			if(currslice->slice_type != I_SLICE && (ctu->ctu_number & 0x1) == 0)
 			{
 				motion_inter(et, ctu, gcnt);
 			}
