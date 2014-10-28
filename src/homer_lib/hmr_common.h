@@ -196,6 +196,8 @@ void create_intra_recursive_stop_info(henc_thread_t* et, int gcnt);
 void predict(uint8_t * orig_auxptr, int orig_buff_stride, int16_t *pred_auxptr, int pred_buff_stride, int16_t *residual_auxptr, int residual_buff_stride, int curr_part_size);
 void reconst(int16_t *pred_auxptr, int pred_buff_stride, int16_t *residual_auxptr, int residual_buff_stride, int16_t *decoded_auxptr, int decoded_buff_stride, int curr_part_size);
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
+int encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type);
+int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
 
 //hmr_motion_inter.c
 int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt);

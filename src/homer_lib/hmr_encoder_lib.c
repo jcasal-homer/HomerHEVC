@@ -484,8 +484,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				printf("HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
 				goto config_error;
 			}
-			phvenc->max_inter_pred_depth = 0;
-			phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
+//			phvenc->max_inter_pred_depth = 0;
+//			phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
 
 			//depth of TU tree 
 			phvenc->max_intra_tr_depth = (cfg->max_intra_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_intra_tr_depth; 
@@ -815,7 +815,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->max_intra_tr_depth = phvenc->max_intra_tr_depth;
 				henc_th->max_inter_tr_depth = phvenc->max_inter_tr_depth;
 				henc_th->max_pred_partition_depth = phvenc->max_pred_partition_depth;//max depth for prediction
-				henc_th->max_inter_pred_depth = phvenc->max_inter_pred_depth;//max depth for prediction
+//				henc_th->max_inter_pred_depth = phvenc->max_inter_pred_depth;//max depth for prediction
 
 				henc_th->num_partitions_in_cu = phvenc->num_partitions_in_cu;
 				henc_th->num_partitions_in_cu_shift = phvenc->num_partitions_in_cu_shift;

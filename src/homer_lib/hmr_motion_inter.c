@@ -1541,7 +1541,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 //		cost_sum[curr_depth]+=curr_cu_info->cost;
 
-		if((curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
+		if((curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
 		{
 			curr_depth++;
 			parent_part_info = curr_cu_info;
@@ -1553,7 +1553,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
 			{
 				//int is_max_depth = (((curr_depth+1)==et->max_inter_pred_depth) && !((curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff)) && curr_cu_info->size>8));
-				int is_max_depth = (((curr_depth+1)==et->max_inter_pred_depth) && !(curr_cu_info->size>8));
+				int is_max_depth = (((curr_depth+1)==et->max_pred_partition_depth) && !(curr_cu_info->size>8));
 				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
 
 				depth_state[curr_depth] = 0;

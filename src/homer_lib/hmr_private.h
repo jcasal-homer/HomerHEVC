@@ -1008,7 +1008,7 @@ struct henc_thread_t
 	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth, max_inter_pred_depth;//max depth for prediction
+	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 
 	int				num_partitions_in_cu;
 	int				num_partitions_in_cu_shift;
@@ -1141,7 +1141,7 @@ struct hvenc_t
 	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth, max_inter_pred_depth;//max depth for prediction
+	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 	int				wfpp_enable;
 	uint			wfpp_num_threads;
 
