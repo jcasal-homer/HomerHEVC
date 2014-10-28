@@ -1056,7 +1056,7 @@ int encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 	quant_wnd = &et->transform_quant_wnd[curr_depth];
 	decoded_wnd = &et->decoded_mbs_wnd[curr_depth];
-	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
+//	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
 	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
@@ -1832,33 +1832,61 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			else
 #endif
 			{
-				if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 97 && part_size_type == SIZE_NxN)// && curr_depth==2  && abs_index == 64)
+				if(ctu->ctu_number == 1 && /*abs_index==0 && */curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 				{
 					int iiiiii=0;
 				}
 
-				//encode
-				PROFILER_RESET(intra_luma)
-				cost_luma = encode_intra_luma(et, ctu, gcnt, curr_depth, position, part_size_type);
-				PROFILER_ACCUMULATE(intra_luma)
-
-				cost_chroma = 0;
 				if(part_size_type == SIZE_2Nx2N)
 				{
 					int iiiiii;
+					//encode
+					PROFILER_RESET(intra_luma)
+					cost_luma = encode_intra_luma(et, ctu, gcnt, curr_depth, position, part_size_type);
+					PROFILER_ACCUMULATE(intra_luma)
+
+					cost_chroma = 0;
 					PROFILER_RESET(intra_chroma)
 					cost_chroma = encode_intra_chroma(et, ctu, gcnt, curr_depth, position, part_size_type);//encode_intra_chroma(et, gcnt, depth, position, part_size_type);	
 					PROFILER_ACCUMULATE(intra_chroma)
-					iiiiii=0;
+
+					curr_partition_info->cost = cost_luma + cost_chroma;
+					depth_state[curr_depth]++;
+				}
+				else if(part_size_type == SIZE_NxN)
+				{
+					int n;
+					PROFILER_RESET(intra_luma)
+					cost_luma = 0;
+					for(n=0;n<4;n++)
+					{
+						curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info, currslice);
+						curr_partition_info->cost = encode_intra_luma(et, ctu, gcnt, curr_depth, position+n, part_size_type);
+						cost_luma += curr_partition_info->cost;
+						cost_sum[curr_depth]+=curr_partition_info->cost;
+						curr_partition_info++;
+					}
+					curr_partition_info-=4;
+					PROFILER_ACCUMULATE(intra_luma)
+
+					if(cost_luma < parent_part_info->cost && (curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame))//esto se tiene que hacer aqui pq si sno se eligen cu_modes distintos para cada una de las 4 particiones
+					{
+						position = parent_part_info->children[0]->list_index - et->partition_depth_start[curr_depth];
+						PROFILER_RESET(intra_chroma)
+						cost_chroma = encode_intra_chroma(et, ctu, gcnt, curr_depth, position, part_size_type);//encode_intra_chroma(et, gcnt, depth, position, part_size_type);	
+						curr_partition_info->cost += cost_chroma; 
+						cost_sum[curr_depth]+=cost_chroma;
+						PROFILER_ACCUMULATE(intra_chroma)
+					}
+					depth_state[curr_depth]+=4;					
 				}
 			}
 		}
 
-		curr_partition_info->cost = cost_luma+cost_chroma;//+cost_bits*et->rd.sqrt_lambda;;
+//		curr_partition_info->cost = cost_luma+cost_chroma;//+cost_bits*et->rd.sqrt_lambda;;
 
-		depth_state[curr_depth]++;
 
-		cost_sum[curr_depth]+=curr_partition_info->cost;
+		
 
 #ifndef COMPUTE_AS_HM
 		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation buffer)
@@ -1919,20 +1947,20 @@ int motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			int max_processing_depth;
 			cost_chroma = 0;
 
-			if(cost_sum[curr_depth] < parent_part_info->cost &&  part_size_type == SIZE_NxN && (curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame))//esto se tiene que hacer aqui pq si sno se eligen cu_modes distintos para cada una de las 4 particiones
+/*			if(cost_sum[curr_depth] < parent_part_info->cost &&  part_size_type == SIZE_NxN && (curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame))//esto se tiene que hacer aqui pq si sno se eligen cu_modes distintos para cada una de las 4 particiones
 			{
 				position = parent_part_info->children[0]->list_index - et->partition_depth_start[curr_depth];
 				PROFILER_RESET(intra_chroma)
 				cost_chroma = encode_intra_chroma(et, ctu, gcnt, curr_depth, position, part_size_type);//encode_intra_chroma(et, gcnt, depth, position, part_size_type);	
 				PROFILER_ACCUMULATE(intra_chroma)
 			}
-			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
+*/			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
 			{
 				cost_luma = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
 
 				depth_state[curr_depth] = 0;
-				cost = cost_luma+cost_chroma;//cost_chroma=0 after the first iteration 
-				cost_sum[curr_depth]+=cost_chroma;
+				cost = cost_luma;//cost_chroma=0 after the first iteration 
+//				cost_sum[curr_depth]+=cost_chroma;
 				best_cost = parent_part_info->cost;
 
 				abs_index = parent_part_info->abs_index;
