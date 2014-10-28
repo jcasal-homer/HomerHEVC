@@ -225,7 +225,7 @@ int main (int argc, char **argv)
 #ifdef FILE_REF
 	strcpy(file_ref_name, FILE_REF);
 #endif
-//#define P_FRAME_DEVELOPMENT
+#define P_FRAME_DEVELOPMENT
 #ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
@@ -393,8 +393,8 @@ int main (int argc, char **argv)
 			break;
 	}
 
-	printf("\r\npulse una tecla\r\n");
-	getchar();
+//	printf("\r\npulse una tecla\r\n");
+//	getchar();
 
 	fclose(infile);
 	fclose(outfile);

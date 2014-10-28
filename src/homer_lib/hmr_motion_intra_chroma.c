@@ -442,7 +442,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 //			curr_partition_info->mode_chroma = cu_mode;
 
 			//synchronize buffers for next iterations esto en verdad no seria necesario, quedaria todo en depth=1
-			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, &et->transform_quant_wnd[depth], decoded_wnd, &et->decoded_mbs_wnd[depth], gcnt);
+			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, &et->transform_quant_wnd[depth+1], decoded_wnd, &et->decoded_mbs_wnd[depth+1], gcnt);
 			memcpy(&et->cbf_buffs[U_COMP][depth][curr_partition_info->abs_index], &cbf_buff[U_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 			memcpy(&et->cbf_buffs[V_COMP][depth][curr_partition_info->abs_index], &cbf_buff[V_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 		}
