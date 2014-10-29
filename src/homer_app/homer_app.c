@@ -95,8 +95,7 @@ void print_help()
 
 void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 {
-	int args_parsed = 0;
-	args_parsed = 1;
+	int args_parsed = 1;
 
 	if(argc==1)
 	{
