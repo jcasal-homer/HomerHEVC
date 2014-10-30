@@ -276,9 +276,9 @@ int main (int argc, char **argv)
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 20000;//in kbps
+	HmrCfg.bitrate = 15000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.0;//in kbps
-	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
+	HmrCfg.vbv_init = HmrCfg.bitrate*0.2;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 //	HmrCfg.qp_depth = 0;
 	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)

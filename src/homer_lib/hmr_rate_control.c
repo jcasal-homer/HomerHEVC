@@ -198,9 +198,9 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, cu_partition_info_t *curr_cu_i
 
 	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-2.);
 
-	if(currslice->slice_type == I_SLICE)
+	if(currslice->slice_type == I_SLICE && curr_thread->ed->intra_period>1)
 	{
-//		qp/=1.1;
+		qp/=1.1;
 	}
 
 	return (int)clip(qp+.5,/*MIN_QP*/1.0,MAX_QP);

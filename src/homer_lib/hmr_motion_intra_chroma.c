@@ -181,7 +181,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		parent_part_info = curr_partition_info->parent;
 	}
 
-	decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
+	decoded_wnd = &et->decoded_mbs_wnd[0];//[NUM_DECODED_WNDS-1];//[curr_depth];
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 	{	
 			distortion = cost = 0;
