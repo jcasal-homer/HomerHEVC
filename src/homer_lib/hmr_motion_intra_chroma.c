@@ -280,8 +280,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		depth_state[curr_depth] = part_position&0x3;
 
 		//get buffs
-		quant_wnd = &et->transform_quant_wnd[NUM_QUANT_WNDS-1];//depth =4 buffs are not used to consolidate
-		decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];
+		quant_wnd = &et->transform_quant_wnd[0];//depth =4 buffs are not used to consolidate
+		decoded_wnd = &et->decoded_mbs_wnd[0];
 		cbf_buff[U_COMP] = et->cbf_buffs_chroma[U_COMP];//temporal buffer
 		cbf_buff[V_COMP] = et->cbf_buffs_chroma[V_COMP];//temporal buffer
 

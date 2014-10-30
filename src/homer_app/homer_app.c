@@ -381,16 +381,18 @@ int main (int argc, char **argv)
 			}
 			if(encoded_frames==num_frames)
 			{
-				msTotal += get_ms()-msInit;
-				printf("\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
-
-				HOMER_enc_close(pEncoder);
 				bCoding = 0;
 			}
 		}
 
 		if(!bCoding)
+		{
+			msTotal += get_ms()-msInit;
+			printf("\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
+
+			HOMER_enc_close(pEncoder);
 			break;
+		}
 	}
 
 //	printf("\r\npulse una tecla\r\n");

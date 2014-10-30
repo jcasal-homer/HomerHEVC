@@ -1386,7 +1386,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 
 
 
-#define CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, depth, abs_idx, num_partitions)																	\
+#define CONSOLIDATE_INTER_ENC_INFO_BUFFS(et, ctu, depth, abs_idx, num_partitions)															\
 {																																			\
 	memcpy(&ctu->cbf[Y_COMP][abs_idx], &et->cbf_buffs[Y_COMP][depth][abs_idx], num_partitions*sizeof(et->cbf_buffs[0][0][0]));				\
 	memcpy(&ctu->cbf[U_COMP][abs_idx], &et->cbf_buffs[U_COMP][depth][abs_idx], num_partitions*sizeof(et->cbf_buffs[0][0][0]));				\
@@ -1430,7 +1430,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 
 			synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
 			synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], gcnt);
-			CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
+			CONSOLIDATE_INTER_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
 			for(nchild=0;nchild<4;nchild++)
 			{
 				cu_partition_info_t *cu_info = parent_part_info->children[nchild];
@@ -1452,7 +1452,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 		parent_part_info->cost = parent_cost;
 		synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
 		synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
-		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, parent_depth, abs_index, num_part_in_cu)
+		CONSOLIDATE_INTER_ENC_INFO_BUFFS(et, ctu, parent_depth, abs_index, num_part_in_cu)
 		SET_INTER_INFO_BUFFS(et, ctu, parent_part_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)
 
 		memset(&ctu->qp[abs_index], parent_part_info->qp, parent_part_info->num_part_in_cu*sizeof(ctu->qp[0]));
@@ -1463,7 +1463,7 @@ void consolidate_inter_prediction_info(henc_thread_t *et, ctu_info_t *ctu, cu_pa
 }
 
 
-int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
+int motion_inter_orig(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -1581,7 +1581,7 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	//if pred_depth==0 there is no NxN subdivision. we need to collect the information of the ctu
 	if(et->max_pred_partition_depth==0)
 	{
-		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
+		CONSOLIDATE_INTER_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
 		SET_INTER_INFO_BUFFS(et, ctu, curr_cu_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)	
 	}
 
@@ -1589,3 +1589,128 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	memset(&ctu->skipped[abs_index], 0, num_part_in_cu*sizeof(ctu->skipped[0]));//signal all partitions as non skipped
 	return best_cost;
 }
+
+
+
+int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
+{
+	picture_t *currpict = &et->ed->current_pict;
+	slice_t *currslice = &currpict->slice;
+	double dist, cost, dist_aux, cost_aux, best_cost;//, cost_luma, cost_chroma;
+	int position = 0;
+	int curr_depth = 0;
+	ctu_info_t *ctu_rd = et->ctu_rd;
+	cu_partition_info_t	*parent_part_info = NULL;
+	cu_partition_info_t	*curr_cu_info = ctu->partition_list;
+	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	uint cost_sum[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int abs_index;
+	int num_part_in_cu;
+	int ll;
+//	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
+
+	while(curr_depth!=0 || depth_state[curr_depth]!=1)
+	{
+		int stop_recursion = FALSE;
+		curr_depth = curr_cu_info->depth;
+		num_part_in_cu = curr_cu_info->num_part_in_cu;
+		abs_index = curr_cu_info->abs_index;
+//		part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
+		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
+
+		//rc
+		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
+		if(currslice->slice_type != I_SLICE)
+		{
+			int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
+			uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
+			curr_cu_info->variance = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);//for intra imgs this is done in analyse_intra_recursive_info
+		}
+
+		cost = 0;
+
+		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
+		{
+			int mv_cost;
+
+			//encode
+			mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			cost = dist;
+#ifndef COMPUTE_AS_HM
+			cost += mv_cost;
+#endif
+			curr_cu_info->cost = cost;//cost_luma+cost_chroma;//+cost_bits*et->rd.sqrt_lambda;;
+
+			if(curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
+			{
+				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+				dist_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+				cost_aux = dist_aux;
+#ifndef COMPUTE_AS_HM
+				cost_aux += mv_cost;
+#endif
+				consolidate_inter_prediction_info(et, ctu, curr_cu_info, cost, cost_aux, TRUE);
+			}
+		}
+#ifndef COMPUTE_AS_HM
+		if(dist<curr_cu_info->size*20*20 && (curr_depth+1)<et->max_inter_pred_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
+		{
+			consolidate_inter_prediction_info(et, ctu, curr_cu_info, curr_cu_info->cost, 2*curr_cu_info->cost, FALSE);	
+			stop_recursion = TRUE;
+		}
+
+#endif
+		depth_state[curr_depth]++;
+
+//		cost_sum[curr_depth]+=curr_cu_info->cost;
+
+		if((curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
+		{
+			curr_depth++;
+			parent_part_info = curr_cu_info;
+		}
+		else if(depth_state[curr_depth]==4)//la depth =1 lo hemos consolidado antes del bucle
+		{
+			int max_processing_depth;
+
+			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
+			{
+				//int is_max_depth = (((curr_depth+1)==et->max_inter_pred_depth) && !((curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff)) && curr_cu_info->size>8));
+				int is_max_depth = (((curr_depth+1)==et->max_pred_partition_depth) && !(curr_cu_info->size>8));
+				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
+
+				depth_state[curr_depth] = 0;
+				best_cost = parent_part_info->cost;
+
+//				if(curr_depth==3)
+//					cost = 2*best_cost;
+
+				consolidate_inter_prediction_info(et, ctu, parent_part_info, best_cost, cost, is_max_depth);
+
+				curr_depth--;
+				parent_part_info = parent_part_info->parent;
+			}
+		}
+
+		if(parent_part_info!=NULL)
+			curr_cu_info = parent_part_info->children[depth_state[curr_depth]];
+	}
+	
+	curr_cu_info = &ctu->partition_list[0];
+	abs_index = curr_cu_info->abs_index;
+	curr_depth = curr_cu_info->depth;
+	num_part_in_cu = curr_cu_info->num_part_in_cu;
+
+	//if pred_depth==0 there is no NxN subdivision. we need to collect the information of the ctu
+	if(et->max_pred_partition_depth==0)
+	{
+		CONSOLIDATE_INTER_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
+		SET_INTER_INFO_BUFFS(et, ctu, curr_cu_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)	
+	}
+
+	memset(&ctu->pred_mode[abs_index], INTER_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//signal all partitions as inter
+	memset(&ctu->skipped[abs_index], 0, num_part_in_cu*sizeof(ctu->skipped[0]));//signal all partitions as non skipped
+	return best_cost;
+}
+

@@ -223,12 +223,12 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 	if(!ctu->ctu_left && !ctu->ctu_top)
 		return;
 
-	for(l=0;l<NUM_DECODED_WNDS;l++)
+//	for(l=0;l<NUM_DECODED_WNDS;l++)
 	{
 		for(component=Y_COMP;component<=V_COMP;component++)
 		{
 			int i, j;
-			decoded_dst_wnd = &et->decoded_mbs_wnd[l];
+			decoded_dst_wnd = &et->decoded_mbs_wnd[0];
 			src_stride = WND_STRIDE_2D(*decoded_src_wnd, component);
 			dst_stride = WND_STRIDE_2D(*decoded_dst_wnd, component);
 			decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src_wnd, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);
