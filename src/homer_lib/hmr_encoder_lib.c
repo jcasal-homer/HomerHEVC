@@ -1740,7 +1740,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
 
-//		if(ed->intra_period>1)
+		if(ed->intra_period>1)
 			hmr_deblock_filter(ed, currslice);
 
 		//slice header
