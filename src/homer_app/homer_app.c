@@ -239,11 +239,11 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 2;
-	HmrCfg.max_intra_tr_depth = 2;
-	HmrCfg.max_inter_tr_depth = 2;
+	HmrCfg.max_pred_partition_depth = 4;
+	HmrCfg.max_intra_tr_depth = 4;
+	HmrCfg.max_inter_tr_depth = 4;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//0=fixed qp, 1=cbr (constant bit rate)

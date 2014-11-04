@@ -1110,7 +1110,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-		if(npart==0 && ctu->ctu_number==1 && curr_cu_info->abs_index==128)
+		if(et->ed->num_encoded_frames == 8 && npart==2 && ctu->ctu_number==1 && curr_cu_info->parent->abs_index==128)
 		{
 			int iiii=0;
 		}
@@ -1399,6 +1399,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 		ctu->mv_diff_ref_idx[ref_list][abs_idx] = cu_info->best_candidate_idx[ref_list];																	\
 		ctu->mv_diff[ref_list][abs_idx] = cu_info->best_dif_mv[ref_list];																					\
 		memset(&ctu->inter_mode[abs_idx], 1<<ref_list, num_partitions*sizeof(ctu->inter_mode[0]));															\
+		memset(&ctu->mv_ref_idx[ref_list][abs_index], cu_info->inter_ref_index[ref_list], num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));					\
 		for(i=0;i<num_partitions;i++)																														\
 		{																																					\
 			ctu->mv_ref[ref_list][abs_idx+i] = cu_info->inter_mv[ref_list];																					\
@@ -1406,7 +1407,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	}																																						\
 	else																																					\
 	{																																						\
-		memset(&ctu->mv_ref_idx[REF_PIC_LIST_0][abs_index], -1, num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));												\
+		memset(&ctu->mv_ref_idx[ref_list][abs_index], -1, num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));													\
 	}																																						\
 	memset(&ctu->pred_mode[abs_index], cu_info->prediction_mode, num_part_in_cu*sizeof(ctu->pred_mode[0]));													\
 }																																							
@@ -1421,7 +1422,11 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 	int gcnt = 0;
 
 	//choose best
+#ifdef COMPUTE_AS_HM
+	if((children_cost<parent_cost || (children_cost==parent_cost && is_max_depth && parent_part_info->prediction_mode == INTRA_MODE && parent_part_info->children[0]->prediction_mode == INTER_MODE)) || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
+#else
 	if(children_cost<parent_cost || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
+#endif
 	{
 		//here we consolidate the bottom-up results being preferred to the top-down computation
 		PartSize part_size_type2 = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
@@ -1485,7 +1490,7 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 		//top-down computation results are prefered
 		int part_size_type2 = (parent_part_info->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		int parent_depth = parent_part_info->depth;//curr_depth-1
-		parent_part_info->cost = parent_cost;
+//		parent_part_info->cost = parent_cost;
 
 		synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
 		synchronize_motion_buffers_chroma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1-1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1-1], &et->decoded_mbs_wnd[0], gcnt);
@@ -1715,10 +1720,12 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			curr_cu_info->variance = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);//for intra imgs this is done in analyse_intra_recursive_info
 		}
 
-		if(ctu->ctu_number == 2 && abs_index==128)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
+		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
+		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number==1 && curr_cu_info->abs_index==128)
 		{
 			int iiiiii=0;
 		}
+
 
 
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
@@ -1743,16 +1750,17 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				cost_aux = encode_intra_luma(et, ctu, gcnt, curr_depth, position, part_size_type);
 				cost_aux += encode_intra_chroma(et, ctu, gcnt, curr_depth, position, part_size_type);//encode_intra_chroma(et, gcnt, depth, position, part_size_type);	
 
-				if(cost < cost_aux)//we prefer inter, bring it back
-				{
-					get_back_consolidated_info(et, ctu, curr_cu_info, curr_depth);
-					curr_cu_info->cost = cost;
-					curr_cu_info->prediction_mode = INTER_MODE;
-				}
-				else
+				if(cost_aux < cost)
 				{
 					curr_cu_info->cost = cost_aux;
 					curr_cu_info->prediction_mode = INTRA_MODE;
+				}
+				else
+				{
+					//we prefer inter, bring it back
+					get_back_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+					curr_cu_info->cost = cost;
+					curr_cu_info->prediction_mode = INTER_MODE;
 				}
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
@@ -1806,16 +1814,17 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				depth_state[curr_depth]+=3;					
 
 				curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-				if(cost < cost_aux)//we prefer inter, bring inter info back
-				{
-					get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-					curr_cu_info->cost = cost;
-					curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
-				}
-				else
+				if(cost_aux < cost)
 				{
 					curr_cu_info->cost = cost_aux;
 					curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
+				}
+				else
+				{
+					//we prefer inter, bring inter info back
+					get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
+					curr_cu_info->cost = cost;
+					curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
 				}
 			}
 		}
@@ -1840,10 +1849,6 @@ int motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int max_processing_depth;
 
-			if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
-			{
-				int iiiiii=0;
-			}
 
 			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
 			{
