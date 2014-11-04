@@ -181,7 +181,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		parent_part_info = curr_partition_info->parent;
 	}
 
-	decoded_wnd = &et->decoded_mbs_wnd[0];//[NUM_DECODED_WNDS-1];//[curr_depth];
+	decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 	{	
 			distortion = cost = 0;
@@ -280,8 +280,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		depth_state[curr_depth] = part_position&0x3;
 
 		//get buffs
-		quant_wnd = &et->transform_quant_wnd[0];//depth =4 buffs are not used to consolidate
-		decoded_wnd = &et->decoded_mbs_wnd[0];
+		quant_wnd = &et->transform_quant_wnd[NUM_QUANT_WNDS-1];//depth =4 buffs are not used to consolidate
+		decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];
 		cbf_buff[U_COMP] = et->cbf_buffs_chroma[U_COMP];//temporal buffer
 		cbf_buff[V_COMP] = et->cbf_buffs_chroma[V_COMP];//temporal buffer
 
@@ -437,8 +437,8 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 #endif
 			best_mode_idx = cu_mode_idx;
 
-			curr_partition_info->distortion_chroma = best_distortion;
-			curr_partition_info->cost_chroma = cost;
+//			curr_partition_info->distortion_chroma = best_distortion;
+//			curr_partition_info->cost_chroma = cost;
 //			curr_partition_info->mode_chroma = cu_mode;
 
 			//synchronize buffers for next iterations esto en verdad no seria necesario, quedaria todo en depth=1
@@ -449,7 +449,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	}//for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 
 	memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], best_mode, curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
-	return curr_partition_info->cost_chroma;
+	return best_cost;//curr_partition_info->cost_chroma;
 }
 
 

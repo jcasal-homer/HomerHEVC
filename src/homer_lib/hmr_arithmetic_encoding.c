@@ -1820,7 +1820,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->ed->num_encoded_frames == 7 && ctu->ctu_number == 5)// && curr_partition_info->abs_index >= 88)
+		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 1 && curr_partition_info->abs_index >= 128)
 		{
 			int iiiii=0;
 		}

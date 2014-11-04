@@ -708,7 +708,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//inter
 				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0] = (int8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 
 				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));

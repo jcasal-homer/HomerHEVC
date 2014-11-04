@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -694,14 +694,15 @@ struct cu_partition_info_t
 //	uint16_t mode_chroma;
 	//intra
 	uint sum;
-	uint distortion_chroma, cost_chroma;
+//	uint distortion_chroma, cost_chroma;
 	uint distortion, cost;
 	uint variance, variance_chroma;
 	uint recursive_split;
 
 	//inter prediction. Trying to avoid buffer consolidation
-	uint inter_distortion, inter_distortion_chroma;
-	uint inter_cost, inter_cost_chroma;
+//	uint inter_distortion, inter_distortion_chroma;
+//	uint inter_cost, inter_cost_chroma;
+	int prediction_mode;
 	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
 	motion_vector_t	inter_mv[2];
