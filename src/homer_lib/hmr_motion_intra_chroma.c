@@ -107,7 +107,7 @@ void create_chroma_dir_list(int* list, int luma_mode)
 
 extern const uint8_t chroma_scale_conversion_table[];
 
-int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
+uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
 	int cu_mode, cu_mode_idx;
 	uint distortion = 0, best_distortion=0, bit_cost, cost, best_cost = INT_MAX, best_mode, best_mode_idx;
