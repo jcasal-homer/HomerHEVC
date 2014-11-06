@@ -1163,6 +1163,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, TRUE);//create filtered and non filtered adi buf
 
 	ctu_rd->intra_mode[Y_COMP] = et->intra_mode_buffs[Y_COMP][curr_depth];//for rd
+//	ctu_rd->pred_mode
 	num_preds = get_intra_dir_luma_predictor(ctu_rd, curr_partition_info, preds, NULL);  
 
 	new_best_cu_mode = best_cu_mode = 0;
@@ -1315,7 +1316,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	cu_partition_info_t*	parent_part_info;
 	cu_partition_info_t*	curr_partition_info;
 	int curr_sum = 0, best_sum;
-	int num_part_in_cu;
+//	int num_part_in_cu;
 	int partition_cost;
 	int cu_min_tu_size_shift;
 	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
@@ -1353,6 +1354,11 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	{
 		memset(&ctu_rd->part_size_type[curr_partition_info->abs_index], part_size_type, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
 		memset(&ctu_rd->pred_depth[curr_partition_info->abs_index], depth-(part_size_type==SIZE_NxN), curr_partition_info->num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));//(width*width)>>4 num parts of 4x4 in partition
+	}
+
+	if(ctu->ctu_number==1 && part_size_type == SIZE_NxN && curr_partition_info->abs_index>=128)
+	{
+		int iiiii=0;
 	}
 
 	PROFILER_RESET(intra_luma_bucle1)
@@ -1404,6 +1410,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 
 		while(depth_state[curr_depth]!=end_state)
 		{
+			int num_part_in_cu;
 			curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];//if cu_size=64 we process 4 32x32 partitions, else just the curr_partition
 			curr_partition_info->qp = qp;
 			curr_depth = curr_partition_info->depth;
@@ -1678,7 +1685,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 			cbf_split_y = cbf_split_y>>1;
 			cbf_split_y = cbf_split_y | (cbf_split_y<<8) | (cbf_split_y<<16) | (cbf_split_y<<24);
 			//consolidate cbf flags
-			for(ll=abs_index;ll<abs_index+num_part_in_cu;ll+=4)
+			for(ll=abs_index;ll<abs_index+4*num_part_in_sub_cu;ll+=4)
 			{
 				(*(uint32_t*)&et->cbf_buffs[Y_COMP][curr_depth][ll]) |= cbf_split_y;
 			}
@@ -1930,7 +1937,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	int ll;
 
 	//init rd auxiliar ctu
-	if(et->rd_mode==1)
+	if(et->rd_mode != RD_DIST_ONLY)
 	{
 		copy_ctu(ctu, ctu_rd);
 		memset(ctu_rd->pred_mode, INTRA_MODE, curr_partition_info->num_part_in_cu*sizeof(ctu_rd->pred_mode[0]));//indicamos que todas las codificaciones son intra
@@ -1941,6 +1948,8 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	if(et->performance_mode != 0)
 		analyse_intra_recursive_info(et, ctu, gcnt);
 #endif
+
+
 
 	memset(cbf_split, 0, sizeof(cbf_split));
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
@@ -1953,13 +1962,6 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		position = curr_partition_info->list_index - et->partition_depth_start[curr_depth];
 
 		cost_luma = cost_chroma = 0;
-
-		if(part_size_type==SIZE_NxN)
-		{
-			int iiiii=0;
-		}
-
-
 		//rc
 		curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info, currslice);
 
@@ -1974,15 +1976,17 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			{
 				cost_luma = UINT_MAX;
 				cost_chroma = 0;//UINT_MAX;
+				curr_partition_info->cost = cost_luma;
+				depth_state[curr_depth]++;
 			}
 			else
 #endif
-		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 3 && curr_partition_info->abs_index==128)//part_size_type==SIZE_NxN
-		{
-			int iiiii=0;
-		}
-
 			{
+				if(ctu->ctu_number==1)// && curr_partition_info->abs_index>=128)//part_size_type == SIZE_NxN && 
+				{
+					int iiiii=0;
+				}
+
 				if(part_size_type == SIZE_2Nx2N)
 				{
 					int iiiiii;
@@ -2004,6 +2008,12 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					int n;
 					PROFILER_RESET(intra_luma)
 					cost_luma = 0;
+
+					if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 4 && curr_partition_info->abs_index==0)//part_size_type==SIZE_NxN
+					{
+						int iiiii=0;
+					}
+
 					for(n=0;n<4;n++)
 					{
 						curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info, currslice);
@@ -2045,7 +2055,9 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int max_processing_depth;// = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
-			//if we fill this in here we don't have to consolidate
+			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, UINT_MAX, FALSE, cost_sum);
+
+/*			//if we fill this in here we don't have to consolidate
 			memset(&ctu->qp[abs_index], curr_partition_info->qp, curr_partition_info->num_part_in_cu*sizeof(ctu->qp[0]));
 			memset(&ctu->pred_depth[abs_index], curr_depth-(part_size_type==SIZE_NxN), num_part_in_cu*sizeof(ctu->pred_depth[0]));
 			memset(&ctu->part_size_type[abs_index], part_size_type, num_part_in_cu*sizeof(ctu->part_size_type[0]));
@@ -2055,25 +2067,32 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				memset(&ctu_rd->part_size_type[abs_index], part_size_type, num_part_in_cu*sizeof(ctu_rd->part_size_type[0]));
 			}
 			cost_chroma = 0;//only!=0 if part_size_type == SIZE_NxN
-			fast_skip = 1;
+*/			fast_skip = 1;
 
 			max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
-			if(curr_depth+1 <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
+
+			if(curr_depth <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
 			{
 				int aux_depth;
 				cu_partition_info_t*	aux_partition_info = (parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth]+3)&0x3]:&ctu->partition_list[0];
 				abs_index = aux_partition_info->abs_index;
 				num_part_in_cu  = aux_partition_info->num_part_in_cu;
 
-				for(aux_depth=curr_depth+1;aux_depth<=max_processing_depth;aux_depth++)//+1 pq el nivel superior esta ya sincronizado y tenemos que sincronizar los siguientes
+				for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
 				{
-					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[curr_depth], &et->decoded_mbs_wnd[aux_depth], gcnt);	
-					synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[curr_depth], &et->decoded_mbs_wnd[aux_depth], gcnt);
+					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
+//					synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);
 					//for rd
-					consolidate_recursive_info_buffers(et, gcnt, parent_part_info, curr_depth, aux_depth, abs_index, num_part_in_cu);
+					if(et->rd_mode!=RD_DIST_ONLY)
+						CONSOLIDATE_INTRA_ENC_INFO_BUFFS(et, ctu, aux_depth, abs_index, num_part_in_cu);
+//						consolidate_recursive_info_buffers(et, gcnt, parent_part_info, curr_depth, aux_depth, abs_index, num_part_in_cu);
+
+						
 				}
-				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[curr_depth], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
+				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 			}
+
+
 		}
 #endif 
 		if(!fast_skip && curr_depth<et->max_pred_partition_depth && curr_partition_info->is_tl_inside_frame)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths

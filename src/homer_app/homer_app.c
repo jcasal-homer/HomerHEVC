@@ -272,14 +272,14 @@ int main (int argc, char **argv)
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_CBR;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.rd_mode = 2;//RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
+	HmrCfg.bitrate_mode = BR_FIXED_QP;//BR_CBR;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 15000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.0;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.2;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
+	HmrCfg.chroma_qp_offset = 0;//2
 //	HmrCfg.qp_depth = 0;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.performance_mode = 2;//PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 #endif // DEBUG
 
 	parse_args(argc, argv, &HmrCfg, &num_frames);

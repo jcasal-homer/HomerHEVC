@@ -220,7 +220,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 				cost += distortion;
 			}
 
-			if(et->rd_mode==1)			//info for rd
+			if(et->rd_mode==RD_FULL)			//info for rd
 			{
 				int bit_cost;
 				ctu_rd->intra_mode[CHR_COMP] = et->intra_mode_buffs[CHR_COMP][depth];

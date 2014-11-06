@@ -1550,7 +1550,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		tr_depth = curr_depth-pred_depth;//trafoDepth
 		is_first_part_of_cu = (tr_depth==0);
 		tr_idx = ctu->tr_idx[abs_index];
-		is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;
+		is_intra = (ctu->pred_mode[abs_index] == INTRA_MODE);
 		part_size_type = ctu->part_size_type[abs_index];
 		split_flag = ((tr_idx + pred_depth) > curr_depth );
 		log2_tr_size = et->max_cu_size_shift-(curr_depth);
