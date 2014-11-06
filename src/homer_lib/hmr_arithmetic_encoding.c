@@ -1836,7 +1836,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 				int iiiiii=0;
 			}
 
-		//try to implement qp modification in here - setQPSubCUs in HM
+		//implement qp modification in this loop - setQPSubCUs in HM
 		if(curr_partition_info->depth==et->ed->pps.diff_cu_qp_delta_depth && et->ed->pps.cu_qp_delta_enabled_flag)
 		{
 			et->curr_ref_qp = get_ref_qp(et, ctu, curr_partition_info);

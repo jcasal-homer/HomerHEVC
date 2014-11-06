@@ -407,7 +407,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 
 		cost = distortion;
 
-		if(et->rd_mode == 1 && cost<best_cost)
+		if(et->rd_mode == RD_FULL && cost<best_cost)
 		{
 			//rd
 			ctu_rd->cbf[U_COMP] = cbf_buff[U_COMP];

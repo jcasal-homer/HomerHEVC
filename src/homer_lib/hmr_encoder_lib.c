@@ -446,10 +446,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
 
 #ifdef COMPUTE_AS_HM
-			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
-//			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+//			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
+			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
-//			cfg->chroma_qp_offset = 0;
+			cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
 			{
@@ -1534,10 +1534,11 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			PROFILER_RESET(cabac)
 			ctu->coeff_wnd = &et->transform_quant_wnd[0];
 
-			if(et->cu_current+1 == et->pict_total_ctu)//if(et->ed->num_encoded_frames == 1)
+			if(et->ed->num_encoded_frames == 5)//if(ctu->ctu_number==2)//et->cu_current+1 == et->pict_total_ctu)//
 			{
 				int iiiii=0;
 			}
+
 			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 			PROFILER_ACCUMULATE(cabac)
 
@@ -1747,6 +1748,12 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
 		output_nalu_list[output_nalu_cnt++] = ed->slice_nalu;
+
+		if(ed->num_encoded_frames == 5)
+		{
+			int iiiii = 0;
+		}
+
 		hmr_put_slice_header(ed, currslice);//slice header
 		if(ed->wfpp_enable)
 			hmr_slice_header_code_wfpp_entry_points(ed);
