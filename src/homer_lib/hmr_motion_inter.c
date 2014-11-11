@@ -1836,12 +1836,12 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 					cost = dist;
 					cost+=5*curr_depth;
-	#ifndef COMPUTE_AS_HM
+#ifndef COMPUTE_AS_HM
 					cost += mv_cost;
-	#endif
+#endif
 					//consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, UINT_MAX, FALSE, NULL);
 					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
-					cost = UINT_MAX;
+//					cost = UINT_MAX;
 					//encode intra
 					if(et->ed->num_encoded_frames == 2 && ctu->ctu_number == 0 && curr_cu_info->abs_index>=0 && curr_cu_info->recursive_split==0) // && curr_cu_info->abs_index>=192)//ctu->ctu_number==1)// && curr_partition_info->abs_index>=128)//part_size_type == SIZE_NxN && 
 					{
@@ -1852,7 +1852,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 //					if(curr_cu_info->recursive_split==0)
 //						cost_aux = 0;
-					if(cost_aux < cost)
+					if(1.25*cost_aux < cost)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = cost_aux;
 						curr_cu_info->prediction_mode = INTRA_MODE;
@@ -1885,7 +1885,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 					else
 						cost = UINT_MAX;
-					cost = UINT_MAX;
+//					cost = UINT_MAX;
 
 					//intra
 					cost_aux = 0;
@@ -1900,7 +1900,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					depth_state[curr_depth]+=3;					
 
 					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-					if(cost_aux < cost)
+					if(1.25*cost_aux < cost)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = cost_aux;
 						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
