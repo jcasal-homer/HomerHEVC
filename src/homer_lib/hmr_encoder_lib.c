@@ -446,10 +446,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
 
 #ifdef COMPUTE_AS_HM
-//			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
-			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
-			cfg->chroma_qp_offset = 0;
+			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
+//			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+//			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
+//			cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
 			{
@@ -737,7 +737,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(cpu_info[2] & 0x100000)//if(0)//
+			if(0)//if(cpu_info[2] & 0x100000)//
 			{
 				printf("SSE42 avaliable!!");
 

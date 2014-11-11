@@ -182,7 +182,7 @@ void quant(henc_thread_t* et, short * __restrict src, short * __restrict dst, in
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int qbits = QUANT_SHIFT + per + transform_shift;                
 	int qbits8 = qbits-8;
-	int add = (currslice->slice_type==I_SLICE ? 171 : 85) << (qbits-9);
+	int add = 171<<(qbits-9);//(currslice->slice_type==I_SLICE ? 171 : 85) << (qbits-9);//
 	short *deltaU = et->aux_buff;
 	int n;
 
