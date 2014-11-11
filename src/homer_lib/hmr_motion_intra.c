@@ -1675,7 +1675,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	}
 
 	parent_part_info = curr_partition_info->parent;
-	if(part_size_type == SIZE_NxN && (part_position & ~0x4)==3)
+	if(part_size_type == SIZE_NxN && (part_position & 0x3)==3)
 	{
 		int ll;
 		int num_part_in_sub_cu = parent_part_info->children[0]->num_part_in_cu;
@@ -1933,6 +1933,7 @@ uint encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, 
 		cost_chroma = encode_intra_chroma(et, ctu, gcnt, curr_depth, position, part_size_type);//encode_intra_chroma(et, gcnt, depth, position, part_size_type);	
 		cost += cost_chroma;
 	}
+	return cost;
 }
 
 

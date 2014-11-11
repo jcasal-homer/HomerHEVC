@@ -448,8 +448,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifdef COMPUTE_AS_HM
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 //			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-//			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
-//			cfg->chroma_qp_offset = 0;
+			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
+			cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
 			{

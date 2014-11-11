@@ -1831,6 +1831,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				if(part_size_type == SIZE_2Nx2N)
 				//if((curr_depth+1)<et->max_pred_partition_depth)
 				{
+					if(et->ed->num_encoded_frames == 9 && ctu->ctu_number == 7 && curr_cu_info->abs_index>=60 && curr_cu_info->recursive_split==0) // && curr_cu_info->abs_index>=192)//ctu->ctu_number==1)// && curr_partition_info->abs_index>=128)//part_size_type == SIZE_NxN && 
+					{
+						int iiiii=0;
+					}
+
 					//encode inter
 					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 					dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
@@ -1843,16 +1848,14 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 //					cost = UINT_MAX;
 					//encode intra
-					if(et->ed->num_encoded_frames == 2 && ctu->ctu_number == 0 && curr_cu_info->abs_index>=0 && curr_cu_info->recursive_split==0) // && curr_cu_info->abs_index>=192)//ctu->ctu_number==1)// && curr_partition_info->abs_index>=128)//part_size_type == SIZE_NxN && 
-					{
-						int iiiii=0;
-					}
 					cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-					cost_aux+=20*curr_depth;
+					cost_aux+=5*curr_depth;
+
+//					printf("cost=%f, cost_aux=%f\r\n", cost, cost_aux);
 
 //					if(curr_cu_info->recursive_split==0)
 //						cost_aux = 0;
-					if(1.25*cost_aux < cost)
+					if(1.5*cost_aux < cost)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = cost_aux;
 						curr_cu_info->prediction_mode = INTRA_MODE;
@@ -1883,6 +1886,18 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						put_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
 						curr_cu_info->parent->cost = aux_cost;//este valor se sobreescribe en encode_inter. Deberia intentar hacer que el intra funcionase igual, con 1 sola llamada que hiciese las 4 particiones NxN. Asi se consolidaria el cbf totalmente
 					}
+					else if(curr_cu_info->parent->size>=8)
+					{
+						int position_aux = curr_cu_info->parent->list_index - et->partition_depth_start[curr_cu_info->parent->depth];					
+						mv_cost = predict_inter(et, ctu, gcnt, curr_cu_info->parent->depth, position_aux, SIZE_2Nx2N);
+						dist = encode_inter(et, ctu, gcnt, curr_cu_info->parent->depth, position_aux, SIZE_2Nx2N);
+						cost = dist;
+						cost+=5*curr_depth;
+#ifndef COMPUTE_AS_HM
+						cost += mv_cost;
+#endif
+						put_consolidated_info(et, ctu, curr_cu_info->parent, curr_cu_info->parent->depth);					
+					}
 					else
 						cost = UINT_MAX;
 //					cost = UINT_MAX;
@@ -1894,22 +1909,39 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						int iiiii=0;
 					}
 					cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-					cost_aux+=20*curr_depth;
+					cost_aux+=5*curr_depth;
 //					if(curr_cu_info->recursive_split==0)
 //						cost_aux = 0;
 					depth_state[curr_depth]+=3;					
 
 					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-					if(1.25*cost_aux < cost)
+					if(1.5*cost_aux < cost)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = cost_aux;
 						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
 					}
 					else
 					{	//we prefer inter, bring inter info back
-						get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-						curr_cu_info->cost = cost;
-						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
+						if(curr_cu_info->parent->size>=8)
+						{
+							depth_state[curr_depth] = 0;
+							curr_cu_info = curr_cu_info->parent;
+							parent_part_info = curr_cu_info->parent;
+							curr_depth = curr_cu_info->depth;
+							depth_state[curr_depth]--;
+
+							get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
+							curr_cu_info->cost = cost;
+							curr_cu_info->prediction_mode = INTER_MODE;						
+							curr_cu_info->recursive_split = 0;
+							part_size_type = SIZE_2Nx2N;
+						}
+						else
+						{
+							get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
+							curr_cu_info->cost = cost;
+							curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
+						}
 					}
 				}
 			}
