@@ -34,8 +34,8 @@
 #include <sys/time.h>
 #endif
 
-#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
-//#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+//#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
@@ -43,9 +43,9 @@
 #define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
 
-#define HOR_SIZE	1280//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			50//25//50
+#define HOR_SIZE	720//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	576//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define FPS			25//25//50
 
 
 #ifdef _MSC_VER
@@ -207,8 +207,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//800;//200;
-	int num_frames = 40;
+	int skipped_frames = 80;//800;//200;
+	int num_frames = 100;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -243,11 +243,11 @@ int main (int argc, char **argv)
 	HmrCfg.max_intra_tr_depth = 4;
 	HmrCfg.max_inter_tr_depth = 4;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 1;
+	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.rd_mode = RD_DIST_ONLY;//RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
+	HmrCfg.rd_mode = RD_FAST;//RD_DIST_ONLY;//RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 15000;//in kbps
+	HmrCfg.bitrate = 4000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.2;//in kbps
 	HmrCfg.chroma_qp_offset = 2;

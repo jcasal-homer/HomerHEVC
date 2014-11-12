@@ -147,13 +147,13 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
-		printf("HomerHEVC - vbv_overflow: bitrate consumed is lower than expected\r\n");
+		printf("HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
 		ed->rc.vbv_fullness>ed->rc.vbv_size;
 	}
 
 	if(ed->rc.vbv_fullness<0)
 	{
-		printf("HomerHEVC - vbv_underflow: bitrate consumed is higher than expected\r\n");
+		printf("HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
 		ed->rc.vbv_fullness>ed->rc.vbv_size;
 	}
 }

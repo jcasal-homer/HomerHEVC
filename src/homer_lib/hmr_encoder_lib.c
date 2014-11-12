@@ -737,7 +737,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(0)//if(cpu_info[2] & 0x100000)//
+			if(cpu_info[2] & 0x100000)//if(0)//
 			{
 				printf("SSE42 avaliable!!");
 
@@ -1500,6 +1500,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			//Prepare Memory
 			mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
 			mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
+
 
 			copy_ctu(ctu, et->ctu_rd);
 

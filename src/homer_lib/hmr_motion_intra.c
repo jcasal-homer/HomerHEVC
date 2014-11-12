@@ -931,6 +931,28 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 }
 
 
+void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	{
+		int src_buff_stride = wnd_src->window_size_x[Y_COMP];
+		int dst_buff_stride = wnd_dst->window_size_x[Y_COMP];
+		int16_t * buff_src = WND_POSITION_1D(int16_t  *, *wnd_src, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd_dst, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+
+		for(j=0;j<curr_part->size;j++)
+		{
+			memcpy(buff_dst, buff_src, curr_part->size*sizeof(buff_src[0]));
+			buff_src += src_buff_stride;
+			buff_dst += dst_buff_stride;
+		}
+	}
+}
+
 
 //this function is used to consolidate buffers from bottom to top
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
@@ -1290,6 +1312,67 @@ void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_r
 		hm_update_cand_list( cu_mode, cost, 3, best_pred_modes, best_pred_cost);
 	}//end for(cu_mode=0;cu_mode<NUM_LUMA_MODES;cu_mode++)
 }
+
+
+int predict_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int position, PartSize part_size_type)
+{
+	ctu_info_t *ctu_rd = et->ctu_rd;
+	int pred_buff_stride, orig_buff_stride, decoded_buff_stride;
+	uint8_t *orig_buff;
+	int16_t *pred_buff, *decoded_buff;
+	int best_pred_modes[3];
+	double best_pred_cost[3]= {DOUBLE_MAX,DOUBLE_MAX,DOUBLE_MAX};
+	wnd_t *decoded_wnd = NULL;//, *resi_wnd = NULL;
+
+	int curr_part_size, curr_part_size_shift;
+	int curr_adi_size;
+	int curr_part_x, curr_part_y;
+	int curr_depth = depth;
+	cu_partition_info_t*	parent_part_info;
+	cu_partition_info_t*	curr_partition_info;
+	int curr_sum = 0, best_sum;
+//	int num_part_in_cu;
+	int partition_cost;
+	int cu_min_tu_size_shift;
+	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int max_tr_depth, max_tr_processing_depth;
+	int initial_state, end_state;
+//	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int bitcost_cu_mode;
+	int log2cu_size;
+	int qp;
+
+	curr_partition_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+position;
+
+	qp = curr_partition_info->qp;
+
+	parent_part_info = curr_partition_info->parent;
+
+	curr_depth = curr_partition_info->depth;
+	curr_part_x = curr_partition_info->x_position;
+	curr_part_y = curr_partition_info->y_position;
+	curr_part_size = curr_partition_info->size;
+	curr_part_size_shift = et->max_cu_size_shift-curr_depth;
+	curr_adi_size = 2*2*curr_part_size+1;
+
+	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
+	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+
+	decoded_wnd = &et->decoded_mbs_wnd[0];	
+	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
+	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+
+#ifdef COMPUTE_AS_HM
+	hm_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
+#else
+	bitcost_cu_mode = homer_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
+#endif
+	return best_pred_cost[0];
+}
+
 
 
 //results are consolidated in the initial depth with which the function is called

@@ -505,7 +505,12 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	if (curr_best_y>yhigh)
 		curr_best_y=yhigh;
 
+#ifdef COMPUTE_AS_HM
 	curr_best_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
+#else
+	curr_best_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_best_y*reference_buff_stride+curr_best_x, reference_buff_stride, curr_cu_info->size);
+#endif
+
 	mv->hor_vector = curr_best_x<<2;
 	mv->ver_vector = curr_best_y<<2;
 	mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -530,7 +535,11 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 		}
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
+#ifdef COMPUTE_AS_HM
 			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#else
+			curr_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#endif
 			mv->hor_vector = curr_x<<2;
 			mv->ver_vector = curr_y<<2;
 			mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -558,7 +567,12 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
+#ifdef COMPUTE_AS_HM
 			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#else
+			curr_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#endif
+
 			mv->hor_vector = curr_x<<2;
 			mv->ver_vector = curr_y<<2;
 			mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -593,7 +607,11 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 				if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 				{
+#ifdef COMPUTE_AS_HM
 					curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#else
+					curr_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#endif
 					mv->hor_vector = curr_x<<2;
 					mv->ver_vector = curr_y<<2;
 					mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -633,7 +651,11 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
+#ifdef COMPUTE_AS_HM
 			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#else
+			curr_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#endif
 			mv->hor_vector = curr_x<<2;
 			mv->ver_vector = curr_y<<2;
 			mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -661,7 +683,12 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
+#ifdef COMPUTE_AS_HM
 			curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#else
+			curr_sad = et->funcs->ssd(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+#endif
+
 			mv->hor_vector = curr_x<<2;
 			mv->ver_vector = curr_y<<2;
 			mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -1010,6 +1037,140 @@ int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 	{																																						\
 		ctu->mv_ref[REF_PIC_LIST_0][abs_idx+i] = cu_info->inter_mv[REF_PIC_LIST_0];																			\
 	}																																						\
+}
+
+int predict_inter_analyze(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type)
+{
+	int k;
+	int cu_mode;
+	double distortion = 0.;
+
+	uint32_t sad, cost, best_cost;
+	slice_t *currslice = &et->ed->current_pict.slice;
+	ctu_info_t *ctu_rd = et->ctu_rd;
+	int pred_buff_stride, orig_buff_stride, reference_buff_stride, residual_buff_stride;
+	int pred_buff_stride_chroma, orig_buff_stride_chroma, reference_buff_stride_chroma, residual_buff_stride_chroma;
+	uint8_t  *orig_buff, *orig_buff_u, *orig_buff_v;
+	int16_t  *reference_buff_cu_position, *reference_buff_cu_position_u, *reference_buff_cu_position_v;
+	int16_t *pred_buff, *pred_buff_u, *pred_buff_v, *residual_buff, *residual_buff_u, *residual_buff_v;
+	wnd_t *reference_wnd=NULL;//, *resi_wnd = NULL;
+//	uint8_t *cbf_buff = NULL;
+	int curr_part_size, curr_part_size_shift;
+	int curr_part_size_chroma, curr_part_size_shift_chroma;
+	int curr_part_x, curr_part_y, curr_part_global_x, curr_part_global_y;
+	int curr_part_x_chroma, curr_part_y_chroma, curr_part_global_x_chroma, curr_part_global_y_chroma;
+	int curr_depth = depth;
+	cu_partition_info_t *parent_part_info;
+	cu_partition_info_t *curr_cu_info;
+	int curr_sum = 0, best_sum;
+	int num_part_in_cu;
+	int partition_cost;
+	int cu_min_tu_size_shift;
+	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int max_tr_depth, max_tr_processing_depth;
+	int initial_state, end_state;
+//	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+//	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int bitcost_cu_mode;
+	int log2cu_size;
+	int cu_x_position;
+	motion_vector_t mv;
+	int ref_idx = 0;
+	int num_partitions, npart, part_incr = 1;
+	int mv_cost = 0;
+
+	curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
+
+	if(part_size_type == SIZE_2Nx2N)
+	{
+		parent_part_info = curr_cu_info->parent;	
+		num_partitions = 1;
+	}
+	else if(part_size_type == SIZE_NxN)
+	{
+		parent_part_info = curr_cu_info->parent;
+		curr_cu_info = parent_part_info->children[0];
+		num_partitions = 4;
+		part_incr = 1;
+	}
+
+
+	for(npart=0;npart<num_partitions;npart+=part_incr)
+	{
+		curr_depth = curr_cu_info->depth;
+		curr_part_x = curr_cu_info->x_position;
+		curr_part_y = curr_cu_info->y_position;
+		curr_part_global_x = ctu->x[Y_COMP]+curr_part_x;
+		curr_part_global_y = ctu->y[Y_COMP]+curr_part_y;
+		curr_part_size = curr_cu_info->size;
+		curr_part_size_shift = et->max_cu_size_shift-curr_depth;
+		curr_part_x_chroma = curr_cu_info->x_position_chroma;
+		curr_part_y_chroma = curr_cu_info->y_position_chroma;
+		curr_part_global_x_chroma = ctu->x[CHR_COMP]+curr_part_x_chroma;
+		curr_part_global_y_chroma = ctu->y[CHR_COMP]+curr_part_y_chroma;
+		curr_part_size_chroma = curr_cu_info->size_chroma;
+		curr_part_size_shift_chroma = et->max_cu_size_shift-curr_depth-1;//420
+	//	curr_adi_size = 2*2*curr_part_size+1;
+
+		pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
+		pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+		pred_buff_stride_chroma = WND_STRIDE_2D(et->prediction_wnd, CHR_COMP);
+		pred_buff_u = WND_POSITION_2D(int16_t *, et->prediction_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+		pred_buff_v = WND_POSITION_2D(int16_t *, et->prediction_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+
+		orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
+		orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+		orig_buff_stride_chroma = WND_STRIDE_2D(et->curr_mbs_wnd, CHR_COMP);
+		orig_buff_u = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+		orig_buff_v = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+
+		residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, Y_COMP);
+		residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+		residual_buff_stride_chroma = WND_STRIDE_2D(et->residual_wnd, CHR_COMP);
+		residual_buff_u = WND_POSITION_2D(int16_t *, et->residual_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+		residual_buff_v = WND_POSITION_2D(int16_t *, et->residual_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+
+		reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]->img;//[0] up to now we only use one reference	
+		reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
+		reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
+		reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
+		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
+		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
+
+		if(et->ed->num_encoded_frames == 8 && npart==2 && ctu->ctu_number==1 && curr_cu_info->parent->abs_index==128)
+		{
+			int iiii=0;
+		}
+
+		get_mv_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for motion search from the neigbour CUs
+
+	//	hmr_motion_inter_uni(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_global_x, curr_part_global_y, curr_part_size, curr_part_size_shift, &mv);
+#ifdef COMPUTE_AS_HM
+		sad = hmr_motion_estimation_HM(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
+		select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+#else
+		sad = hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
+		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+#endif
+		//set mvs and ref_idx
+/*		curr_cu_info->inter_mv[REF_PIC_LIST_0] = mv;
+		curr_cu_info->inter_ref_index[REF_PIC_LIST_0] = ref_idx;
+
+		SET_INTER_MV_BUFFS(et, ctu, curr_cu_info, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);
+		memset(&ctu->mv_ref_idx[REF_PIC_LIST_0][curr_cu_info->abs_index], curr_cu_info->inter_ref_index[REF_PIC_LIST_0], curr_cu_info->num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));
+	//	set_mv_and_ref_idx(et, curr_cu_info, &mv, ref_idx);
+
+		hmr_motion_compensation_luma(et, ctu, curr_cu_info, reference_buff_cu_position, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_size, curr_part_size_shift, &mv);
+		et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
+
+		hmr_motion_compensation_chroma(et, reference_buff_cu_position_u, reference_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);
+		hmr_motion_compensation_chroma(et, reference_buff_cu_position_v, reference_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv);	
+		et->funcs->predict(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, residual_buff_u, residual_buff_stride_chroma, curr_part_size_chroma);
+		et->funcs->predict(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, residual_buff_v, residual_buff_stride_chroma, curr_part_size_chroma);
+*/
+		curr_cu_info+=part_incr;
+	}
+	return sad;
 }
 
 int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type)
@@ -1750,7 +1911,97 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 }
 
 
+void analyse_recursive_prediction(henc_thread_t* et, ctu_info_t* ctu)
+{
+	cu_partition_info_t	*parent_cu_info = NULL;
+	cu_partition_info_t	*curr_cu_info = ctu->partition_list;
+	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
+	int curr_depth = curr_cu_info->depth;
+	int gcnt = 0;
+	int position;
 
+	parent_cu_info = curr_cu_info;
+
+	while(curr_depth!=0 || depth_state[curr_depth]!=1)
+	{
+		curr_cu_info->variance = 0;
+		curr_cu_info->recursive_split = 0;
+		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
+
+		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)
+		{
+			int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
+			uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, gcnt, et->ctu_width);
+			uint cost_inter, cost_intra;
+			curr_cu_info->variance = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);
+			orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, U_COMP);
+			orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, U_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
+			curr_cu_info->variance_chroma = 1.25*et->funcs->modified_variance(orig_buff, curr_cu_info->size_chroma, orig_buff_stride, 2)/(curr_cu_info->size_chroma*curr_cu_info->size_chroma);
+			orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
+			curr_cu_info->variance_chroma += 1.25*et->funcs->modified_variance(orig_buff, curr_cu_info->size_chroma, orig_buff_stride, 2)/(curr_cu_info->size_chroma*curr_cu_info->size_chroma);
+		
+			curr_cu_info->variance += curr_cu_info->variance_chroma;
+			//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
+			//encode inter
+			if(curr_cu_info->size>=8)
+				cost_inter = predict_inter_analyze(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+			else
+				cost_inter = curr_cu_info->parent->cost;
+			//consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, UINT_MAX, FALSE, NULL);
+/*			cost_intra = predict_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+
+			if(1.5*cost_intra < cost_inter)
+			{	//we prefer intra and it is already in its buffer
+				curr_cu_info->cost = 1.5*cost_intra;
+				curr_cu_info->prediction_mode = INTRA_MODE;
+			}
+			else
+			{	//we prefer inter, bring it back
+				get_back_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+				curr_cu_info->cost = cost_inter;
+				curr_cu_info->prediction_mode = INTER_MODE;
+			}
+*/			
+			curr_cu_info->cost = cost_inter;
+			curr_cu_info->cost += curr_depth*curr_depth;
+		}
+		else
+			curr_cu_info->recursive_split = 1;
+
+		depth_state[curr_depth]++;
+
+		if(curr_depth<et->max_pred_partition_depth)//if tl is not inside the frame don't process the next depths
+		{
+			curr_depth++;
+			parent_cu_info = curr_cu_info;
+		}
+		else if(depth_state[curr_depth]==4)
+		{
+			while(depth_state[curr_depth]==4 && curr_depth>0)
+			{
+				int l;
+				depth_state[curr_depth] = 0;
+
+//				for (l=0;l<4;l++)
+				{
+					uint child_cost = parent_cu_info->children[0]->cost+parent_cu_info->children[1]->cost+parent_cu_info->children[2]->cost+parent_cu_info->children[3]->cost;
+					uint parent_cost = parent_cu_info->cost;
+
+					if((1.25*child_cost<parent_cost) || parent_cu_info->children[0]->recursive_split || parent_cu_info->children[1]->recursive_split || parent_cu_info->children[2]->recursive_split || parent_cu_info->children[3]->recursive_split)
+					{
+						parent_cu_info->recursive_split = 1;//entropy simplifies splitting in quads
+						parent_cu_info->cost = child_cost;
+					}
+				}
+
+				curr_depth--;
+				parent_cu_info = parent_cu_info->parent;
+			}				
+		}
+		if(parent_cu_info!=NULL)
+			curr_cu_info = parent_cu_info->children[depth_state[curr_depth]];
+	}
+}
 
 
 uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
@@ -1784,7 +2035,12 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	}
 //#ifndef COMPUTE_AS_HM
 	if(et->performance_mode != 0)
-	analyse_recursive_info(et, ctu, gcnt);
+	{
+
+		synchronize_cu_wnd(et, curr_cu_info, &et->curr_mbs_wnd, &et->decoded_mbs_wnd[0]);
+		analyse_recursive_info(et, ctu, gcnt);
+//		analyse_recursive_prediction(et, ctu);
+	}
 //#endif
 
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
