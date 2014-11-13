@@ -123,9 +123,9 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	if(currslice->slice_type == I_SLICE)
 	{
 //		ed->rc.vbv_fullness -= 1.*ed->rc.average_pict_size;
-		ed->rc.acc_rate += consumed_bitrate - 1.*ed->rc.average_pict_size;
+		ed->rc.acc_rate += consumed_bitrate - 0.75*ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-		consumed_bitrate = ed->rc.average_pict_size;
+		consumed_bitrate = 0.75*ed->rc.average_pict_size;
 	}
 /*	else if(consumed_bitrate>2.*ed->rc.average_pict_size)
 	{

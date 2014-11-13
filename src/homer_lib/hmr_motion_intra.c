@@ -1883,13 +1883,6 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						parent_part_info->recursive_split = 1;//entropy simplifies splitting in quads
 						break;
 					}
-					else
-					{
-						if(parent_part_info->depth<2)
-						{
-							int iiiiii=0;
-						}
-					}
 				}
 
 				curr_depth--;
