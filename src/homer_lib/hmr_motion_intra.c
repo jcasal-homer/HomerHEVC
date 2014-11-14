@@ -1511,11 +1511,8 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 		curr_partition_info->qp = qp;
 		curr_depth = curr_partition_info->depth;
 
-		if(et->ed->num_encoded_frames == 2 && ctu->ctu_number == 0 && curr_partition_info->abs_index>=0 && curr_partition_info->recursive_split==0)// && part_size_type == SIZE_NxN)//if(ctu->ctu_number == 84 && part_size_type == SIZE_NxN)// && curr_partition_info->abs_index==128)// && curr_partition_info->abs_index >= 192 && depth>=2)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
-		{
-			int iiiiii=0;
-		}
 		curr_partition_info->distortion = encode_intra_cu(et, ctu, curr_partition_info, depth, cu_mode, part_size_type, &curr_sum, gcnt);//depth = prediction depth
+		curr_partition_info->sum = curr_sum;
 
 		curr_partition_info->cost = curr_partition_info->distortion;
 
@@ -1545,6 +1542,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 		{	
 			while(depth_state[curr_depth]==4 && (curr_depth > (depth)))
 			{
+				uint sum = parent_part_info->children[0]->sum+parent_part_info->children[1]->sum+parent_part_info->children[2]->sum+parent_part_info->children[3]->sum;
 				distortion = parent_part_info->children[0]->distortion+parent_part_info->children[1]->distortion+parent_part_info->children[2]->distortion+parent_part_info->children[3]->distortion;
 				cost = distortion;
 
@@ -1559,12 +1557,6 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 					cost += bit_cost*et->rd.lambda+.5;
 				}
 
-				if(ctu->ctu_number == 97 && part_size_type==SIZE_NxN)
-				{
-					int iiii=0;
-				}
-
-
 #ifndef COMPUTE_AS_HM
 				if((et->rd_mode != RD_FAST && cost < parent_part_info->cost) || ((et->rd_mode == RD_FAST)  && 1.25*cost < parent_part_info->cost))
 #else
@@ -1574,6 +1566,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 					acc_cost[parent_part_info->depth]+= cost - parent_part_info->cost;
 					parent_part_info->cost = cost;
 					parent_part_info->distortion = distortion;
+					parent_part_info->sum = sum;
 //					parent_part_info->mode = cu_mode;
 
 					//consolidate in parent

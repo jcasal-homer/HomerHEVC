@@ -1077,6 +1077,7 @@ struct henc_thread_t
 
 	//rate distortion
 	rate_distortion_t	rd;
+	uint				acc_dist;
 
 	//rate control
 	uint				num_encoded_ctus;
@@ -1135,7 +1136,8 @@ struct hvenc_t
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
 	int				blocks_per_macroblock;
-
+	double			avg_dist;
+	int				only_intra;
 	//cfg
 	int				frame_rate;
 	int				max_cu_size;

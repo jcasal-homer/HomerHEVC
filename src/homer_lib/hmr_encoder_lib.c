@@ -1427,6 +1427,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 	//printf("		+intra_encode_thread %d\r\n", et->index);
 
+	et->acc_dist = 0;
 	et->cu_current = 0;
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
@@ -1482,25 +1483,10 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 		{
 			//init ctu
 			ctu = init_ctu(et);
-//			
-/*			ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
-			ctu->ctu_number = et->cu_current;
-			ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
-			ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
-			ctu->x[U_COMP] = ctu->x[V_COMP] = et->cu_current_x*et->ctu_width[U_COMP];
-			ctu->y[U_COMP] = ctu->y[V_COMP] = et->cu_current_y*et->ctu_height[U_COMP];
-			ctu->size = et->max_cu_size;
-			ctu->num_part_in_ctu = et->num_partitions_in_cu;
-			ctu->num_part_in_ctu = et->num_partitions_in_cu;
-			ctu->partition_list = &et->partition_info[0];
-*/
-			//ctu->qp = currslice->qp;
-			//ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
-			
+
 			//Prepare Memory
 			mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
 			mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
-
 
 			copy_ctu(ctu, et->ctu_rd);
 
@@ -1510,7 +1496,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 			//map spatial features and neighbours in recursive partition structure
 			create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
-			if(currslice->slice_type != I_SLICE)// && (ctu->ctu_number & 0x1) == 0)
+			if(currslice->slice_type != I_SLICE && !et->ed->only_intra)// && (ctu->ctu_number & 0x1) == 0)
 			{
 				motion_inter(et, ctu, gcnt);
 			}
@@ -1521,10 +1507,6 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			}
 			PROFILER_ACCUMULATE(intra)
 
-			if(ctu->ctu_number == 457)
-			{
-				int iiiii=0;
-			}
 			mem_transfer_decoded_blocks(et, ctu);
 
 			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_ctu)
@@ -1543,6 +1525,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 			PROFILER_ACCUMULATE(cabac)
 
+			et->acc_dist += ctu->partition_list[0].distortion;
 			et->num_encoded_ctus++;
 			et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 			et->cu_current_x++;
@@ -1726,6 +1709,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			hmr_put_pic_header(ed);//pic header
 		}
 
+		ed->only_intra = 0;
+
 		apply_reference_picture_set(ed, currslice);
 		
 		for(n = 0; n<ed->wfpp_num_threads;n++)
@@ -1738,6 +1723,19 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
+
+		//calc average distortion
+		ed->avg_dist = 0;
+		for(n = 0;n<ed->wfpp_num_threads;n++)
+		{
+			henc_thread_t* henc_th = ed->thread[n];
+		
+			 ed->avg_dist+= henc_th->acc_dist;
+		}
+		ed->avg_dist /= ed->pict_total_ctu*ed->num_partitions_in_cu;
+		ed->avg_dist = clip(ed->avg_dist,.1,ed->avg_dist);
+		if(currslice->slice_type == I_SLICE)
+			ed->avg_dist*=1.5;
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
@@ -1804,7 +1802,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
 			printf("\r\nPSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
 			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
-			printf("- vbv: %.2f\r\n", ed->rc.vbv_fullness/ed->rc.vbv_size);
+			printf("- vbv: %.2f, avg_dist: %.2f\r\n", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
 			fflush(stdout);
 /*			if(ed->f_psnr)
 			{

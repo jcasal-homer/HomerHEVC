@@ -111,6 +111,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 {
 	int cu_mode, cu_mode_idx;
 	uint distortion = 0, best_distortion=0, bit_cost, cost, best_cost = INT_MAX, best_mode, best_mode_idx;
+	uint sum = 0, best_sum;
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
@@ -184,7 +185,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 	decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 	{	
-			distortion = cost = 0;
+			distortion = cost = sum = 0;
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
 				curr_part_x = curr_partition_info->x_position_chroma;
@@ -341,6 +342,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 				et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, REG_DCT, quant_buff);//usamos quant buff como auxiliar
 				et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 
+				sum+=curr_sum;
 				//set cbf
 				memset(&cbf_buff[ch_component][curr_partition_info->abs_index], ((curr_sum ? 1 : 0) << (original_depth-depth+(part_size_type==SIZE_NxN)))|((curr_sum ? 1 : 0) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[ch_component][0]));//(width*width)>>4 num parts of 4x4 in partition
 				cbf_split[ch_component-1][curr_depth] |= (curr_sum ? 1 : 0);
@@ -430,6 +432,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 		{
 			best_distortion = distortion;
 			best_cost = cost;
+			best_sum = sum;
 #ifndef COMPUTE_AS_HM
 			best_mode = best_pred_modes[cu_mode_idx];
 #else
@@ -449,6 +452,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 	}//for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 
 	memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], best_mode, curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
+	curr_partition_info->sum+=best_sum;
 	return best_cost;//curr_partition_info->cost_chroma;
 }
 
