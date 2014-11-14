@@ -71,7 +71,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 		break;
 	case  P_SLICE:
 		currslice->qp = ed->pict_qp;
-		ed->rc.target_pict_size = ed->rc.average_pict_size;
+		ed->rc.target_pict_size = .75*ed->rc.average_pict_size;
 		break;	
 	case  B_SLICE:
 		ed->rc.target_pict_size = ed->rc.average_pict_size/2;
@@ -112,6 +112,12 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 		avg_qp+=henc_th->acc_qp;
 	}
 
+	if(ed->num_encoded_frames==21)
+	{
+		int iiiii=0;
+	}
+
+
 #ifndef COMPUTE_AS_HM
 	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
 	ed->pict_qp = avg_qp;
@@ -123,27 +129,24 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	if(currslice->slice_type == I_SLICE)
 	{
 //		ed->rc.vbv_fullness -= 1.*ed->rc.average_pict_size;
-		ed->rc.acc_rate += consumed_bitrate - 0.75*ed->rc.average_pict_size;
+		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-		consumed_bitrate = 0.75*ed->rc.average_pict_size;
+		consumed_bitrate = ed->rc.average_pict_size;
+		ed->rc.vbv_fullness -= consumed_bitrate;
 	}
 /*	else if(consumed_bitrate>2.*ed->rc.average_pict_size)
 	{
 		ed->rc.acc_rate += consumed_bitrate - 2.*ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		consumed_bitrate = 2*ed->rc.average_pict_size;
-	
+		ed->rc.vbv_fullness -= consumed_bitrate;	
 	}
-*/
-//	else
+*/	else
 	{
 		ed->rc.vbv_fullness -= consumed_bitrate;
 		ed->rc.vbv_fullness -= ed->rc.acc_avg;
 		ed->rc.acc_rate -= ed->rc.acc_avg;
 	}
-
-
-
 
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
@@ -177,23 +180,23 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, cu_partition_info_t *curr_cu_i
 		consumed_ctus += henc_th->num_encoded_ctus;
 	}
 
-	if(ed->num_encoded_frames == 20)
+	entropy = sqrt(curr_cu_info->variance+.5*curr_cu_info->variance_chroma)/50;//25.0;
+	if(consumed_ctus>0)
+	{
+		if(consumed_bitrate>1.1*ed->rc.target_bits_per_ctu)//*consumed_ctus && currslice->slice_type != I_SLICE)
+			pic_corrector = .0125*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
+//		else if(currslice->slice_type == P_SLICE)
+//		{
+//			pic_corrector = -0.125*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));		
+//		}
+	}
+
+
+	if(ed->num_encoded_frames == 19)
 	{
 		int iiiii=0;
 	}
 
-	entropy = sqrt(curr_cu_info->variance+.5*curr_cu_info->variance_chroma)/25.0;
-	if(consumed_ctus>0)
-	{
-//		
-//			pic_corrector = .025*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
-//		else
-		if(consumed_bitrate>ed->rc.target_bits_per_ctu*consumed_ctus)
-			pic_corrector = .0125*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
-
-//		pic_corrector = (consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
-	}
-		
 	vbv_corrector = 1.0-clip((ed->rc.vbv_fullness-consumed_bitrate+ed->rc.target_bits_per_ctu*consumed_ctus)/ed->rc.vbv_size, 0.0, 1.0);
 
 	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-2.);

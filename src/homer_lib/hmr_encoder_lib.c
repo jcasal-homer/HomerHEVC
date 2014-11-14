@@ -1803,7 +1803,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
 			printf("\r\nPSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
-			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f\r\n", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
+			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
+			printf("- vbv: %.2f\r\n", ed->rc.vbv_fullness/ed->rc.vbv_size);
 			fflush(stdout);
 /*			if(ed->f_psnr)
 			{

@@ -1176,7 +1176,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	int diff;
 	int is_filtered;
 	double distortion;
-	uint cost, best_cost = UINT_MAX;
+	uint cost, best_cost = MAX_COST;
 	uint min_mode = 0;
 	uint max_mode = 1;
 	int best_bit_cost;
@@ -1189,7 +1189,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	num_preds = get_intra_dir_luma_predictor(ctu_rd, curr_partition_info, preds, NULL);  
 
 	new_best_cu_mode = best_cu_mode = 0;
-	best_cost = UINT_MAX;
+	best_cost = MAX_COST;
 	for(nloops=0;nloops<NUM_SEARCH_LOOPS;nloops++)
 	{
 		int bit_cost;
@@ -2070,8 +2070,8 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			if((et->performance_mode == 1 && curr_partition_info->recursive_split && curr_partition_info->children[0] && curr_partition_info->children[0]->recursive_split && curr_partition_info->children[1]->recursive_split && curr_partition_info->children[2]->recursive_split && curr_partition_info->children[3]->recursive_split) ||
 				(et->performance_mode == 2 && curr_partition_info->recursive_split))
 			{
-				cost_luma = UINT_MAX;
-				cost_chroma = 0;//UINT_MAX;
+				cost_luma = MAX_COST;
+				cost_chroma = 0;//MAX_COST;
 				curr_partition_info->cost = cost_luma;
 				depth_state[curr_depth]++;
 			}
@@ -2151,7 +2151,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int max_processing_depth;// = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
-			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, UINT_MAX, FALSE, cost_sum);
+			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, MAX_COST, FALSE, cost_sum);
 
 /*			//if we fill this in here we don't have to consolidate
 			memset(&ctu->qp[abs_index], curr_partition_info->qp, curr_partition_info->num_part_in_cu*sizeof(ctu->qp[0]));

@@ -49,10 +49,11 @@
 ********************************************************************/
 
 #define DOUBLE_MAX              (1.7e+308)    
-
+#define MAX_COST				(UINT_MAX/8)
 
 #define MIN_QP                      0
 #define MAX_QP                      51
+
 
 
 #define MAX_NUM_CTUs				8160	//1920*1088 resolution
