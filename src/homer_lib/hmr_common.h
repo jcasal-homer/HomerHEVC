@@ -203,7 +203,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 uint encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
 void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
-int predict_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type);
 void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
 
 

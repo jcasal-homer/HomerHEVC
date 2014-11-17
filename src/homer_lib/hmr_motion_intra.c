@@ -78,10 +78,20 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 	int subblock_x, subblock_y;
 
 
-	src_stride-=size;
-	pred_stride-=size;
+	//src_stride-=size;
+	//pred_stride-=size;
 
 	for(subblock_y=0;subblock_y<size;subblock_y++)
+	{
+		for(subblock_x=0;subblock_x<size;subblock_x++)
+		{
+			aux = src[subblock_x] - pred[subblock_x];ssd +=aux*aux; 
+		}
+		src+=src_stride;
+		pred+=pred_stride;
+	}	
+
+/*	for(subblock_y=0;subblock_y<size;subblock_y++)
 	{
 		for(subblock_x=0;subblock_x<size;subblock_x+=4)
 		{
@@ -93,6 +103,7 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 		src+=src_stride;
 		pred+=pred_stride;
 	}	
+*/
 	return ssd;
 }
 
@@ -1224,66 +1235,6 @@ void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_r
 }
 
 
-int predict_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int position, PartSize part_size_type)
-{
-	ctu_info_t *ctu_rd = et->ctu_rd;
-	int pred_buff_stride, orig_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff;
-	int16_t *pred_buff, *decoded_buff;
-	int best_pred_modes[3];
-	double best_pred_cost[3]= {DOUBLE_MAX,DOUBLE_MAX,DOUBLE_MAX};
-	wnd_t *decoded_wnd = NULL;//, *resi_wnd = NULL;
-
-	int curr_part_size, curr_part_size_shift;
-	int curr_adi_size;
-	int curr_part_x, curr_part_y;
-	int curr_depth = depth;
-	cu_partition_info_t*	parent_part_info;
-	cu_partition_info_t*	curr_partition_info;
-	int curr_sum = 0, best_sum;
-//	int num_part_in_cu;
-	int partition_cost;
-	int cu_min_tu_size_shift;
-	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int max_tr_depth, max_tr_processing_depth;
-	int initial_state, end_state;
-//	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int bitcost_cu_mode;
-	int log2cu_size;
-	int qp;
-
-	curr_partition_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+position;
-
-	qp = curr_partition_info->qp;
-
-	parent_part_info = curr_partition_info->parent;
-
-	curr_depth = curr_partition_info->depth;
-	curr_part_x = curr_partition_info->x_position;
-	curr_part_y = curr_partition_info->y_position;
-	curr_part_size = curr_partition_info->size;
-	curr_part_size_shift = et->max_cu_size_shift-curr_depth;
-	curr_adi_size = 2*2*curr_part_size+1;
-
-	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
-	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-
-	decoded_wnd = &et->decoded_mbs_wnd[0];	
-	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
-	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-
-#ifdef COMPUTE_AS_HM
-	hm_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
-#else
-	bitcost_cu_mode = homer_loop1_motion_intra(et, ctu, ctu_rd, curr_partition_info, pred_buff, pred_buff_stride, orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, depth, curr_depth, curr_part_size, curr_part_size_shift, part_size_type, curr_adi_size, best_pred_modes, best_pred_cost);
-#endif
-	return best_pred_cost[0];
-}
-
-
 
 //results are consolidated in the initial depth with which the function is called
 uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type)
@@ -1558,7 +1509,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 				}
 
 #ifndef COMPUTE_AS_HM
-				if((et->rd_mode != RD_FAST && cost < parent_part_info->cost) || ((et->rd_mode == RD_FAST)  && 1.25*cost < parent_part_info->cost))
+				if((et->rd_mode != RD_FAST && cost < parent_part_info->cost) || ((et->rd_mode == RD_FAST)  && 1.25*(cost + 45*sum) < (parent_part_info->cost+45*parent_part_info->sum)))//1.25*cost < parent_part_info->cost))
 #else
 				if(cost < parent_part_info->cost)
 #endif

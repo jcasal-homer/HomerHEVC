@@ -148,8 +148,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	ed->rc.vbv_fullness += ed->rc.average_pict_size;
 	
 
-//	if(consumed_bitrate>1.*ed->rc.average_pict_size)
-	if(currslice->slice_type == I_SLICE)
+	if(currslice->slice_type == I_SLICE && ed->intra_period>1)
 	{
 //		ed->rc.vbv_fullness -= 1.*ed->rc.average_pict_size;
 		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
@@ -234,10 +233,10 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 
 	if(currslice->slice_type == I_SLICE && curr_thread->ed->intra_period>1)
 	{
-		qp/=1.1;
+		qp/=1.25;
 	}
 
-	if((ctu->ctu_number<2 || ed->only_intra) && qp<=5)
+	if((/*ctu->ctu_number<2 || */ed->only_intra) && qp<=5)
 	{
 		qp=5;
 	}

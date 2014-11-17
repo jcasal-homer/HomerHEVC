@@ -1725,17 +1725,22 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
 
 		//calc average distortion
-		ed->avg_dist = 0;
-		for(n = 0;n<ed->wfpp_num_threads;n++)
+		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
 		{
-			henc_thread_t* henc_th = ed->thread[n];
+			ed->avg_dist = 0;
+			for(n = 0;n<ed->wfpp_num_threads;n++)
+			{
+				henc_thread_t* henc_th = ed->thread[n];
 		
-			 ed->avg_dist+= henc_th->acc_dist;
+				 ed->avg_dist+= henc_th->acc_dist;
+			}
+			ed->avg_dist /= ed->pict_total_ctu*ed->num_partitions_in_cu;
+			ed->avg_dist = clip(ed->avg_dist,.1,ed->avg_dist);
+			if(currslice->slice_type == I_SLICE)
+				ed->avg_dist*=1.5;
+			else if(ed->only_intra)
+				ed->avg_dist*=1.375;
 		}
-		ed->avg_dist /= ed->pict_total_ctu*ed->num_partitions_in_cu;
-		ed->avg_dist = clip(ed->avg_dist,.1,ed->avg_dist);
-		if(currslice->slice_type == I_SLICE)
-			ed->avg_dist*=1.5;
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);

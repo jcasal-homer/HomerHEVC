@@ -550,7 +550,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	best_rd = curr_best_rd;
 	best_x = curr_best_x;
 	best_y = curr_best_y;
-
+/*
 	for(i=0;i<sizeof(diamond_small)/sizeof(diamond_small[0]);i++)
 	{
 		int curr_x = best_x+diamond_small[i][0];
@@ -574,7 +574,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 			}
 		}
 	}
-
+*/
 
 	for(l = 0; l < 2; l++)
 	{
@@ -585,7 +585,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 		best_y = curr_best_y;
 		dist = 2;
 	//	for(dist = 1; dist<8; dist*=2)
-		while(dist < 32)
+		while(dist < end)
 		{
 			for(i=0;i<sizeof(diamond_big)/sizeof(diamond_big[0]);i++)
 			{
@@ -617,11 +617,13 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 				best_x = curr_best_x;
 				best_y = curr_best_y;
 				dist = 2;
+//				end = 4;
 			}
 			else
 				dist*=2;
 		}
 	}
+
 	best_sad = curr_best_sad;
 	best_rd = curr_best_rd;
 	best_x = curr_best_x;
@@ -664,7 +666,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 		if (curr_x>=xlow && curr_x<=xhigh && curr_y>=ylow && curr_y<=yhigh)
 		{
-			curr_sad = sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
+			curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
 			mv->hor_vector = curr_x<<2;
 			mv->ver_vector = curr_y<<2;
 			mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
@@ -975,7 +977,6 @@ int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 #ifdef COMPUTE_AS_HM
 	return 0;
 #else
-
 	mv_candiate_list_t	*mv_candidate_list = &et->mv_candidates[ref_pic_list];
 	int idx;
 	int best_cost = INT_MAX, best_idx = 0;
@@ -1427,12 +1428,14 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 	int num_part_in_cu = parent_part_info->num_part_in_cu;
 	int curr_depth = parent_part_info->depth + 1;
 	int gcnt = 0;
+	int children_sum = parent_part_info->children[0]->sum+parent_part_info->children[1]->sum+parent_part_info->children[2]->sum+parent_part_info->children[3]->sum;
 
 	//choose best
 #ifdef COMPUTE_AS_HM
 	if((children_cost<parent_cost || (children_cost==parent_cost && is_max_depth && parent_part_info->prediction_mode == INTRA_MODE && parent_part_info->children[0]->prediction_mode == INTER_MODE)) || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
 #else
 	if(children_cost<parent_cost || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
+//	if((et->rd_mode != RD_FAST && (children_cost < parent_cost)) || (et->rd_mode == RD_FAST && ((children_cost+45*children_sum)<(parent_cost+45*parent_part_info->sum))) || !(parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame))//if we get here, tl should be inside the frame
 #endif
 	{
 		//here we consolidate the bottom-up results being preferred to the top-down computation
@@ -1561,14 +1564,16 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		consumed_distortion += henc_th->acc_dist;
 		consumed_ctus += henc_th->num_encoded_ctus;
 	}
+
+#define SCENE_CHANGE_THRESHOLD 1500
 	if(et->ed->only_intra == 0 && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);
 
-		if(avg_distortion>et->ed->avg_dist + 1000 || avg_distortion + 1000 <et->ed->avg_dist || 100*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>100*avg_distortion)
+		if(avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
 		{
 			et->ed->only_intra = 1;
-			printf("\r\n----------------------------------scene change detected----------------------------------------------\r\n");
+			printf("\r\n----------------------------------scene change detected. ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------------------------------\r\n", et->ed->avg_dist, avg_distortion);
 			hmr_rc_change_pic_mode(et->ed, currslice);
 //			int iiii=0;
 		}
@@ -1614,10 +1619,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int mv_cost;
 
-				if(et->ed->num_encoded_frames >=35)// && ctu->ctu_number >1)
-				{
-					int iiiii=0;
-				}
 			if(part_size_type == SIZE_2Nx2N)
 			{
 				//encode inter
@@ -1637,8 +1638,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 
 #ifndef COMPUTE_AS_HM
-				if((dist<curr_cu_info->size*50*50 || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-//				if((dist<avg_distortion*curr_cu_info->num_part_in_cu || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
+				if((dist<.5*avg_distortion*curr_cu_info->num_part_in_cu || curr_cu_info->sum < curr_cu_info->size*.1 || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 				{
 					int max_processing_depth;
 					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, curr_cu_info->cost, MAX_COST, FALSE, cost_sum);
@@ -1665,25 +1665,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 				}
 #endif
-/*					if(!stop_recursion && curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
-				{
-					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
-					dist_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
-					cost_aux = dist_aux;
-#ifndef COMPUTE_AS_HM
-					cost_aux += 2*mv_cost;
-					cost_aux+=200*curr_depth;
-#endif
-					cost_sum[curr_depth+1] += cost_aux;
-					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, cost_aux, TRUE, cost_sum);
-					//consolidate_inter_prediction_info(et, ctu, curr_cu_info, cost, cost_aux, TRUE);
-				}
-*/
-				if(et->ed->num_encoded_frames >=35)// && ctu->ctu_number >1)
-				{
-					int iiiii=0;
-				}
-
 				if(!stop_recursion && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+2000*curr_cu_info->num_part_in_cu))
 //				if(!stop_recursion && dist>curr_cu_info->size*100*100)
 				{
@@ -1717,10 +1698,24 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
 			{
-				int n;
-				curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-				curr_cu_info[0].cost = MAX_COST;
-				depth_state[curr_depth] = 3;
+				if(!stop_recursion && curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->size>8)
+				{
+					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+					dist_aux = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
+					cost_aux = dist_aux;
+#ifndef COMPUTE_AS_HM
+					cost_aux += 2*mv_cost;
+					cost_aux+=200*curr_depth;
+#endif
+					cost_sum[curr_depth+1] += cost_aux;
+					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, cost_aux, TRUE, cost_sum);
+				}
+				else
+				{
+					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
+					curr_cu_info[0].cost = MAX_COST;
+					depth_state[curr_depth] = 3;
+				}
 			}
 			cost_sum[curr_depth] += curr_cu_info->cost;
 		}

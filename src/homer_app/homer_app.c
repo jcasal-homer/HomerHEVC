@@ -207,8 +207,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 25;//565;//1050;//800;//200;
-	int num_frames = 1000;
+	int skipped_frames = 300+25;//1050;//800;//200;
+	int num_frames = 500;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -266,16 +266,16 @@ int main (int argc, char **argv)
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
 	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 2;
-	HmrCfg.max_inter_tr_depth = 2;
+	HmrCfg.max_intra_tr_depth = 4;
+	HmrCfg.max_inter_tr_depth = 4;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 1;
+	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.rd_mode = RD_DIST_ONLY;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_CBR;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 4000;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*1.0;//in kbps
-	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
+	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
+	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.bitrate = 25000;//in kbps
+	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
+	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 //	HmrCfg.qp_depth = 0;
 	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
