@@ -1677,8 +1677,9 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 					}
 				}
+
 #endif
-				if(!stop_recursion && curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+2000*curr_cu_info->num_part_in_cu))
+				if(!stop_recursion && curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+3000*curr_cu_info->num_part_in_cu))
 //				if(!stop_recursion && dist>curr_cu_info->size*100*100)
 				{
 					//encode intra
@@ -1687,11 +1688,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					uint intra_dist;
 					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-					cost_aux = dist+200*curr_depth;
+					cost_aux = intra_dist+200*curr_depth;
 
 //					if(1.5*cost_aux < cost)
 //					if(curr_cu_info->sum<2*previous_sum)
-					if(cost_aux+45*curr_cu_info->sum<cost+45*previous_sum)
+					if(1.5*cost_aux+45*curr_cu_info->sum<cost+45*previous_sum)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = cost_aux;
 //						curr_cu_info->distortion = intra_dist;
