@@ -201,6 +201,7 @@ void HOMER_enc_close(void* h)
 			JOINT_THREAD(phvenc->encoder_thread);		
 	}
 
+	SEM_DESTROY(phvenc->deblock_filter_sem);
 	for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
 	{
 		henc_thread_t* henc_th = phvenc->thread[ithreads];
@@ -776,7 +777,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.itransform = itransform;
 			}
 
-
+			if(phvenc->deblock_filter_sem!=NULL)
+				SEM_DESTROY(phvenc->deblock_filter_sem);
+			SEM_INIT(phvenc->deblock_filter_semaphore, 0,1000);
+			SEM_COPY(phvenc->deblock_filter_sem, phvenc->deblock_filter_semaphore);
 			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)
 			{
 				int depth_aux;
@@ -791,6 +795,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->funcs = &phvenc->funcs;
 				henc_th->wfpp_enable = phvenc->wfpp_enable;
 				henc_th->wfpp_num_threads = phvenc->wfpp_num_threads;
+
+				SEM_COPY(henc_th->deblock_filter_sem, phvenc->deblock_filter_semaphore);
+
+				if(henc_th->synchro_signal!=NULL)
+					SEM_DESTROY(henc_th->synchro_signal);
 
 				SEM_INIT(henc_th->synchro_sem, 0,1000);
 				SEM_COPY(henc_th->synchro_signal, henc_th->synchro_sem);
@@ -841,7 +850,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
 				//init partition list info
 				init_partition_info(henc_th, henc_th->partition_info);
-
 				//----------------------------current thread processing buffers allocation	-----
 				//alloc processing windows and buffers
 				henc_th->adi_size = 2*henc_th->ctu_height[0]+2*henc_th->ctu_width[0]+1;//vecinos de la columna izq y fila superior + la esquina
@@ -927,6 +935,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
 			}
+
+			phvenc->deblock_partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
+			init_partition_info(phvenc->thread[0], phvenc->deblock_partition_info);
 
 			//exterchange wait and signal semaphores between sucessive threads
 			if(phvenc->wfpp_num_threads==1)
@@ -1458,7 +1469,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 		et->cu_next = et->cu_current+min(1,et->pict_width_in_ctu-et->cu_current_x);
 
-		if(et->cu_current_y > 0 && ((et->cu_current_x & GRAIN_MASK) == 0))
+		if(et->cu_current_y > 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_WAIT(et->synchro_wait);
 		}
@@ -1480,57 +1491,58 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 
 //		for(et->cu_current;et->cu_current<et->cu_next;et->cu_current++)
+//		{
+		//init ctu
+		ctu = init_ctu(et);
+
+		//Prepare Memory
+		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
+		mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
+
+		copy_ctu(ctu, et->ctu_rd);
+
+		bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+
+		PROFILER_RESET(intra)
+
+		//map spatial features and neighbours in recursive partition structure
+		create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
+		if(currslice->slice_type != I_SLICE && !et->ed->only_intra)// && (ctu->ctu_number & 0x1) == 0)
 		{
-			//init ctu
-			ctu = init_ctu(et);
+			motion_inter(et, ctu, gcnt);
+		}
+		else
+		{
+			//make ctu intra prediction
+			motion_intra(et, ctu, gcnt);
+		}
+		PROFILER_ACCUMULATE(intra)
 
-			//Prepare Memory
-			mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
-			mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
+		mem_transfer_decoded_blocks(et, ctu);
 
-			copy_ctu(ctu, et->ctu_rd);
+		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		{
+			SEM_POST(et->synchro_signal);
+		}
+		//cabac - encode ctu
+		PROFILER_RESET(cabac)
+		ctu->coeff_wnd = &et->transform_quant_wnd[0];
 
-			bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
-
-			PROFILER_RESET(intra)
-
-			//map spatial features and neighbours in recursive partition structure
-			create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
-			if(currslice->slice_type != I_SLICE && !et->ed->only_intra)// && (ctu->ctu_number & 0x1) == 0)
-			{
-				motion_inter(et, ctu, gcnt);
-			}
-			else
-			{
-				//make ctu intra prediction
-				motion_intra(et, ctu, gcnt);
-			}
-			PROFILER_ACCUMULATE(intra)
-
-			mem_transfer_decoded_blocks(et, ctu);
-
-			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_ctu)
-			{
-				SEM_POST(et->synchro_signal);
-			}
-			//cabac - encode ctu
-			PROFILER_RESET(cabac)
-			ctu->coeff_wnd = &et->transform_quant_wnd[0];
-
-			if(et->ed->num_encoded_frames == 5)//if(ctu->ctu_number==2)//et->cu_current+1 == et->pict_total_ctu)//
-			{
-				int iiiii=0;
-			}
-
-			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
-			PROFILER_ACCUMULATE(cabac)
-
-			et->acc_dist += ctu->partition_list[0].distortion;
-			et->num_encoded_ctus++;
-			et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
-			et->cu_current_x++;
+		if(et->ed->num_encoded_frames == 5)//if(ctu->ctu_number==2)//et->cu_current+1 == et->pict_total_ctu)//
+		{
+			int iiiii=0;
 		}
 
+		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
+		PROFILER_ACCUMULATE(cabac)
+
+		et->acc_dist += ctu->partition_list[0].distortion;
+		et->num_encoded_ctus++;
+		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
+		et->cu_current_x++;
+//		}
+
+		//notify first synchronization as this line must go two ctus ahead from next line in wfpp
 		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
@@ -1538,18 +1550,23 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			SEM_POST(et->synchro_signal);
 		}
 
-		//notify sinchronization
-		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)
+		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
+		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_signal);
 		}
 		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
+			if(et->cu_current_y!=0)
+			{
+//				printf("sem_post-a - line processed = %d\r\n",et->cu_current_y);
+				SEM_POST(et->deblock_filter_sem);
+			}
 			if(et->cu_current+1 == et->pict_total_ctu)
 			{
-				int iiii=0;
+//				printf("sem_post-b - line processed = %d\r\n",et->cu_current_y);
+				SEM_POST(et->deblock_filter_sem);			
 			}
-
 
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
@@ -1561,12 +1578,23 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 	}
 	
 	if(!et->wfpp_enable)
+	{
 		ee_end_slice(et->ee, currslice, ctu);
-
+	}
 	return THREAD_RETURN;
 }
 
+THREAD_RETURN_TYPE deblocking_filter_thread(void *h)
+{
+	hvenc_t* ed = (hvenc_t*)h;
+	picture_t *currpict = &ed->current_pict;
+	slice_t *currslice = &currpict->slice;
 
+	if(ed->intra_period>1)
+		hmr_deblock_filter(ed, currslice);
+
+	return THREAD_RETURN;
+}
 
 int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame)
 {
@@ -1622,7 +1650,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 	hvenc_t* ed = (hvenc_t*)h;
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
-	int n, i;
+	int n, i, num_threads;
 
 //	while(ed->run)
 	{
@@ -1713,6 +1741,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		apply_reference_picture_set(ed, currslice);
 		
+		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
+
 		for(n = 0; n<ed->wfpp_num_threads;n++)
 		{
 			SYNC_THREAD_CONTEXT(ed, ed->thread[n]);
@@ -1720,12 +1750,16 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			SEM_RESET(ed->thread[n]->synchro_wait)
 		}
 
-		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		SEM_RESET(ed->deblock_filter_sem)
 
-		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
+		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
+		CREATE_THREADS((&ed->hthreads[1]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+
+		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
+//		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
 
 		//calc average distortion
-		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
+//		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
 		{
 			ed->avg_dist = 0;
 			for(n = 0;n<ed->wfpp_num_threads;n++)
@@ -1745,8 +1779,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
 
-		if(ed->intra_period>1)
-			hmr_deblock_filter(ed, currslice);
+//		if(ed->intra_period>1)
+//			hmr_deblock_filter(ed, currslice);
 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;

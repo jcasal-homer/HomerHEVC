@@ -852,20 +852,41 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 //		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug
 
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
-	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
+//	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
+		int current_line=0;
 		for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
-		{	
-			ctu = &ed->ctu_info[ctu_num];
-
-			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
-			if(ctu->ctu_number == 2 && dir==EDGE_VER)
+		{
+			if(ed->hthreads[0]!=NULL && ((ctu_num % ed->pict_width_in_ctu)==0))// && dir==EDGE_VER)
 			{
-				int iiiii=0;
+				SEM_WAIT(ed->deblock_filter_sem);
+//				printf("sem_wait . processing line %d\r\n", current_line);
+				current_line++;
 			}
 
-			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
+			ctu = &ed->ctu_info[ctu_num];
+			ctu->partition_list = ed->deblock_partition_info;
+			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+			hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_VER);
+			if(ctu_num>2*ed->pict_width_in_ctu)
+			{
+				int ctu_num_horizontal = ctu_num-2*ed->pict_width_in_ctu;
+				ctu = &ed->ctu_info[ctu_num_horizontal];
+				ctu->partition_list = ed->deblock_partition_info;
+				create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+				hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);
+			}
 		}
+
+		//finish the remaining ctus of the horizontal filter
+		for(ctu_num = (ed->pict_total_ctu-2*ed->pict_width_in_ctu) ; ctu_num < ed->pict_total_ctu ; ctu_num++)
+		{
+			ctu = &ed->ctu_info[ctu_num];
+			ctu->partition_list = ed->deblock_partition_info;
+			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+			hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);		
+		}
+
 //		if(dir==EDGE_VER)
 //			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
 	}

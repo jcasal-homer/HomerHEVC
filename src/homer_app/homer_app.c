@@ -207,7 +207,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 300+25;//1050;//800;//200;
+	int skipped_frames = 1500+25;//1050;//800;//200;
 	int num_frames = 500;
 
 	unsigned char *frame[3];

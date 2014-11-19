@@ -57,15 +57,14 @@ void hmr_rc_gop(hvenc_t* ed)//, int np, int nb)
 }
 
 
-void hmr_rc_change_pic_mode(hvenc_t* ed, slice_t *currslice)
+void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
 	int ithreads;
+	hvenc_t* ed = et->ed;
 	if(ed->only_intra)
 	{
-		currslice->qp = ed->pict_qp;
-		ed->rc.target_pict_size = 1.5*ed->rc.average_pict_size;	
-//		ed->rc.target_pict_size = ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
-//		ed->rc.target_pict_size/=1.5;
+		double pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
+		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
 
 		ed->rc.target_bits_per_ctu = ed->rc.target_pict_size/ed->pict_total_ctu;
 
@@ -74,9 +73,6 @@ void hmr_rc_change_pic_mode(hvenc_t* ed, slice_t *currslice)
 			henc_thread_t* henc_th = ed->thread[ithreads];
 		
 			henc_th->target_pict_size = (uint)ed->rc.target_pict_size;
-			henc_th->num_encoded_ctus = 0;
-			henc_th->num_bits = 0;
-			henc_th->acc_qp = 0;
 		}
 	}
 }

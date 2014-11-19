@@ -53,7 +53,7 @@ typedef void* hmr_thread_t;
 
 #define JOINT_THREAD(thread)		WaitForSingleObject(thread, INFINITE);CloseHandle(thread);						
 
-#define JOINT_THREADS(threads, nthreads)								\
+#define JOIN_THREADS(threads, nthreads)								\
 {																		\
 	int nFork;															\
 	WaitForMultipleObjects(nthreads-1,threads,1,INFINITE);				\
@@ -118,7 +118,7 @@ typedef pthread_t hmr_thread_t;
 
 #define JOINT_THREAD(thread)				pthread_join(thread, NULL);
 
-#define JOINT_THREADS(thread, nthreads)									\
+#define JOIN_THREADS(thread, nthreads)									\
 {																		\
 	int nFork;															\
 	for(nFork=0;nFork<nthreads-1;nFork++)								\

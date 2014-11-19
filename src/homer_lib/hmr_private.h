@@ -988,6 +988,7 @@ struct henc_thread_t
 	hmr_sem_t	synchro_sem;
 	hmr_sem_ptr	synchro_signal;
 	hmr_sem_ptr	synchro_wait;
+	hmr_sem_ptr	deblock_filter_sem;
 
 	bitstream_t	*bs;
 
@@ -1028,7 +1029,6 @@ struct henc_thread_t
 
 	int					*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
-
 	//current processing state and buffers
 	int				cu_current, cu_next;
 	int				cu_current_x, cu_current_y;
@@ -1102,6 +1102,9 @@ struct hvenc_t
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 	hmr_thread_t	encoder_thread;
+	hmr_sem_t		deblock_filter_semaphore;
+	hmr_sem_ptr		deblock_filter_sem;
+	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
 	int				run;
 
 	//nalus
