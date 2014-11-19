@@ -189,6 +189,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	double pic_corrector = 0.0;
 	double vbv_corrector;
 	double consumed_bitrate = 0.0, entropy;
+	double min_vbv_size;
 	int consumed_ctus = 0.0;
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
@@ -218,18 +219,20 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	else
 		pic_corrector = 0;
 
-	if(ed->num_encoded_frames == 19)
+	if(ed->num_encoded_frames == 25)
 	{
 		int iiiii=0;
 	}
 
-	vbv_corrector = 1.0-clip((ed->rc.vbv_fullness-consumed_bitrate+ed->rc.target_bits_per_ctu*consumed_ctus)/ed->rc.vbv_size, 0.0, 1.0);
+	min_vbv_size = clip(ed->rc.vbv_fullness,ed->rc.vbv_fullness,ed->rc.vbv_size*.9);
+
+	vbv_corrector = 1.0-clip((min_vbv_size-consumed_bitrate+ed->rc.target_bits_per_ctu*consumed_ctus)/ed->rc.vbv_size, 0.0, 1.0);
 
 	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-2.);
 
 	if(currslice->slice_type == I_SLICE && curr_thread->ed->intra_period>1)
 	{
-		qp/=1.25;
+		qp/=1.25;//-(ed->avg_dist/100000.);
 	}
 
 	if((/*ctu->ctu_number<2 || */ed->only_intra) && qp<=5)

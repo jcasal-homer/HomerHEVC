@@ -1577,11 +1577,13 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	}
 
 #define SCENE_CHANGE_THRESHOLD 1500
-	if(et->ed->only_intra == 0 && consumed_ctus>et->ed->pict_total_ctu/20)
+	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->only_intra == 0 && consumed_ctus>et->ed->pict_total_ctu/5)
 	{
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);
 
-		if(avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
+		if((et->ed->avg_dist>2000 && (avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist) && (avg_distortion>2.5*et->ed->avg_dist || avg_distortion<et->ed->avg_dist/3.0)) ||
+			(et->ed->avg_dist<=2000 && (avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist)) || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
+//		if((avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist) || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
 		{
 			et->ed->only_intra = 1;
 			printf("\r\n----------------------------------scene change detected. ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------------------------------\r\n", et->ed->avg_dist, avg_distortion);
@@ -1646,7 +1648,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				curr_cu_info->cost = cost;
 				curr_cu_info->prediction_mode = INTER_MODE;
 				//consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, MAX_COST, FALSE, cost_sums);
-				put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+
 
 #ifndef COMPUTE_AS_HM
 				if((dist<.5*avg_distortion*curr_cu_info->num_part_in_cu || curr_cu_info->sum < curr_cu_info->size*.1 || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
@@ -1682,7 +1684,9 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					//encode intra
 					uint previous_dist = curr_cu_info->distortion;
 					uint previous_sum = curr_cu_info->sum;
-					uint intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
+					uint intra_dist;
+					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 					cost_aux = dist+200*curr_depth;
 
 //					if(1.5*cost_aux < cost)

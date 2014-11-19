@@ -1737,8 +1737,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			hmr_put_pic_header(ed);//pic header
 		}
 
-		ed->only_intra = 0;
-
 		apply_reference_picture_set(ed, currslice);
 		
 		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
@@ -1758,8 +1756,13 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
 //		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
 
+		if(currslice->slice_type == I_SLICE)
+		{
+			int iiiii=0;
+		}
+
 		//calc average distortion
-//		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
+		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
 		{
 			ed->avg_dist = 0;
 			for(n = 0;n<ed->wfpp_num_threads;n++)
@@ -1775,6 +1778,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			else if(ed->only_intra)
 				ed->avg_dist*=1.375;
 		}
+		else if(currslice->slice_type == I_SLICE)
+			ed->avg_dist/=1.5;
+
+		ed->only_intra = 0;
+
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
