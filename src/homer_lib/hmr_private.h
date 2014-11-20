@@ -1026,6 +1026,8 @@ struct henc_thread_t
 	int				bit_depth;
 	int				rd_mode;
 	int				performance_mode;
+	uint			num_intra_partitions;
+
 
 	int					*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
@@ -1138,14 +1140,14 @@ struct hvenc_t
 	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
-	int				blocks_per_macroblock;
+	//statistics for scene change detection
 	double			avg_dist;
-	int				only_intra;
+	int				is_scene_change;
 	//cfg
 	int				frame_rate;
 	int				max_cu_size;
-	int				max_cu_size_shift;//log2 del tama�o del CU maximo
-	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
+	int				max_cu_size_shift;//log2 of cu max size
+	int				max_cu_size_shift_chroma;//log2 of cu chroma max size
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction

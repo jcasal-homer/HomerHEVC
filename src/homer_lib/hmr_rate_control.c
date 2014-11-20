@@ -61,7 +61,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
 	int ithreads;
 	hvenc_t* ed = et->ed;
-	if(ed->only_intra)
+	if(ed->is_scene_change)
 	{
 		double pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
 		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
@@ -204,7 +204,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	{
 		if(consumed_bitrate>1.5*ed->rc.target_bits_per_ctu)//*consumed_ctus && currslice->slice_type != I_SLICE)
 			pic_corrector = .0125*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
-/*		if(ed->only_intra)
+/*		if(ed->is_scene_change)
 		{
 			if(consumed_bitrate>1.*ed->rc.target_bits_per_ctu)//*consumed_ctus && currslice->slice_type != I_SLICE)
 				pic_corrector = .0250*(consumed_bitrate/(ed->rc.target_bits_per_ctu*consumed_ctus));
@@ -230,12 +230,15 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 
 	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-2.);
 
-	if(currslice->slice_type == I_SLICE && curr_thread->ed->intra_period>1)
+	if(curr_thread->ed->intra_period>1)
 	{
-		qp/=1.25;//-(ed->avg_dist/100000.);
+		if(currslice->slice_type == I_SLICE)
+			qp/=1.25;
+		if(ed->is_scene_change)
+			qp/=1.05;
 	}
 
-	if((/*ctu->ctu_number<2 || */ed->only_intra) && qp<=5)
+	if((/*ctu->ctu_number<2 || */ed->is_scene_change) && qp<=5)
 	{
 		qp=5;
 	}

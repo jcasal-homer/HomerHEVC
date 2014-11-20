@@ -73,7 +73,6 @@ void *HOMER_enc_init()
 
 	phvenc->num_encoded_frames = 0;
 	phvenc->ctu_group_size = MAX_MB_GROUP_SIZE;
-	phvenc->blocks_per_macroblock = 6;//420
 	phvenc->ctu_width[0] = phvenc->ctu_height[0] = 64;
 	phvenc->ctu_width[1] = phvenc->ctu_width[2] = 32;
 	phvenc->ctu_height[1] = phvenc->ctu_height[2] = 32;
@@ -1442,6 +1441,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 	et->cu_current = 0;
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
+	et->num_intra_partitions = 0;
 
 	ctu = &et->ed->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
 
@@ -1507,14 +1507,21 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 
 		//map spatial features and neighbours in recursive partition structure
 		create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
-		if(currslice->slice_type != I_SLICE && !et->ed->only_intra)// && (ctu->ctu_number & 0x1) == 0)
+		if(currslice->slice_type != I_SLICE && !et->ed->is_scene_change)// && (ctu->ctu_number & 0x1) == 0)
 		{
+			int ll;
 			motion_inter(et, ctu, gcnt);
+			for(ll = 0; ll<et->num_partitions_in_cu;ll++)
+			{
+				if(ctu->pred_mode[ll]==INTRA_MODE)
+					et->num_intra_partitions++;
+			}
 		}
 		else
 		{
 			//make ctu intra prediction
 			motion_intra(et, ctu, gcnt);
+			et->num_intra_partitions += et->num_partitions_in_cu;
 		}
 		PROFILER_ACCUMULATE(intra)
 
@@ -1643,7 +1650,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 }
 
 #define SYNC_THREAD_CONTEXT(ed, et)									\
-		et->rd = ed->rd;
+		et->rd = ed->rd;											
 
 THREAD_RETURN_TYPE encoder_thread(void *h)
 {
@@ -1775,13 +1782,13 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->avg_dist = clip(ed->avg_dist,.1,ed->avg_dist);
 			if(currslice->slice_type == I_SLICE)
 				ed->avg_dist*=1.5;
-			else if(ed->only_intra)
+			else if(ed->is_scene_change)
 				ed->avg_dist*=1.375;
 		}
 		else if(currslice->slice_type == I_SLICE)
 			ed->avg_dist/=1.5;
 
-		ed->only_intra = 0;
+		ed->is_scene_change = 0;
 
 
 		if(ed->bitrate_mode != BR_FIXED_QP)
