@@ -1158,7 +1158,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 		et->funcs->predict(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, residual_buff_v, residual_buff_stride_chroma, curr_part_size_chroma);
 		curr_cu_info+=part_incr;
 	}
-	return sad;//mv_cost;
+	return mv_cost;
 }
 
 //this function is referenced by the initial depth, not by the processing depth
