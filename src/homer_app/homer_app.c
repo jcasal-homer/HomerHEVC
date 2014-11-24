@@ -245,8 +245,8 @@ int main (int argc, char **argv)
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
 	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 4;
-	HmrCfg.max_inter_tr_depth = 4;
+	HmrCfg.max_intra_tr_depth = 3;
+	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
@@ -257,7 +257,7 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 //	HmrCfg.qp_depth = 0;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 #else
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;

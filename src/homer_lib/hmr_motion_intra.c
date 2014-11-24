@@ -1442,11 +1442,14 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 		if(cu_min_tu_size_shift>MAX_TU_SIZE_SHIFT)
 			cu_min_tu_size_shift=MAX_TU_SIZE_SHIFT;
 	}
-	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 
-#ifndef COMPUTE_AS_HM
-		if(et->performance_mode != 0)
-			max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
+#ifdef COMPUTE_AS_HM
+	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+#else
+	if(et->performance_mode == 0 || et->performance_mode == 1)
+		max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+	else if(et->performance_mode == 2)
+		max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
 #endif
 
 	memset(acc_cost, 0, sizeof(acc_cost));
@@ -1699,7 +1702,7 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 				for (l=0;l<4;l++)
 				{
-					uint child_variance = .5+((double)curr_depth/4.)*sqrt((double)parent_part_info->children[l]->variance)+4*et->performance_mode*curr_depth;
+					uint child_variance = .5+((double)curr_depth/4.)*sqrt((double)parent_part_info->children[l]->variance)+4*/*et->performance_mode*/2*curr_depth;
 					uint parent_variance = .5+sqrt((double)parent_part_info->variance);
 
 					if((parent_variance > child_variance) || parent_part_info->children[l]->recursive_split)
@@ -1765,7 +1768,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	int abs_index;
 	int num_part_in_cu;
 	uint8_t cbf_split[NUM_PICT_COMPONENTS];
-	int fast_skip = 0;
+	int stop_recursion = 0;
 	int ll;
 
 	//init rd auxiliar ctu
@@ -1786,7 +1789,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	memset(cbf_split, 0, sizeof(cbf_split));
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
-		fast_skip = 0;
+		stop_recursion = 0;
 		curr_depth = curr_partition_info->depth;
 		num_part_in_cu = curr_partition_info->num_part_in_cu;
 		abs_index = curr_partition_info->abs_index;
@@ -1807,12 +1810,11 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				cost_luma = MAX_COST;
 				cost_chroma = 0;//MAX_COST;
 				curr_partition_info->cost = cost_luma;
-				depth_state[curr_depth]++;
 			}
 			else
 #endif
 			{
-				if(ctu->ctu_number==1)// && curr_partition_info->abs_index>=128)//part_size_type == SIZE_NxN && 
+				if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 4 && curr_partition_info->abs_index==0)//part_size_type==SIZE_NxN
 				{
 					int iiiii=0;
 				}
@@ -1831,18 +1833,12 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					PROFILER_ACCUMULATE(intra_chroma)
 
 					curr_partition_info->cost = cost_luma + cost_chroma;
-					depth_state[curr_depth]++;
 				}
 				else if(part_size_type == SIZE_NxN)
 				{
 					int n;
 					PROFILER_RESET(intra_luma)
 					cost_luma = 0;
-
-					if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 4 && curr_partition_info->abs_index==0)//part_size_type==SIZE_NxN
-					{
-						int iiiii=0;
-					}
 
 					for(n=0;n<4;n++)
 					{
@@ -1864,22 +1860,20 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						cost_sum[curr_depth]+=cost_chroma;
 						PROFILER_ACCUMULATE(intra_chroma)
 					}
-					depth_state[curr_depth]+=4;					
+					depth_state[curr_depth]=3;					
 				}
 			}
 		}
-		else
-		{
-			depth_state[curr_depth]++;
-		}
+		depth_state[curr_depth]++;
 
 #ifndef COMPUTE_AS_HM
 		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation buffer)
-//		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
-/*		{
+		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+		if(curr_depth>0 && depth_state[curr_depth]!=4 && cost_sum[curr_depth]>parent_part_info->cost && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+		{
 			depth_state[curr_depth]=4;
 		}
-*/
+
 		//stop recursion
 		if(et->performance_mode>0 && (curr_partition_info->recursive_split==0 || curr_partition_info->cost == 0) && /*curr_depth && */part_size_type != SIZE_NxN && curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)
 		{
@@ -1887,7 +1881,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, MAX_COST, FALSE, cost_sum);
 
-			fast_skip = 1;
+			stop_recursion = 1;
 
 			max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
@@ -1907,16 +1901,14 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				}
 				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 			}
-
-
 		}
 #endif 
-		if(!fast_skip && curr_depth<et->max_pred_partition_depth && curr_partition_info->is_tl_inside_frame)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
+		if(!stop_recursion && curr_depth<et->max_pred_partition_depth && curr_partition_info->is_tl_inside_frame)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
 		{
 			curr_depth++;
 			parent_part_info = curr_partition_info;
 		}
-		else if(/*fast_skip || */depth_state[curr_depth]==4)//la consolidation of depth =1 has been done before the loop
+		else if(/*stop_recursion || */depth_state[curr_depth]==4)//la consolidation of depth =1 has been done before the loop
 		{
 			int max_processing_depth;
 
@@ -1925,13 +1917,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
 
 				depth_state[curr_depth] = 0;
-//				cost = cost_luma;//cost_chroma=0 after the first iteration 
 				best_cost = parent_part_info->cost;
-
-				if(ctu->ctu_number == 1)// && curr_partition_info->abs_index==0)//part_size_type==SIZE_NxN
-				{
-					int iiiii=0;
-				}
 
 				consolidate_prediction_info(et, ctu, ctu_rd, parent_part_info, best_cost, cost, (curr_depth==et->max_pred_partition_depth), cost_sum);
 
@@ -1946,6 +1932,10 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					for(h=0;h<depth_state[curr_depth];h++)
 						totalcost += parent_part_info->children[h]->cost;
 
+					if(totalcost!=cost_sum[parent_part_info->children[0]->depth])
+					{
+						int iiiii=0;
+					}
 					if(totalcost > parent_part_info->cost)//cost of childs is already higher than cost of parent - stop recursion
 					{
 						depth_state[curr_depth] = 4;
@@ -1966,13 +1956,10 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
 				{
 					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
-//					synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);
+
 					//for rd
 					if(et->rd_mode!=RD_DIST_ONLY)
 						consolidate_info_buffers_for_rd(et, ctu, aux_depth, abs_index, num_part_in_cu);
-//						consolidate_recursive_info_buffers(et, gcnt, parent_part_info, curr_depth, aux_depth, abs_index, num_part_in_cu);
-
-						
 				}
 				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 			}

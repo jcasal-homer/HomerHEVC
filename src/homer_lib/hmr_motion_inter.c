@@ -1467,15 +1467,18 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 			cu_min_tu_size_shift=tu_log_max_size;
 	}
 
-	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+
+
+
 #ifdef COMPUTE_AS_HM
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 #else
-	max_tr_processing_depth = depth==0?1:depth;
-//		max_tr_processing_depth = (depth+1<=max_tr_processing_depth)?depth+1:((depth+0<=max_tr_processing_depth)?depth+0:max_tr_processing_depth);
-//	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
-//	max_tr_processing_depth = depth==0?1:depth;
+	if(et->performance_mode == 0 || et->performance_mode == 1)
+		max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+	else if(et->performance_mode == 2)
+		max_tr_processing_depth = depth==0?1:depth;//max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
 #endif
+
 	//skip first level 
 	if(et->max_inter_tr_depth==1 && part_size_type != SIZE_2Nx2N && curr_depth==depth && log2cu_size>max_tr_processing_depth)
 	{
@@ -1795,368 +1798,6 @@ void put_consolidated_info(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info
 	synchronize_motion_buffers_chroma(et, curr_cu_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[0], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[0], 0);
 }
 
-/*
-uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
-{
-	picture_t *currpict = &et->ed->current_pict;
-	slice_t *currslice = &currpict->slice;
-	double dist, intra_dist, dist_aux, best_cost;//, cost_luma, cost_chroma;
-	int position = 0;
-	int curr_depth = 0;
-	ctu_info_t *ctu_rd = et->ctu_rd;
-	cu_partition_info_t	*parent_part_info = NULL;
-	cu_partition_info_t	*curr_cu_info = ctu->partition_list;
-	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	uint cost_sum[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
-	int abs_index;
-	int num_part_in_cu;
-	int ll, ithreads;
-	double consumed_distortion = 0, avg_distortion = 0;
-	uint consumed_ctus = 0;
-	uint total_intra_partitions = 0, total_partitions;
-//	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
-
-	for(ithreads=0;ithreads<et->wfpp_num_threads;ithreads++)
-	{
-		henc_thread_t* henc_th = et->ed->thread[ithreads];
-		
-		consumed_distortion += henc_th->acc_dist;
-		total_intra_partitions += henc_th->num_intra_partitions;
-		consumed_ctus += henc_th->num_encoded_ctus;
-	}
-	total_partitions = consumed_ctus*et->num_partitions_in_cu;
-
-	avg_distortion = et->ed->avg_dist/2;
-#define SCENE_CHANGE_THRESHOLD 1500
-	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/20)
-	{
-		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);
-
-//		if(total_intra_partitions > total_partitions/3 || (et->ed->avg_dist>2000 && (avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist) && (avg_distortion>2.5*et->ed->avg_dist || avg_distortion<et->ed->avg_dist/3.0)) ||
-//			(et->ed->avg_dist<=2000 && (avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist)) || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
-//		if((avg_distortion>et->ed->avg_dist + SCENE_CHANGE_THRESHOLD || avg_distortion + SCENE_CHANGE_THRESHOLD <et->ed->avg_dist) || 200*et->ed->avg_dist<avg_distortion || et->ed->avg_dist>200*avg_distortion)
-		if(total_intra_partitions > (total_partitions/4))
-		{
-			et->ed->is_scene_change = 1;
-			printf("\r\n----------------------------------scene change detected. ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------------------------------\r\n", et->ed->avg_dist, avg_distortion);
-			hmr_rc_change_pic_mode(et, currslice);
-//			int iiii=0;
-		}
-	}
-//	avg_distortion = et->ed->avg_dist;
-
-	//init rd auxiliar ctu
-	if(et->rd_mode != RD_DIST_ONLY)
-	{
-		copy_ctu(ctu, ctu_rd);
-//		memset(ctu_rd->pred_mode, INTRA_MODE, curr_cu_info->num_part_in_cu*sizeof(ctu_rd->pred_mode[0]));//indicamos que todas las codificaciones son intra
-//		ctu_rd->pred_mode = INTRA_MODE;
-	}
-
-//#ifndef COMPUTE_AS_HM
-	if(et->performance_mode != 0)
-		analyse_recursive_info(et, ctu, gcnt);
-//#endif
-
-	while(curr_depth!=0 || depth_state[curr_depth]!=1)
-	{
-		double cost = 0, cost_aux = 0;
-		int stop_recursion = FALSE;
-		PartSize part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
-		curr_depth = curr_cu_info->depth;
-		num_part_in_cu = curr_cu_info->num_part_in_cu;
-		abs_index = curr_cu_info->abs_index;
-		
-		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
-
-		//rc
-//		if(currslice->slice_type != I_SLICE)// && curr_depth<=et->ed->qp_depth)
-//		{
-//			int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
-//			uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
-//			curr_cu_info->variance = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);//for intra imgs this is done in analyse_intra_recursive_info
-//		}
-		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
-
-		if(et->ed->num_encoded_frames == 7 && ctu->ctu_number >1)
-		{
-			int iiiii=0;
-		}
-
-
-		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
-		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
-		{
-			int mv_cost;
-
-			if(et->ed->num_encoded_frames==32 && ctu->ctu_number == 115 && curr_cu_info->depth==0)
-			{
-				int iiiii=0;
-			}
-
-			if(et->ed->num_encoded_frames==26 && curr_cu_info->depth==0)
-			{
-				int iiiii=0;
-			}
-
-			if(part_size_type == SIZE_2Nx2N)
-			{
-				//encode inter
-				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-				dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-				curr_cu_info->distortion = dist;
-				cost = curr_cu_info->distortion;
-#ifdef COMPUTE_AS_HM
-				cost+=5*curr_depth;
-#else
-				cost += 2*mv_cost;
-				cost+=2000*curr_depth;
-#endif
-				curr_cu_info->cost = cost;
-				curr_cu_info->prediction_mode = INTER_MODE;
-				//consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, MAX_COST, FALSE, cost_sums);
-
-
-#ifndef COMPUTE_AS_HM
-//				if((dist<.5*avg_distortion*curr_cu_info->num_part_in_cu || //curr_cu_info->sum < curr_cu_info->size*.1 || 
-					//(curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/12)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-				if((dist<avg_distortion*curr_cu_info->num_part_in_cu && (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-				{
-					int max_processing_depth;
-					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, curr_cu_info->cost, MAX_COST, FALSE, cost_sum);
-					stop_recursion = TRUE;
-
-					max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
-
-					if(curr_depth <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
-					{
-						int aux_depth;
-//							cu_partition_info_t* aux_partition_info = (parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth]+3)&0x3]:&ctu->partition_list[0];
-						cu_partition_info_t* aux_partition_info = curr_cu_info;//(parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth])]:&ctu->partition_list[0];
-						abs_index = aux_partition_info->abs_index;
-						num_part_in_cu  = aux_partition_info->num_part_in_cu;
-
-						for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
-						{
-							synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
-							//for rd
-							if(et->rd_mode!=RD_DIST_ONLY)
-								consolidate_info_buffers_for_rd(et, ctu, aux_depth, abs_index, num_part_in_cu);
-						}
-						synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
-					}
-				}
-
-#endif
-				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+3000*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
-//				if(!stop_recursion && dist>curr_cu_info->size*100*100)
-				{
-					//encode intra
-					uint previous_dist = curr_cu_info->distortion;
-					uint previous_sum = curr_cu_info->sum;
-					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
-					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-					cost_aux = intra_dist+2000*curr_depth;
-
-//					if(1.5*cost_aux < cost)
-//					if(curr_cu_info->sum<2*previous_sum)
-					if(1.25*cost_aux+45*curr_cu_info->sum<cost+45*previous_sum)
-					{	//we prefer intra and it is already in its buffer
-						curr_cu_info->cost = cost_aux;
-						curr_cu_info->distortion = intra_dist;
-						curr_cu_info->prediction_mode = INTRA_MODE;
-					}
-					else
-					{	//we prefer inter, bring it back
-						get_back_consolidated_info(et, ctu, curr_cu_info, curr_depth);
-						curr_cu_info->cost = cost;
-						curr_cu_info->sum = previous_sum;
-						curr_cu_info->distortion = previous_dist;
-						curr_cu_info->prediction_mode = INTER_MODE;
-					}
-				}
-
-//				if((curr_cu_info->distortion<.5*avg_distortion*curr_cu_info->num_part_in_cu || //curr_cu_info->sum < curr_cu_info->size*.1 || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/12)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-				if((curr_cu_info->distortion<avg_distortion*curr_cu_info->num_part_in_cu && curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
-				{
-					int max_processing_depth;
-					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, curr_cu_info->cost, MAX_COST, FALSE, cost_sum);
-					stop_recursion = TRUE;
-
-					max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
-
-					if(curr_depth <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
-					{
-						int aux_depth;
-//							cu_partition_info_t* aux_partition_info = (parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth]+3)&0x3]:&ctu->partition_list[0];
-						cu_partition_info_t* aux_partition_info = curr_cu_info;//(parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth])]:&ctu->partition_list[0];
-						abs_index = aux_partition_info->abs_index;
-						num_part_in_cu  = aux_partition_info->num_part_in_cu;
-
-						for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
-						{
-							synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
-							//for rd
-							if(et->rd_mode!=RD_DIST_ONLY)
-								consolidate_info_buffers_for_rd(et, ctu, aux_depth, abs_index, num_part_in_cu);
-						}
-						synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
-					}
-				}
-
-
-				if(curr_depth>0 && depth_state[curr_depth]!=3 && cost_sum[curr_depth]>parent_part_info->cost && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
-				{
-					depth_state[curr_depth] = 3;
-				}
-			}
-			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
-			{
-				curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-				curr_cu_info->cost = cost = dist = MAX_COST;
-				if((curr_depth-1) == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->parent->size>8)	//SIZE_NxN
-				{
-					int position_aux = curr_cu_info->parent->list_index - et->partition_depth_start[curr_depth-1];
-					uint aux_cost = curr_cu_info->parent->cost;
-					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
-					dist = encode_inter(et, ctu, gcnt, curr_depth-1, position_aux, SIZE_NxN);//this function is referenced by the initial depth, not by the processing depth
-					cost = dist;
-					cost+=5*curr_depth;
-					cost += mv_cost;
-					put_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-					curr_cu_info->parent->cost = aux_cost;//este valor se sobreescribe en encode_inter. Deberia intentar hacer que el intra funcionase igual, con 1 sola llamada que hiciese las 4 particiones NxN. Asi se consolidaria el cbf totalmente
-#ifndef COMPUTE_AS_HM
-					//intra
-					if(dist>(1.25*avg_distortion*parent_part_info->num_part_in_cu+2000*parent_part_info->num_part_in_cu))
-					{
-						cost_aux = 0;
-						cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-						cost_aux+=5*curr_depth;
-
-						if(cost_aux < cost)
-						{	//we prefer intra and it is already in its buffer
-							curr_cu_info->cost = cost_aux;
-							curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
-						}
-						else
-						{	//we prefer inter, bring inter info back
-							get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-							curr_cu_info->cost = cost;
-							curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
-						}
-					}
-				}
-#else
-				}
-				//intra
-				if(dist>(1.5*avg_distortion*parent_part_info->num_part_in_cu+2000*parent_part_info->num_part_in_cu))
-				{
-					cost_aux = 0;
-					cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-					cost_aux+=5*curr_depth;
-					if(cost_aux < cost)
-					{	//we prefer intra and it is already in its buffer
-						curr_cu_info->cost = cost_aux;
-						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
-					}
-					else
-					{	//we prefer inter, bring inter info back
-						get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-						curr_cu_info->cost = cost;
-						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
-					}
-				}
-#endif
-
-//				else
-//				{
-//					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-//					curr_cu_info[0].cost = MAX_COST;					
-//				}
-				depth_state[curr_depth] = 3;
-			}
-			cost_sum[curr_depth] += curr_cu_info->cost;
-		}
-
-		depth_state[curr_depth]++;
-
-		if((curr_depth)<et->max_pred_partition_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
-		{
-			curr_depth++;
-			parent_part_info = curr_cu_info;
-		}
-		else if(depth_state[curr_depth]==4)//la depth =1 lo hemos consolidado antes del bucle
-		{
-			int max_processing_depth;
-
-
-			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
-			{
-				//int is_max_depth = (((curr_depth+1)==et->max_inter_pred_depth) && !((curr_depth == (et->max_cu_depth - et->mincu_mintr_shift_diff)) && curr_cu_info->size>8));
-//				int is_max_depth = (((curr_depth+1)==et->max_pred_partition_depth) && !(curr_cu_info->size>8));
-				int is_max_depth = (curr_depth==et->max_pred_partition_depth);
-				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
-
-				depth_state[curr_depth] = 0;
-				best_cost = parent_part_info->cost;
-
-				consolidate_prediction_info(et, ctu, ctu_rd, parent_part_info, best_cost, cost, is_max_depth, cost_sum);
-				//consolidate_inter_prediction_info(et, ctu, parent_part_info, best_cost, cost, is_max_depth);
-
-				depth_state[curr_depth] = 0;
-				cost_sum[curr_depth] = 0;
-
-				curr_depth--;
-				parent_part_info = parent_part_info->parent;
-
-				if(curr_depth>0 && cost_sum[curr_depth] > parent_part_info->cost && depth_state[curr_depth]<4 && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)
-				{
-					depth_state[curr_depth] = 4;
-				}
-			}
-
-			max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
-
-			if(curr_depth <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
-			{
-				int aux_depth;
-				cu_partition_info_t*	aux_partition_info = (parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth]+3)&0x3]:&ctu->partition_list[0];
-				abs_index = aux_partition_info->abs_index;
-				num_part_in_cu  = aux_partition_info->num_part_in_cu;
-
-				for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
-				{
-					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
-					//for rd
-//					if(et->rd_mode!=RD_DIST_ONLY)
-//						CONSOLIDATE_INTRA_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu);
-				}
-				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
-			}
-		}
-
-		if(parent_part_info!=NULL)
-			curr_cu_info = parent_part_info->children[depth_state[curr_depth]];
-	}
-	
-	curr_cu_info = &ctu->partition_list[0];
-	abs_index = curr_cu_info->abs_index;
-	curr_depth = curr_cu_info->depth;
-	num_part_in_cu = curr_cu_info->num_part_in_cu;
-
-	//if pred_depth==0 there is no NxN subdivision. we need to collect the information of the ctu
-	if(et->max_pred_partition_depth==0)
-	{
-		CONSOLIDATE_ENC_INFO_BUFFS(et, ctu, curr_depth, abs_index, num_part_in_cu)
-		SET_INTER_INFO_BUFFS(et, ctu, curr_cu_info, abs_index, num_part_in_cu, REF_PIC_LIST_0)	
-	}
-
-//	memset(&ctu->pred_mode[abs_index], INTER_MODE, num_part_in_cu*sizeof(ctu->pred_mode[0]));//signal all partitions as inter
-	memset(&ctu->skipped[abs_index], FALSE, num_part_in_cu*sizeof(ctu->skipped[0]));//signal all partitions as non skipped
-	return curr_cu_info->cost;
-}
-
-*/
 
 uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
@@ -2208,19 +1849,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	if(et->rd_mode != RD_DIST_ONLY)
 	{
 		copy_ctu(ctu, ctu_rd);
-//		memset(ctu_rd->pred_mode, INTRA_MODE, curr_cu_info->num_part_in_cu*sizeof(ctu_rd->pred_mode[0]));//indicamos que todas las codificaciones son intra
-//		ctu_rd->pred_mode = INTRA_MODE;
 	}
-
-		if(et->ed->num_encoded_frames == 21 && ctu->ctu_number == 115)
-		{
-			int iiiii=0;
-		}
-
 
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
-		double cost = 0, cost_aux = 0;
+		double cost = 0, intra_cost = 0;
 		int stop_recursion = FALSE;
 		PartSize part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
 		curr_depth = curr_cu_info->depth;
@@ -2264,11 +1897,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 #endif
 				curr_cu_info->cost = cost;
 				curr_cu_info->prediction_mode = INTER_MODE;
-				//consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, cost, MAX_COST, FALSE, cost_sums);
 
-
-#ifndef COMPUTE_AS_HM
-//				if((dist<.5*avg_distortion*curr_cu_info->num_part_in_cu || curr_cu_info->sum < curr_cu_info->size*.1 || (curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/6)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 				if((dist<.4*avg_distortion*curr_cu_info->num_part_in_cu || (/*dist<.5*avg_distortion*curr_cu_info->num_part_in_cu*/ curr_cu_info->size== et->max_cu_size && curr_cu_info->sum < curr_cu_info->size*.2) || 
 					(curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/5)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 				{
@@ -2278,10 +1907,9 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 					max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
-					if(curr_depth <= max_processing_depth)//el = es para cuando et->max_intra_tr_depth!=4
+					if(curr_depth <= max_processing_depth)//
 					{
 						int aux_depth;
-//							cu_partition_info_t* aux_partition_info = (parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth]+3)&0x3]:&ctu->partition_list[0];
 						cu_partition_info_t* aux_partition_info = curr_cu_info;//(parent_part_info!=NULL)?parent_part_info->children[(depth_state[curr_depth])]:&ctu->partition_list[0];
 						abs_index = aux_partition_info->abs_index;
 						num_part_in_cu  = aux_partition_info->num_part_in_cu;
@@ -2297,8 +1925,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 				}
 
-#endif
-//				if(!stop_recursion && curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+3000*curr_cu_info->num_part_in_cu))
 				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+4000*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
 				{
 					//encode intra
@@ -2307,14 +1933,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					uint intra_dist;
 					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
-					cost_aux = intra_dist+200*curr_depth;
+					intra_cost = intra_dist+200*curr_depth;
 
-//					if(1.5*cost_aux < cost)
-//					if(curr_cu_info->sum<2*previous_sum)
-					if(1.5*cost_aux+45*curr_cu_info->sum<cost+45*previous_sum)// && cost_aux<64*curr_cu_info->variance)
+					if(1.5*intra_cost+45*curr_cu_info->sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
 					{	//we prefer intra and it is already in its buffer
-						curr_cu_info->cost = cost_aux;
-//						curr_cu_info->distortion = intra_dist;
+						curr_cu_info->cost = intra_cost;
 						curr_cu_info->prediction_mode = INTRA_MODE;
 					}
 					else
@@ -2362,67 +1985,64 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
 			{
-				curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
 				curr_cu_info->cost = cost = dist = MAX_COST;
 				if((curr_depth-1) == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->parent->size>8)	//SIZE_NxN
 				{
 					int position_aux = curr_cu_info->parent->list_index - et->partition_depth_start[curr_depth-1];
 					uint aux_cost = curr_cu_info->parent->cost;
+					uint aux_dist = curr_cu_info->parent->distortion;
+					uint aux_sum = curr_cu_info->parent->sum;
 					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);
 					dist = encode_inter(et, ctu, gcnt, curr_depth-1, position_aux, SIZE_NxN);//this function is referenced by the initial depth, not by the processing depth
 					cost = dist;
-					cost+=5*curr_depth;
+					cost+=200*curr_depth;
 					cost += mv_cost;
-					put_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-					curr_cu_info->parent->cost = aux_cost;//este valor se sobreescribe en encode_inter. Deberia intentar hacer que el intra funcionase igual, con 1 sola llamada que hiciese las 4 particiones NxN. Asi se consolidaria el cbf totalmente
-#ifndef COMPUTE_AS_HM
-					//intra
-					if(dist>(1.5*avg_distortion*parent_part_info->num_part_in_cu+2000*parent_part_info->num_part_in_cu))
-					{
-						cost_aux = 0;
-						cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-						cost_aux+=5*curr_depth;
 
-						if(cost_aux < cost)
+					curr_cu_info->cost = cost;
+					curr_cu_info->distortion = dist;
+					curr_cu_info->sum = curr_cu_info->parent->sum;
+					curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
+
+					//restore parent values
+					curr_cu_info->parent->cost = aux_cost;//este valor se sobreescribe en encode_inter. Deberia intentar hacer que el intra funcionase igual, con 1 sola llamada que hiciese las 4 particiones NxN. Asi se consolidaria el cbf totalmente
+					curr_cu_info->parent->distortion = aux_dist;
+					curr_cu_info->parent->sum = aux_sum;
+
+
+					//intra
+					if((dist>(1.5*avg_distortion*4*curr_cu_info->num_part_in_cu+4000*4*curr_cu_info->num_part_in_cu)) &&  curr_cu_info->cost>=curr_cu_info->parent->cost/5)
+					{
+						uint previous_dist = curr_cu_info->distortion;
+						uint previous_sum = curr_cu_info->sum;
+						uint intra_dist, intra_sum;
+
+						put_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
+						intra_cost = 0;
+						intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
+						intra_cost = intra_dist+200*curr_depth;
+						intra_sum = curr_cu_info[0].sum + curr_cu_info[1].sum + curr_cu_info[2].sum + curr_cu_info[3].sum;
+
+						curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
+						curr_cu_info[0].sum = curr_cu_info[1].sum = curr_cu_info[2].sum = curr_cu_info[3].sum = 0;
+						curr_cu_info[0].distortion = curr_cu_info[1].distortion = curr_cu_info[2].distortion = curr_cu_info[3].distortion = 0;
+
+						if(1.5*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
 						{	//we prefer intra and it is already in its buffer
-							curr_cu_info->cost = cost_aux;
+							curr_cu_info->cost = intra_cost;
+							curr_cu_info->cost = intra_sum;
+							curr_cu_info->distortion = intra_dist;
 							curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
 						}
 						else
-						{	//we prefer inter, bring inter info back
+						{	//we prefer inter, bring it back
 							get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
 							curr_cu_info->cost = cost;
+							curr_cu_info->sum = previous_sum;
+							curr_cu_info->distortion = previous_dist;
 							curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
 						}
 					}
 				}
-#else
-				}
-				//intra
-				if(dist>(1.5*avg_distortion*parent_part_info->num_part_in_cu+2000*parent_part_info->num_part_in_cu))
-				{
-					cost_aux = 0;
-					cost_aux = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-					cost_aux+=5*curr_depth;
-					if(cost_aux < cost)
-					{	//we prefer intra and it is already in its buffer
-						curr_cu_info->cost = cost_aux;
-						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTRA_MODE;
-					}
-					else
-					{	//we prefer inter, bring inter info back
-						get_back_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
-						curr_cu_info->cost = cost;
-						curr_cu_info[0].prediction_mode = curr_cu_info[1].prediction_mode = curr_cu_info[2].prediction_mode = curr_cu_info[3].prediction_mode = INTER_MODE;
-					}
-				}
-#endif
-
-//				else
-//				{
-//					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
-//					curr_cu_info[0].cost = MAX_COST;					
-//				}
 				depth_state[curr_depth] = 3;
 			}
 			cost_sum[curr_depth] += curr_cu_info->cost;
