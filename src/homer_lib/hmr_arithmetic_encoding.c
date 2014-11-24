@@ -1,6 +1,6 @@
 /*****************************************************************************
 * hmr_arithmetic_encoding.c : homerHEVC encoding library
-/*****************************************************************************
+******************************************************************************
 * Copyright (C) 2014 homerHEVC project
 *
 * Juan Casal <jcasal.homer@gmail.com>
@@ -22,8 +22,8 @@
 /*
 * some of the work below is derived from HM HEVC reference code where 
 * the following license applies
-/****************************************************************************
-/* The copyright in this software is being made available under the BSD
+*****************************************************************************
+* The copyright in this software is being made available under the BSD
 * License, included below. This software may be subject to other third party
 * and contributor rights, including patent rights, and no such rights are
 * granted under this license.  
@@ -685,7 +685,7 @@ void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_pa
 		int vertical = mv->ver_vector;
 		int vertical_not_0 = vertical!=0?1:0;
 		int vertical_abs = abs(vertical);
-		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvd_model, 0);
+		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvd_model, 0, 0, 0);
 
 		ee->ee_encode_bin(ee, cm, horizontal_not_0);	
 		ee->ee_encode_bin(ee, cm, vertical_not_0);	
@@ -718,7 +718,7 @@ void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* c
 {
 	if(ctu->inter_mode[abs_index] & (1<<ref_list))
 	{
-		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvp_idx_model, 0);
+		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvp_idx_model, 0, 0, 0);
 
 		write_unary_max_simbol(ee, cm, ctu->mv_diff_ref_idx[ref_list][abs_index], 1, AMVP_MAX_NUM_CANDS-1);
 	}
@@ -1350,7 +1350,7 @@ int get_last_coded_qp(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info_t *c
 
 		if(qp_depth_partition->abs_index>0)//if ( getZorderIdxInCU() > 0 )
 		{
-			//!!!!!! THIS HAS TO BE CHANGED TO REDUCE THE GRAIN OF THE RATE CONTROL ¡¡¡¡¡¡¡¡
+			//!!!!!! THIS HAS TO BE CHANGED TO REDUCE THE GRAIN OF THE RATE CONTROL Â¡Â¡Â¡Â¡Â¡Â¡Â¡Â¡
 			return ctu->qp[qp_depth_partition->parent->abs_index];//return getPic()->getCU( getAddr() )->getLastCodedQP( getZorderIdxInCU() );
 		}
 		 //( getPic()->getPicSym()->getInverseCUOrderMap(getAddr()) > 0

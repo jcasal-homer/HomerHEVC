@@ -175,6 +175,8 @@
 
 #define MAXnum_ref_frames_in_pic_order_cnt_cycle  256	
 typedef int Boolean;
+
+typedef unsigned char	byte;
 typedef unsigned char	uint8_t;
 typedef unsigned short	ushort;
 typedef unsigned int	uint;
@@ -697,7 +699,7 @@ struct cu_partition_info_t
 	uint sum;
 //	uint distortion_chroma, cost_chroma;
 	uint distortion, cost;
-	uint variance, variance_chroma;
+	uint variance, variance_luma, variance_chroma;
 	uint recursive_split;
 
 	//inter prediction. Trying to avoid buffer consolidation

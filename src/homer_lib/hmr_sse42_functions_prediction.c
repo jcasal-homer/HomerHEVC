@@ -42,7 +42,7 @@ ALIGN(16) static const int8_t shuffle_mask_prediction_16_4[16] ={ 14, 15, 14, 15
 
 
 
-void sse_create_intra_planar_prediction_4(int16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
+void sse_create_intra_planar_prediction_4(uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
 	int j;
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
@@ -83,7 +83,7 @@ void sse_create_intra_planar_prediction_4(int16_t *ref_wnd, int ref_wnd_stride_2
 
 
 
-void sse_create_intra_planar_prediction_8(int16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
+void sse_create_intra_planar_prediction_8(uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
 	int i, j, jj;
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
@@ -290,7 +290,7 @@ int16_t sse_pred_intra_calc_dc(int16_t *adi_ptr, int width, int height, int top,
 
 ALIGN(16) static const int8_t shuffle_mask_predict_16_0[16] ={ 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1};//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
 //for cu_size >= 8
-void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, int16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
+void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
 	int i, j, jj;
 	int is_DC_mode = cu_mode < 2;
@@ -354,7 +354,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 		int16_t  *refLeft = et->left_pred_buff;
 		int invAngleSum;
 		int bFilter = is_luma?(cu_size<=16):0;
-		__m128i shuff_mask = sse_128_load_vector_a(shuffle_mask_predict_16_0);//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
+		__m128_i16 shuff_mask = sse_128_load_vector_a(shuffle_mask_predict_16_0);//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
 		abs_angle = et->ed->ang_table[abs_angle];
 		pred_angle = sign_angle * abs_angle;
 
@@ -396,8 +396,8 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 		if (pred_angle == 0)
 		{
-			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
-			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
+//			int aux_stride = is_Hor_mode?1:ref_wnd_stride_2D;//if is_Hor_mode flip horizontal and vertical axis by changing the x and y stride
+//			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 
 			for (i=0;i<cu_size;i+=8)
 			{
@@ -711,8 +711,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 */
 
 
-
-void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu, int16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
+void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu, uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
 	int i, j, jj;
 	int is_DC_mode = cu_mode < 2;

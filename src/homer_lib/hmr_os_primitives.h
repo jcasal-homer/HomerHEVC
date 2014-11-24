@@ -97,7 +97,7 @@ typedef void* hmr_sem_ptr;
 #define ALIGN(a)	__attribute__((aligned(a)))
 
 //thread function return format
-#define THREAD_RETURN_TYPE	void*
+#define THREAD_RETURN_TYPE	void *
 #define THREAD_RETURN	0
 
 //thread handle format

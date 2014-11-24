@@ -1669,7 +1669,7 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 				int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 				uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_partition_info->x_position, curr_partition_info->y_position, gcnt, et->ctu_width);
-				curr_partition_info->variance = et->funcs->modified_variance(orig_buff, curr_partition_info->size, orig_buff_stride, 1)/(curr_partition_info->size*curr_partition_info->size);
+				curr_partition_info->variance_luma = et->funcs->modified_variance(orig_buff, curr_partition_info->size, orig_buff_stride, 1)/(curr_partition_info->size*curr_partition_info->size);
 				{
 
 					orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, U_COMP);
@@ -1678,7 +1678,7 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_partition_info->x_position_chroma, curr_partition_info->y_position_chroma, gcnt, et->ctu_width);
 					curr_partition_info->variance_chroma += 1.25*et->funcs->modified_variance(orig_buff, curr_partition_info->size_chroma, orig_buff_stride, 2)/(curr_partition_info->size_chroma*curr_partition_info->size_chroma);
 				}
-				curr_partition_info->variance += curr_partition_info->variance_chroma;
+				curr_partition_info->variance = curr_partition_info->variance_luma+curr_partition_info->variance_chroma;
 		}
 		else
 			curr_partition_info->recursive_split = 1;
