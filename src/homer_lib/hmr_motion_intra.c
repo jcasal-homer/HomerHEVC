@@ -1446,9 +1446,8 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 #ifdef COMPUTE_AS_HM
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 #else
-	if(et->performance_mode == 0 || et->performance_mode == 1)
-		max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
-	else if(et->performance_mode == 2)
+	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+	if(et->performance_mode == 2)
 		max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
 #endif
 

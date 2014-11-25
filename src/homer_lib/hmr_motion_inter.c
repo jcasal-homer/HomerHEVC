@@ -994,8 +994,11 @@ int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
-		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
+//		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
+//		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
+		int cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+
 		int cost = 3+cost_mvx+cost_mvy;
 
 		if(best_cost>cost)
@@ -1473,9 +1476,8 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 #ifdef COMPUTE_AS_HM
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 #else
-	if(et->performance_mode == 0 || et->performance_mode == 1)
-		max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
-	else if(et->performance_mode == 2)
+	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
+	if(et->performance_mode == 2)
 		max_tr_processing_depth = depth==0?1:depth;//max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
 #endif
 
@@ -1830,14 +1832,19 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 #define SCENE_CHANGE_THRESHOLD 1500
 
-	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/20)
+	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
+		if(et->ed->num_encoded_frames == 35)
+		{
+			int iiiii=0;
+		}
+
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
 
 		if(total_intra_partitions > (total_partitions/3))
 		{
 			et->ed->is_scene_change = 1;
-			printf("\r\n----------------------------------scene change detected. ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------------------------------\r\n", et->ed->avg_dist, avg_distortion);
+			printf("\r\n---------------------scene change detected. total_intra_partitions:%d, total_partitions:%d , ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", total_intra_partitions, total_partitions, et->ed->avg_dist, avg_distortion);
 			hmr_rc_change_pic_mode(et, currslice);
 //			int iiii=0;
 		}
@@ -1881,7 +1888,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
 			int mv_cost;
-
 			if(part_size_type == SIZE_2Nx2N)
 			{
 				//encode inter
@@ -1925,17 +1931,21 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 				}
 
-				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+4000*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
+				//if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+max(avg_distortion,1000,avg_distortion)*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
+				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+1.*max(avg_distortion,1000,avg_distortion)*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
 				{
 					//encode intra
-					uint previous_dist = curr_cu_info->distortion;
-					uint previous_sum = curr_cu_info->sum;
+					uint inter_dist = curr_cu_info->distortion;
+					uint inter_sum = curr_cu_info->sum;
 					uint intra_dist;
 					put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 					intra_cost = intra_dist+200*curr_depth;
 
-					if(1.5*intra_cost+45*curr_cu_info->sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
+
+					//if(1.5*intra_cost+45*curr_cu_info->sum<cost+45*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+					if(1.3*intra_cost+45*curr_cu_info->sum<cost+45*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+					//if(1.*intra_cost+curr_cu_info->size/4*curr_cu_info->variance+45*curr_cu_info->sum<cost+45*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = intra_cost;
 						curr_cu_info->prediction_mode = INTRA_MODE;
@@ -1944,8 +1954,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					{	//we prefer inter, bring it back
 						get_back_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 						curr_cu_info->cost = cost;
-						curr_cu_info->sum = previous_sum;
-						curr_cu_info->distortion = previous_dist;
 						curr_cu_info->prediction_mode = INTER_MODE;
 					}
 				}

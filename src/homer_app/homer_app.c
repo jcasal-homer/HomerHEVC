@@ -212,8 +212,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 75;//1575+25;//1050;//800;//200;
-	int num_frames = 700;
+	int skipped_frames = 25;//2125+20+25;//1575+25;//1050;//800;//200;
+	int num_frames = 2200;//100;//700;
 
 	unsigned char *frame[3];
 	stream_t stream;
