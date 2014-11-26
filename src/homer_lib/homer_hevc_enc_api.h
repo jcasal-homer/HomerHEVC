@@ -119,29 +119,26 @@ typedef struct HVENC_Cfg HVENC_Cfg;
 struct HVENC_Cfg{
 	int size;
 	int profile;
-	int width, height; // frame size (pels) 
-	int intra_period;
-	int gop_size; 
-	int num_b; 
-	int frame_rate;
-	int num_ref_frames;
+	int width, height; // frame size (pixels) 
+	float frame_rate;
 	int cu_size;
 	int max_pred_partition_depth;
 	int max_intra_tr_depth;
 	int max_inter_tr_depth;
+	int intra_period;
+	int gop_size; 
+	int num_ref_frames;
+	int qp;//for fixed qp mode, or initial qp if cbr or vbr
+	int chroma_qp_offset;
 	int wfpp_enable;
 	int wfpp_num_threads;
 	int sign_hiding;
-	int	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
-	int qp;//for fixed qp mode, or initial qp if cbr or vbr
 	int bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
 	int bitrate;//in kbps
 	int vbv_size;//in kbps
 	int vbv_init;//in kbps
-//	int qp_depth;//
-	int chroma_qp_offset;
+	int	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
 	int performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
-
 };
 
 void *HOMER_enc_init();

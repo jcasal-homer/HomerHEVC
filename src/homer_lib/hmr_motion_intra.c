@@ -1866,9 +1866,8 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		depth_state[curr_depth]++;
 
 #ifndef COMPUTE_AS_HM
-		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation buffer)
+		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation loop)
 		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
-		if(curr_depth>0 && depth_state[curr_depth]!=4 && cost_sum[curr_depth]>parent_part_info->cost && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 		{
 			depth_state[curr_depth]=4;
 		}

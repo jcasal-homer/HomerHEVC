@@ -449,7 +449,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 //			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
-			cfg->chroma_qp_offset = 0;
+			//cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
 			{
@@ -519,7 +519,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->profile = cfg->profile;
 			phvenc->intra_period = cfg->intra_period;
 			phvenc->gop_size = phvenc->intra_period==1?1:cfg->gop_size;
-			phvenc->num_b = phvenc->intra_period==1?0:cfg->num_b;
+			phvenc->num_b = phvenc->intra_period==1?0:0;
 			phvenc->num_ref_frames = phvenc->gop_size>0?cfg->num_ref_frames:0;
 			//conformance wnd
 			min_cu_size = phvenc->min_cu_size;
@@ -1746,7 +1746,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		apply_reference_picture_set(ed, currslice);
 		
-		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
 
 		for(n = 0; n<ed->wfpp_num_threads;n++)
 		{
@@ -1757,17 +1756,17 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		SEM_RESET(ed->deblock_filter_sem)
 
+#ifdef COMPUTE_AS_HM
+		CREATE_THREADS((&ed->hthreads[0]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
+#else
+		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
+
 		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
 		CREATE_THREADS((&ed->hthreads[1]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
-//		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
-
-		if(currslice->slice_type == I_SLICE)
-		{
-			int iiiii=0;
-		}
-
+#endif
 		//calc average distortion
 		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
 		{
@@ -1794,9 +1793,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
 
-//		if(ed->intra_period>1)
-//			hmr_deblock_filter(ed, currslice);
-
+#ifdef COMPUTE_AS_HM
+		if(ed->intra_period>1)
+			hmr_deblock_filter(ed, currslice);
+#endif
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;

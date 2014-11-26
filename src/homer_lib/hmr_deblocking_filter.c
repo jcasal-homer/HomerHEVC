@@ -637,7 +637,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 				bit_depth_scale = 1<<(ed->bit_depth-8);			
 
 				index_tc =  clip((int)(chr_qp + DEFAULT_INTRA_TC_OFFSET*(bs-1) + (tc_offset_div2 << 1)), 0, MAX_QP+DEFAULT_INTRA_TC_OFFSET);
-//				index_b = clip(qp + (beta_offset_div2 << 1), 0, MAX_QP);
+//				index_b = clip(qp + (beta_offset_div2 << 1), MIN_QP, MAX_QP);
 				tc = sm_tcTable[index_tc];
 //				beta = sm_betaTable[index_b];
 //				side_threshold = (beta+(beta>>1))>>3;
@@ -852,46 +852,61 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 //		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug
 
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
-//	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
+
+/*	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
-		int current_line=0;
 		for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
-		{
-			if(ed->hthreads[0]!=NULL && ((ctu_num % ed->pict_width_in_ctu)==0))// && dir==EDGE_VER)
+		{	
+			ctu = &ed->ctu_info[ctu_num];
+
+			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
+			if(ctu->ctu_number == 2 && dir==EDGE_VER)
 			{
-				SEM_WAIT(ed->deblock_filter_sem);
-//				printf("sem_wait . processing line %d\r\n", current_line);
-				current_line++;
+				int iiiii=0;
 			}
 
-			ctu = &ed->ctu_info[ctu_num];
-			ctu->partition_list = ed->deblock_partition_info;
-			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-			hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_VER);
-			if(ctu_num>2*ed->pict_width_in_ctu)
-			{
-				int ctu_num_horizontal = ctu_num-2*ed->pict_width_in_ctu;
-				ctu = &ed->ctu_info[ctu_num_horizontal];
-				ctu->partition_list = ed->deblock_partition_info;
-				create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-				hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);
-			}
+			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
-
-		//finish the remaining ctus of the horizontal filter
-		for(ctu_num = (ed->pict_total_ctu-2*ed->pict_width_in_ctu) ; ctu_num < ed->pict_total_ctu ; ctu_num++)
-		{
-			ctu = &ed->ctu_info[ctu_num];
-			ctu->partition_list = ed->deblock_partition_info;
-			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-			hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);		
-		}
-
 //		if(dir==EDGE_VER)
 //			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
 	}
-
 //	if(ed->debug_file!=NULL)
 //		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
 
+*/
+
+//	int current_line=0;
+	for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
+	{
+#ifndef COMPUTE_AS_HM
+		if(ed->hthreads[0]!=NULL && ((ctu_num % ed->pict_width_in_ctu)==0))// && dir==EDGE_VER)
+		{
+			SEM_WAIT(ed->deblock_filter_sem);
+//				printf("sem_wait . processing line %d\r\n", current_line);
+//				current_line++;
+		}
+#endif // !COMPUTE_AS_HM
+
+		ctu = &ed->ctu_info[ctu_num];
+		ctu->partition_list = ed->deblock_partition_info;
+		create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+		hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_VER);
+		if(ctu_num>=1*ed->pict_width_in_ctu)
+		{
+			int ctu_num_horizontal = ctu_num-1*ed->pict_width_in_ctu;
+			ctu = &ed->ctu_info[ctu_num_horizontal];
+			ctu->partition_list = ed->deblock_partition_info;
+			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+			hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);
+		}
+	}
+
+	//finish the remaining ctus of the horizontal filter
+	for(ctu_num = (ed->pict_total_ctu-1*ed->pict_width_in_ctu) ; ctu_num < ed->pict_total_ctu ; ctu_num++)
+	{
+		ctu = &ed->ctu_info[ctu_num];
+		ctu->partition_list = ed->deblock_partition_info;
+		create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+		hmr_deblock_filter_cu(ed, currslice, ctu, EDGE_HOR);		
+	}
 }

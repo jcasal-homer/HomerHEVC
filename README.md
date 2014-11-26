@@ -16,21 +16,27 @@ Code style of the development is C'99 and recursive functions have been implemen
 
 HomerHEVC is still under development and will improve in quality and performance during the development.
 
-Current Features
+Current Features (HomerHEVC_v1.0_Beta)
 ----------------
 
 - 8 bit-depth.
+- Intra and Baseline profile (I and P images with 1 reference image).
 - All intra prediction modes.
-- All CTU sizes (64, 32, 16).
+- 2Nx2N and NxN inter prediction modes.
+- 64 CTU size 64.
 - All transform sizes (32,16,8,4).
-- Sign hiding bit enabled.
-- RDO.
+- high accuracy VBV based rate control.
+- Deblocking filter.
 - Wpp parallelization (native pthread or win32 threads, depending on the OS).
-- Fast decision mode algorithm.
+- Sign hiding bit enabled.
+- intra RDO.
+- intra-inter fast RD.
 
 Optimizations (SSE42):
 - Intra prediction generation.
-- Prediction.
+- Motion estimation.
+- Inter prediction with 1/8 pixel chroma precission.
+- Intra Prediction.
 - Reconstruction. 
 - SAD, SSD.
 - Transforms.
@@ -47,19 +53,20 @@ Reported bugs and small improvements of the already published versions will be p
 Roadmap
 -------
 
-homerHEVC_V0.1 (April 2014)
-- Intra smooth filter (To be added)
-
-homerHEVC_V1.0 (July 2014)
+Current Version improvements - homerHEVC_V1.0 (November 2014)
 - Inter prediction.
 - Rate control
 - Further SSE/AVX optimizations & quality improvements.
 
-homerHEVC_V2.0 (November 2014)
+homerHEVC_V2.0 (March 2014)
 - SAO.
-- Deblocking.
+- B images
 - Further SSE/AVX optimizations & quality improvements.
 
+
+Donwnload
+---------
+It is recomended to download the latest release from the Release Tab at: https://github.com/jcasal-homer/HomerHEVC/releases
 
 
 Compiling homerHEVC
@@ -70,7 +77,6 @@ homerHEVC is composed of a simple example application (homer_app) and the encode
 Compile in Windows 
 - Visual C++ 2008. Open the solution inside the "build\vc9\" folder and rebuild. Default project is for 64 bits.
 - Visual C++ 2012. Open the solution inside the "build\vc11\" folder and rebuild. Default project is for 64 bits.
-- Cygwin. Open the Cygwin console, go to the "build/Cygwin/" folder and type "make clean all" to execute the makefile.
 
 Compile in Linux
 - Open a console. Go to the "build/Linux/" folder and type "make clean all" to execute the makefile.
@@ -115,8 +121,16 @@ Configuration examples:
 
 Contributors:
 --------------
+We encourage developers and users to participate in the project as contributors by: developing new features, reporting bugs, and giving feedback.
 
-Up to now all code has being developed by Juan Casal, an IT and Telecomunications engineer with more than 12 years of experience in video encoding and transmission.
+HomerHEVC Contribution License Agreement (CLA) must be signed before starting contributing.
+
+if you would like to contribute, please ask for the CLA to jcasal@homerhevc.com and send it back signed.
+
+
+More Info:
+----------
+HomerHEVC is led by Juan Casal, an IT and Telecomunications engineer with more than 12 years of experience in video encoding and transmission.
 
 Find Juan Casal's personal linkedIn profile in https://www.linkedin.com/pub/juan-casal/47/373/8a6.
 
@@ -125,5 +139,3 @@ Contact: jcasal@homerhevc.com
 Web page: www.homerhevc.com
 
 Please report bugs and different issues in https://github.com/jcasal-homer/HomerHEVC/issues
-
-

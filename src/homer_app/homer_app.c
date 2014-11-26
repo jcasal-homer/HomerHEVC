@@ -39,7 +39,7 @@
 
 
 #define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
-//#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"//table_tennis_420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+//#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
@@ -82,17 +82,28 @@ void print_help()
 	printf("-h: \t\t\t help\r\n");
 	printf("-i: \t\t\t input yuv file\r\n");
 	printf("-o: \t\t\t output 265 file\r\n");
-	printf("-o-raw: \t\t\t output raw frames in yuv format\r\n");
+	printf("-o-raw: \t\t output raw frames in yuv format\r\n");
 	printf("-widthxheight: \t\t default = 1280x720\r\n");
-	printf("-cu_size: \t\t cu size[16,32 or 64], default = 64\r\n");
-	printf("-qp: \t\t\t fixed qp[0-51], default = 32\r\n");
-	printf("-n_wpp_threads: \t 0:no wpp, >0-number of wpp threads, default = 1\r\n");	
-	printf("-max_intra_pred_depth: \t [0-4], default = 4\r\n");
-	printf("-max_intra_tr_depth: \t [0-4], default = 4\r\n");
+	printf("-frame_rate: \t\t default = 50 fps\r\n");	
+	printf("-cu_size: \t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
+	printf("-intra_preriod: \t default = 20 \r\n");
+	printf("-gop_size: \t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
+	printf("-num_ref_frame: \t default = 1 (only 1 reference currently supported) \r\n");	
+	printf("-qp: \t\t\t qp[0-51], default = 32\r\n");
+	printf("-chroma_qp_offset: \t chroma_qp_offset[-12,12], default = 2\r\n");	
+	printf("-n_wpp_threads: \t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
+	printf("-max_pred_depth: \t [0-4], default = 4\r\n");
+	printf("-max_intra_tr_depth: \t [0-4], default = 2\r\n");
+	printf("-max_inter_tr_depth: \t [0-4], default = 1\r\n");
 	printf("-sign_hiding: \t\t 0=off, 1=on, default = 1\r\n");
-	printf("-performance_mode: \t 0=full computation, 1=fast , 2= ultra fast\r\n");
-	printf("-rd: \t\t\t 0=off, 1=full rd , 2= fast rd\r\n");
-	printf("-n_frames: \t\t default 40\r\n");
+	printf("-bitrate_mode: \t\t 0=fixed qp, 1=CBR (Constant bitrate), default = CBR\r\n");
+	printf("-bitrate: \t\t in kbps when bitrate_mode=CBR, default = 5000\r\n");
+	printf("-vbv_size: \t\t in kbps when bitrate_mode=CBR, default = .5*bitrate\r\n");
+	printf("-vbv_init: \t\t in kbps when bitrate_mode=CBR, default = .1*bitrate\r\n");
+	printf("-performance_mode: \t 0=full computation, 1=fast , 2= ultra fast, default = fast\r\n");
+	printf("-rd: \t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd, default = fast\r\n");
+	printf("-n_frames: \t\t default = 40\r\n");
+	printf("-skipped_frames: \t default = 0\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
 	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2 -n_frames 40\r\n");
@@ -103,7 +114,7 @@ void print_help()
 
 
 
-void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
+void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames)
 {
 	int args_parsed = 0;
 	args_parsed = 1;
@@ -141,24 +152,15 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%dx%d", &cfg->width, &cfg->height);
 		}
+		else if(strcmp(argv[args_parsed], "-frame_rate")==0 && args_parsed+1<argc)//frames per second of video
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%f", &cfg->frame_rate);
+		}
 		else if(strcmp(argv[args_parsed], "-cu_size")==0 && args_parsed+1<argc)//cu_size: 64, 32, 16
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->cu_size);
-		}
-		else if(strcmp(argv[args_parsed], "-qp")==0 && args_parsed+1<argc)//quant
-		{
-			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &cfg->qp );
-		}
-		else if(strcmp(argv[args_parsed], "-n_wpp_threads")==0 && args_parsed+1<argc)//number of threads
-		{
-			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &cfg->wfpp_num_threads );
-			if(cfg->wfpp_num_threads==0)
-				cfg->wfpp_enable = 0;
-			else
-				cfg->wfpp_enable = 1;
 		}
 		else if(strcmp(argv[args_parsed], "-max_pred_depth")==0 && args_parsed+1<argc)//depth of prediction, default 4
 		{
@@ -173,28 +175,86 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames)
 		else if(strcmp(argv[args_parsed], "-max_inter_tr_depth")==0 && args_parsed+1<argc)//transform of inter prediction, default 4
 		{
 			args_parsed++;
-
 			sscanf( argv[args_parsed++], "%d", &cfg->max_inter_tr_depth);
+		}
+		else if(strcmp(argv[args_parsed], "-intra_preriod")==0 && args_parsed+1<argc)//Period between two I images
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->intra_period);
+		}
+		else if(strcmp(argv[args_parsed], "-gop_size")==0 && args_parsed+1<argc)//Number of P and B frames repeated in a video sequence
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->gop_size);
+		}
+		else if(strcmp(argv[args_parsed], "-num_ref_frames")==0 && args_parsed+1<argc)//Number of reference frames to used as reference for inter prediction
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->num_ref_frames);
+		}		
+		else if(strcmp(argv[args_parsed], "-qp")==0 && args_parsed+1<argc)//quant
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->qp );
+		}
+		else if(strcmp(argv[args_parsed], "-chroma_qp_offset")==0 && args_parsed+1<argc)//qp offset to apply for chroma
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->chroma_qp_offset);
+		}	
+		else if(strcmp(argv[args_parsed], "-n_wpp_threads")==0 && args_parsed+1<argc)//number of threads
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->wfpp_num_threads );
+			if(cfg->wfpp_num_threads==0)
+				cfg->wfpp_enable = 0;
+			else
+				cfg->wfpp_enable = 1;
 		}
 		else if(strcmp(argv[args_parsed], "-sign_hiding")==0 && args_parsed+1<argc)//sign_hiding, default 1
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->sign_hiding);
 		}
-		else if(strcmp(argv[args_parsed], "-performance_mode")==0 && args_parsed+1<argc)//performance_mode:	0 = accurate+high quality, 1-quality-performance-balaced 2= fast				//0=FULL_COMPUTATION, 1=SELECTIVE_FULL_COMPUTATION, 2=FAST_PRED_MODE
+		else if(strcmp(argv[args_parsed], "-bitrate_mode")==0 && args_parsed+1<argc)//bitrate_mode: 0=BR_FIXED_QP, 1 = BR_CBR (vbv based constant bit rate)
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->bitrate_mode);
+		}
+		else if(strcmp(argv[args_parsed], "-bitrate")==0 && args_parsed+1<argc)//stream bitrate in kbps when bitrate_mode=BR_CBR 
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->bitrate);
+		}
+		else if(strcmp(argv[args_parsed], "-vbv_size")==0 && args_parsed+1<argc)//size of VBV (video buffering verifier) in kbps when bitrate_mode=BR_CBR 
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->vbv_size);
+		}
+		else if(strcmp(argv[args_parsed], "-vbv_init")==0 && args_parsed+1<argc)//initial fullnes of VBV in kbps when bitrate_mode=BR_CBR 
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->vbv_init);
+		}
+		else if(strcmp(argv[args_parsed], "-performance_mode")==0 && args_parsed+1<argc)//performance_mode:	//0=FULL_COMPUTATION, 1=PERF_FAST_COMPUTATION, 2=FAST_PRED_MODE
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->performance_mode);
 		}
-		else if(strcmp(argv[args_parsed], "-rd_mode")==0 && args_parsed+1<argc)//rd_mode: 0=OFF, 1=FULL_RD, 2=FAST_RD
+		else if(strcmp(argv[args_parsed], "-rd_mode")==0 && args_parsed+1<argc)//rd_mode: 0=OFF(DISTORTION_ONLY), 1=FULL_RD, 2=FAST_RD
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->rd_mode);
 		}
-		else if(strcmp(argv[args_parsed], "-n_frames")==0 && args_parsed+1<argc)//num_frames
+		else if(strcmp(argv[args_parsed], "-n_frames")==0 && args_parsed+1<argc)//number of frames to encode
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", num_frames);
+		}
+		else if(strcmp(argv[args_parsed], "-skipped_frames")==0 && args_parsed+1<argc)//frames to skip before starting encoding
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", skipped_frames);
 		}
 		else	//arg not recognized. Continue to next
 		{
@@ -212,8 +272,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 25;//2125+20+25;//1575+25;//1050;//800;//200;
-	int num_frames = 2200;//100;//700;
+	int skipped_frames = 1575+25;//25;//1050;//800;//200;
+	int num_frames = 700;//2200;//100;//700;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -238,15 +298,14 @@ int main (int argc, char **argv)
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
 	HmrCfg.intra_period = 20;
-	HmrCfg.num_b = 0;
 	HmrCfg.gop_size = 1;
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
 	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 3;
-	HmrCfg.max_inter_tr_depth = 2;
+	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
@@ -256,23 +315,22 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
-//	HmrCfg.qp_depth = 0;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 #else
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
 	HmrCfg.intra_period = 1;
-	HmrCfg.num_b = 0;
+//	HmrCfg.num_b = 0;
 	HmrCfg.gop_size = 0;	
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 4;
-	HmrCfg.max_inter_tr_depth = 4;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_inter_tr_depth = 2;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
@@ -282,11 +340,10 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
-//	HmrCfg.qp_depth = 0;
 	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 #endif // DEBUG
 
-	parse_args(argc, argv, &HmrCfg, &num_frames);
+	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 
 	if(!(infile = fopen(file_in_name, "rb")))
 	{
@@ -345,6 +402,7 @@ int main (int argc, char **argv)
 		if(input_frames<skipped_frames)
 		{
 			input_frames++;
+			msInit = get_ms();
 			continue;
 		}
 
@@ -396,8 +454,8 @@ int main (int argc, char **argv)
 		}
 	}
 
-	printf("\r\npulse una tecla\r\n");
-	getchar();
+//	printf("\r\npulse una tecla\r\n");
+//	getchar();
 
 	fclose(infile);
 	fclose(outfile);

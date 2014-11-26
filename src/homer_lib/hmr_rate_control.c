@@ -99,6 +99,10 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 
 #ifdef COMPUTE_AS_HM
 	currslice->qp = ed->pict_qp-(ed->num_encoded_frames%4);
+	if(currslice->qp<1)
+	{
+		currslice->qp=1;
+	}
 #endif
 
 	ed->rc.target_bits_per_ctu = ed->rc.target_pict_size/ed->pict_total_ctu;
@@ -139,7 +143,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 #ifndef COMPUTE_AS_HM
 	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
-	ed->pict_qp = avg_qp;
+	ed->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
 #endif
 	ed->rc.vbv_fullness += ed->rc.average_pict_size;
 	
@@ -251,7 +255,7 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 {
 	int qp;
 #ifdef COMPUTE_AS_HM
-	double debug_qp = 28+ctu->ctu_number%4;
+	double debug_qp = currslice->qp+ctu->ctu_number%4;//28+ctu->ctu_number%4;
 	if(et->ed->bitrate_mode == BR_FIXED_QP)
 	{
 		qp = et->ed->current_pict.slice.qp;

@@ -1146,7 +1146,7 @@ struct hvenc_t
 	double			avg_dist;
 	int				is_scene_change;
 	//cfg
-	int				frame_rate;
+	float			frame_rate;
 	int				max_cu_size;
 	int				max_cu_size_shift;//log2 of cu max size
 	int				max_cu_size_shift_chroma;//log2 of cu chroma max size
