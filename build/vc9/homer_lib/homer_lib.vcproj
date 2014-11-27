@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="homer_lib"
 	ProjectGUID="{DDA66D7E-04CF-4D49-9A06-7A5253E0C5E0}"
 	RootNamespace="homer_lib"
@@ -44,6 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories=".\"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -293,6 +294,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\src\homer_lib\hmr_deblocking_filter.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\src\homer_lib\hmr_encoder_lib.c"
 				>
 			</File>
@@ -309,6 +314,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\src\homer_lib\hmr_motion_inter.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\src\homer_lib\hmr_motion_intra.c"
 				>
 			</File>
@@ -322,6 +331,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\src\homer_lib\hmr_quant.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\src\homer_lib\hmr_rate_control.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\src\homer_lib\hmr_sse42_functions_inter_prediction.c"
 				>
 			</File>
 			<File

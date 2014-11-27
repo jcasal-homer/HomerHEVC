@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -171,7 +171,7 @@ int hmr_bitstream_bitcount(bitstream_t* bs)
 void hmr_bitstream_write2file(bitstream_t* bs)
 {
 	FILE *f_annexb;
-	if (((f_annexb) = fopen ("prueba.bin", "wb")) == NULL)
+	if (((f_annexb) = fopen ("bitstream.bin", "wb")) == NULL)
 	{
 		printf("Fatal: cannot open Annex B bytestream file 'prueba.bin', exit (-1)\n");
 	}

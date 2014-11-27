@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -309,20 +309,49 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
-void init_rd(hvenc_t* ed)
+void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
 {
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;
-	double	qp_factor;
-	double	qp_temp = (double) ed->pict_qp + bitdepth_luma_qp_scale - SHIFT_QP;//
-	double	lambda_scale = 1.0 - clip(0.05*(double)(ed->mb_interlaced ? ed->num_b/2 : ed->num_b), 0.0, 0.5);
+	double	qp_factor = 0.4624;
+	double	qp_temp = (double) ed->current_pict.slice.qp /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
+	double	lambda_scale = 1.0 - clip(0.05*(double)(ed->mb_interlaced ? (ed->gop_size-1)/2 : (ed->gop_size-1)), 0.0, 0.5);
 	double	lambda;
+    int depth, poc = currslice->poc%ed->gop_size;
 
-	if (ed->pict_type==I_SLICE)
+	if (poc == 0)
+		depth = 0;
+	else
+	{
+		int i, j;
+		int step = ed->gop_size;
+		depth = 0;
+		for(i=step>>1; i>=1; i>>=1)
+		{
+			for (j=i; j<ed->gop_size; j+=step )
+			{
+				if (j == poc)
+				{
+					i=0;
+					break;
+				}
+			}
+			step >>= 1;
+			depth++;
+		}
+	}
+
+	if(currslice->slice_type==I_SLICE)
+	{
+		qp_factor=0.57*lambda_scale;
+	}
+
+	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );
+
+    if ( depth>0 )
     {
-      qp_factor=0.57*lambda_scale;
+        lambda *= clip((qp_temp / 6.0), 2.00, 4.00); // (j == B_SLICE && p_cur_frm->layer != 0 )
     }
-    lambda = qp_factor*pow( 2.0, qp_temp/3.0 );
 
 	ed->rd.lambda = lambda;
 	ed->rd.sqrt_lambda = sqrt(lambda);

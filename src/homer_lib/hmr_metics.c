@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -72,17 +72,16 @@ void homer_psnr(picture_t *orig, wnd_t* decoded, int pic_width[3], int pic_heigh
 
 	for (component = 0; component < NUM_PICT_COMPONENTS; component++)
 	{
-
 		//===== calculate PSNR =====
 		uint8_t*  src = WND_DATA_PTR(byte*, orig->img2encode->img, component);
-		uint8_t*  dec = WND_DATA_PTR(byte*, *decoded, component);
+		int16_t*  dec = WND_DATA_PTR(int16_t*, *decoded, component);
 		int   dec_stride = WND_STRIDE_2D(*decoded, component);
-		int   src_stride;// = width;
+		int   src_stride = WND_STRIDE_2D(orig->img2encode->img, component);;// = width;
 
 		width  = pic_width[component];
 		height = pic_height[component];
 
-		src_stride = width;
+//		src_stride = width;
 
 		for( y = 0; y < height; y++ )
 		{

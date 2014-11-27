@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -33,8 +33,8 @@
 #include	"hmr_sse42_functions.h"
 
 
-static const ushort ang_table[] = {0,    2,    5,   9,  13,  17,  21,  26,  32}; 
-static const ushort inv_ang_table[] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle
+static const uint16_t ang_table[] = {0,    2,    5,   9,  13,  17,  21,  26,  32}; 
+static const uint16_t inv_ang_table[] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle
 
 #ifdef COMPUTE_METRICS
 profiler_t frame_metrics = PROFILER_INIT("frame_metrics");
@@ -73,7 +73,6 @@ void *HOMER_enc_init()
 
 	phvenc->num_encoded_frames = 0;
 	phvenc->ctu_group_size = MAX_MB_GROUP_SIZE;
-	phvenc->blocks_per_macroblock = 6;//420
 	phvenc->ctu_width[0] = phvenc->ctu_height[0] = 64;
 	phvenc->ctu_width[1] = phvenc->ctu_width[2] = 32;
 	phvenc->ctu_height[1] = phvenc->ctu_height[2] = 32;
@@ -121,7 +120,21 @@ void *HOMER_enc_init()
 		}
 		size <<= 1;
 	}
-	
+
+	for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
+	{
+		phvenc->quant_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->quant_pyramid[SCALING_MODE_32x32][1][qp];
+		phvenc->dequant_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->dequant_pyramid[SCALING_MODE_32x32][1][qp];
+		phvenc->scaling_error_pyramid[SCALING_MODE_32x32][3][qp] = phvenc->scaling_error_pyramid[SCALING_MODE_32x32][1][qp];
+	}  
+
+
+	//deblocking filter
+	phvenc->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
 	//angular intra table
 	phvenc->ang_table = (ushort*)calloc (9, sizeof(ushort));//number of elements in CU
 	phvenc->inv_ang_table = (ushort*)calloc (9, sizeof(ushort));//number of elements in CU
@@ -133,34 +146,29 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-#ifdef WRITE_REF_FRAMES
-	FILE *refs_file = fopen("refs.yuv","wb");
-	for(i=0;i<NUM_REFF_WNDS;i++)
-	{
-		phvenc->ref_wnds[i].out_file = refs_file;
-	}
-#endif
+//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
-	phvenc->ctu_info_t = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
+
+/*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
 
 	for(i=0;i<MAX_NUM_CTUs;i++)
 	{
 		//------- ctu encoding info -------
 		//cbf
-		phvenc->ctu_info_t[i].cbf[Y_COMP] = (byte*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].cbf[CHR_COMP] = phvenc->ctu_info_t[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
-		phvenc->ctu_info_t[i].cbf[V_COMP] = phvenc->ctu_info_t[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].cbf[CHR_COMP] = phvenc->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].cbf[V_COMP] = phvenc->ctu_info[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
 		//intra mode
-		phvenc->ctu_info_t[i].intra_mode[Y_COMP] = (byte*)calloc (2*MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].intra_mode[CHR_COMP] = phvenc->ctu_info_t[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-//		phvenc->ctu_info_t[i].intra_mode[V_COMP] = phvenc->ctu_info_t[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
+		phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
+//		phvenc->ctu_info[i].intra_mode[V_COMP] = phvenc->ctu_info[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
 		//tr_idx, pred_depth, part_size_type, pred_mode
-		phvenc->ctu_info_t[i].tr_idx = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].pred_depth = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		phvenc->ctu_info_t[i].part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-//		phvenc->ctu_info_t[i].pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+		phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+		phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 	}
-
+*/
 	phvenc->wfpp_enable = 0;
 	phvenc->num_sub_streams = 0;
 	phvenc->wfpp_num_threads = 0;
@@ -192,6 +200,7 @@ void HOMER_enc_close(void* h)
 			JOINT_THREAD(phvenc->encoder_thread);		
 	}
 
+	SEM_DESTROY(phvenc->deblock_filter_sem);
 	for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
 	{
 		henc_thread_t* henc_th = phvenc->thread[ithreads];
@@ -214,6 +223,7 @@ void HOMER_enc_close(void* h)
 
 		wnd_delete(&henc_th->prediction_wnd);
 		wnd_delete(&henc_th->residual_wnd);
+		wnd_delete(&henc_th->residual_dec_wnd);
 
 		for(i=0;i<NUM_QUANT_WNDS;i++)
 			wnd_delete(&henc_th->transform_quant_wnd[i]);
@@ -236,13 +246,30 @@ void HOMER_enc_close(void* h)
 			aligned_free(henc_th->intra_mode_buffs[U_COMP][i]);
 			aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
 			aligned_free(henc_th->tr_idx_buffs[i]);
-		}
+
+/*			aligned_free(henc_th->mv_ref0[Y_COMP][i]);
+			aligned_free(henc_th->mv_ref0[U_COMP][i]);
+			aligned_free(henc_th->mv_ref0[V_COMP][i]);
+
+			aligned_free(henc_th->mv_ref1[Y_COMP][i]);
+			aligned_free(henc_th->mv_ref1[U_COMP][i]);
+			aligned_free(henc_th->mv_ref1[V_COMP][i]);
+
+			aligned_free(henc_th->ref_idx0[Y_COMP][i]);
+			aligned_free(henc_th->ref_idx0[V_COMP][i]);
+			aligned_free(henc_th->ref_idx0[U_COMP][i]);
+
+			aligned_free(henc_th->ref_idx1[Y_COMP][i]);
+			aligned_free(henc_th->ref_idx1[V_COMP][i]);
+			aligned_free(henc_th->ref_idx1[U_COMP][i]);
+*/		}
 
 		aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
 		aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
 
 		free(henc_th->ctu_rd->part_size_type);
-//		free(henc_th->ctu_rd->pred_mode);
+		free(henc_th->ctu_rd->pred_mode);
+		free(henc_th->ctu_rd->skipped);
 		free(henc_th->ctu_rd);
 
 		free(henc_th);
@@ -256,9 +283,9 @@ void HOMER_enc_close(void* h)
 	}
 
 
-	for(i=0;i<NUM_REFF_WNDS;i++)
+	for(i=0;i<2*MAX_NUM_REF;i++)
 	{
-		wnd_delete(&phvenc->ref_wnds[i]);
+		wnd_delete(&phvenc->ref_wnds[i].img);
 	}
 
 	//delete previous streams
@@ -319,21 +346,34 @@ void HOMER_enc_close(void* h)
 	free(phvenc->ang_table);
 	free(phvenc->inv_ang_table);
 
-
-	for(i=0;i<phvenc->pict_total_cu;i++)
+	if(phvenc->ctu_info!=NULL)
 	{
-		free(phvenc->ctu_info_t[i].cbf[Y_COMP]);
-		//intra mode
-		free(phvenc->ctu_info_t[i].intra_mode[Y_COMP]);
-		//tr_idx, pred_depth, part_size_type, pred_mode
-		free(phvenc->ctu_info_t[i].tr_idx);
-		free(phvenc->ctu_info_t[i].pred_depth);
-		free(phvenc->ctu_info_t[i].part_size_type);
-//		free(phvenc->ctu_info_t[i].pred_mode);
+		for(i=0;i<phvenc->pict_total_ctu;i++)
+		{
+			free(phvenc->ctu_info[i].cbf[Y_COMP]);
+			//intra mode
+			free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+			free(phvenc->ctu_info[i].inter_mode);
+			//tr_idx, pred_depth, part_size_type, pred_mode
+			free(phvenc->ctu_info[i].tr_idx);
+			free(phvenc->ctu_info[i].pred_depth);
+			free(phvenc->ctu_info[i].part_size_type);
+			free(phvenc->ctu_info[i].pred_mode);
+			free(phvenc->ctu_info[i].skipped);
+			//inter
+			free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
+			free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
+//			free(phvenc->ctu_info[i].mv_ref1);
+			
+//			free(phvenc->ctu_info[i].ref_idx1);
+			free(phvenc->ctu_info[i].qp);
+		}
+
+		free(phvenc->ctu_info);
+		phvenc->ctu_info = NULL;
 	}
-
-	free(phvenc->ctu_info_t);
-
 	hmr_bitstream_free(&phvenc->slice_bs);
 	hmr_bitstream_free(&phvenc->vps_nalu.bs);
 	hmr_bitstream_free(&phvenc->sps_nalu.bs);
@@ -346,26 +386,42 @@ void HOMER_enc_close(void* h)
 }
 
 
-void put_frame_to_encode(hvenc_t *ed, unsigned char *picture_t[])
+void put_frame_to_encode(hvenc_t *ed, unsigned char *picture[])
 {
 	video_frame_t	*p;
+
+	uint8_t *src, *dst;
+	int stride_dst, stride_src;
+	int comp, j;
+
 	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
 
-	memcpy(WND_DATA_PTR(byte*, p->img, Y_COMP), picture_t[0], ed->pict_width[0]*ed->pict_height[0]);
-	memcpy(WND_DATA_PTR(byte*, p->img, U_COMP), picture_t[1], ed->pict_width[1]*ed->pict_height[1]);
-	memcpy(WND_DATA_PTR(byte*, p->img, V_COMP), picture_t[2], ed->pict_width[2]*ed->pict_height[2]);
+	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	{
+		src = picture[comp];
+		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
+		stride_src = ed->pict_width[comp];
+		stride_dst = WND_STRIDE_2D(p->img, comp);
+
+		for(j=0;j<ed->pict_height[comp];j++)
+		{
+			memcpy(dst, src, ed->pict_width[comp]);
+			src += stride_src;
+			dst += stride_dst;
+		}
+	}
 	sync_cont_put_filled(ed->input_hmr_container, p);
 }
 
 
-void get_frame_to_encode(hvenc_t *ed, video_frame_t **picture_t)
+void get_frame_to_encode(hvenc_t *ed, video_frame_t **picture)
 {
-	sync_cont_get_filled(ed->input_hmr_container, (void**)picture_t);
+	sync_cont_get_filled(ed->input_hmr_container, (void**)picture);
 }
 
-void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture_t)
+void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture)
 {
-	sync_cont_put_empty(ed->input_hmr_container, picture_t);
+	sync_cont_put_empty(ed->input_hmr_container, picture);
 }
 
 
@@ -389,6 +445,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			int prev_num_sub_streams, prev_num_ee, prev_num_ec;
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
 
+#ifdef COMPUTE_AS_HM
+			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
+//			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
+			//cfg->chroma_qp_offset = 0;
+#endif
 			if(phvenc->run==1)
 			{
 				phvenc->run = 0;
@@ -396,19 +458,35 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				if(phvenc->encoder_thread!=NULL)
 					JOINT_THREAD(phvenc->encoder_thread);
 			}
-
-			phvenc->performance_mode = clip(cfg->performance_mode,0,2);
-			phvenc->rd_mode = clip(cfg->rd_mode,0,2);
 			phvenc->ctu_width[0] = phvenc->ctu_height[0] = cfg->cu_size;
 			phvenc->ctu_width[1] = phvenc->ctu_width[2] = cfg->cu_size>>1;
 			phvenc->ctu_height[1] = phvenc->ctu_height[2] = cfg->cu_size>>1;
+
+			phvenc->performance_mode = clip(cfg->performance_mode,0,NUM_PERF_MODES-1);
+			phvenc->rd_mode = clip(cfg->rd_mode,0,NUM_RD_MODES-1);
+			phvenc->bitrate_mode = clip(cfg->bitrate_mode,0,NUM_BR_MODES-1);
+			phvenc->bitrate = cfg->bitrate;
+			phvenc->vbv_size = cfg->vbv_size;
+			phvenc->vbv_init = cfg->vbv_init;
+			phvenc->qp_depth = 0;//cfg->qp_depth;//if rc enabled qp_depth == 0
+
 			phvenc->pict_qp = cfg->qp;
+			phvenc->chroma_qp_offset = cfg->chroma_qp_offset;
 
 			phvenc->max_cu_size = cfg->cu_size;//MAX_CU_SIZE;
 			phvenc->max_cu_size_shift = 0;//MAX_CU_SIZE_SHIFT;
 			while(phvenc->max_cu_size>(1<<phvenc->max_cu_size_shift))phvenc->max_cu_size_shift++;
 
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
+
+			if(cfg->width%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)) || cfg->height%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)))
+			{
+				printf("HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
+				goto config_error;
+			}
+//			phvenc->max_inter_pred_depth = 0;
+//			phvenc->max_inter_pred_depth = phvenc->max_pred_partition_depth;
+
 			//depth of TU tree 
 			phvenc->max_intra_tr_depth = (cfg->max_intra_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_intra_tr_depth; 
 			phvenc->max_inter_tr_depth = (cfg->max_inter_tr_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT+1):cfg->max_inter_tr_depth; 
@@ -439,8 +517,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			create_raster2abs_tables( phvenc->abs2raster_table, phvenc->raster2abs_table, phvenc->ctu_width[0], phvenc->ctu_height[0], phvenc->max_cu_size_shift-1);
 
 			phvenc->profile = cfg->profile;
-			phvenc->gop_size = cfg->N;
-			phvenc->num_b = (cfg->M-1)>0?(cfg->M-1):0;
+			phvenc->intra_period = cfg->intra_period;
+			phvenc->gop_size = phvenc->intra_period==1?1:cfg->gop_size;
+			phvenc->num_b = phvenc->intra_period==1?0:0;
+			phvenc->num_ref_frames = phvenc->gop_size>0?cfg->num_ref_frames:0;
 			//conformance wnd
 			min_cu_size = phvenc->min_cu_size;
 			min_cu_size_mask = phvenc->min_cu_size-1;
@@ -465,16 +545,16 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			sync_cont_reset(phvenc->input_hmr_container);
 			for(i=0;i<NUM_INPUT_FRAMES;i++)
 			{
-				wnd_realloc(&phvenc->input_frames[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(byte));
+				wnd_realloc(&phvenc->input_frames[i].img, phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(uint8_t));
 				sync_cont_put_empty(phvenc->input_hmr_container, &phvenc->input_frames[i]);
 			}
 
 			cont_reset(phvenc->output_hmr_container);
 
 			cont_reset(phvenc->cont_empty_reference_wnds);
-			for(i=0;i<NUM_REFF_WNDS;i++)
+			for(i=0;i<2*MAX_NUM_REF;i++)
 			{
-				wnd_realloc(&phvenc->ref_wnds[i], phvenc->pict_width[0], phvenc->pict_height[0], 0, 0, sizeof(byte));
+				wnd_realloc(&phvenc->ref_wnds[i].img, phvenc->pict_width[0], phvenc->pict_height[0], phvenc->ctu_width[Y_COMP]+16, phvenc->ctu_height[Y_COMP]+16, sizeof(int16_t));
 				cont_put(phvenc->cont_empty_reference_wnds, &phvenc->ref_wnds[i]);
 			}
 
@@ -571,32 +651,71 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->bit_depth = 8;
 
-			phvenc->pict_width_in_cu = (phvenc->pict_width[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_width[0]%phvenc->max_cu_size)!=0);
-			phvenc->pict_height_in_cu = (phvenc->pict_height[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_height[0]%phvenc->max_cu_size)!=0);
+			phvenc->pict_width_in_ctu = (phvenc->pict_width[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_width[0]%phvenc->max_cu_size)!=0);
+			phvenc->pict_height_in_ctu = (phvenc->pict_height[0]>>phvenc->max_cu_size_shift) + ((phvenc->pict_height[0]%phvenc->max_cu_size)!=0);
 
-			phvenc->pict_total_cu = phvenc->pict_width_in_cu*phvenc->pict_height_in_cu;
+			phvenc->pict_total_ctu = phvenc->pict_width_in_ctu*phvenc->pict_height_in_ctu;
 
-			if(phvenc->ctu_info_t!=NULL)
-				free(phvenc->ctu_info_t);
+			if(phvenc->ctu_info!=NULL)
+			{
+				for(i=0;i<phvenc->pict_total_ctu;i++)
+				{
+					free(phvenc->ctu_info[i].cbf[Y_COMP]);
+					//intra mode
+					free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+					free(phvenc->ctu_info[i].inter_mode);
+					//tr_idx, pred_depth, part_size_type, pred_mode
+					free(phvenc->ctu_info[i].tr_idx);
+					free(phvenc->ctu_info[i].pred_depth);
+					free(phvenc->ctu_info[i].part_size_type);
+					free(phvenc->ctu_info[i].pred_mode);
+					free(phvenc->ctu_info[i].skipped);
 
-			phvenc->ctu_info_t = (ctu_info_t*)calloc (phvenc->pict_total_cu, sizeof(ctu_info_t));
+					//inter
+					free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
+					free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
+//					free(phvenc->ctu_info[i].mv_ref1);
+					
+//					free(phvenc->ctu_info[i].ref_idx1);
+					free(phvenc->ctu_info[i].qp);
+				}
+				free(phvenc->ctu_info);
+			}
+			phvenc->ctu_info = (ctu_info_t*)calloc (phvenc->pict_total_ctu, sizeof(ctu_info_t));
 
-			for(i=0;i<phvenc->pict_total_cu;i++)
+			for(i=0;i<phvenc->pict_total_ctu;i++)
 			{
 				//------- ctu encoding info -------
 				//cbf
-				phvenc->ctu_info_t[i].cbf[Y_COMP] = (byte*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].cbf[CHR_COMP] = phvenc->ctu_info_t[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
-				phvenc->ctu_info_t[i].cbf[V_COMP] = phvenc->ctu_info_t[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].cbf[U_COMP] = phvenc->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].cbf[V_COMP] = phvenc->ctu_info[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
 				//intra mode
-				phvenc->ctu_info_t[i].intra_mode[Y_COMP] = (byte*)calloc (2*MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].intra_mode[CHR_COMP] = phvenc->ctu_info_t[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-		//		phvenc->ctu_info_t[i].intra_mode[V_COMP] = phvenc->ctu_info_t[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
-				//tr_idx, pred_depth, part_size_type, pred_mode
-				phvenc->ctu_info_t[i].tr_idx = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].pred_depth = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-				phvenc->ctu_info_t[i].part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-		//		phvenc->ctu_info_t[i].pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
+				//inter mode
+				phvenc->ctu_info[i].inter_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				//tr_idx, pred_depth, part_size_type, pred_mode, skipped
+				phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].qp = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
+				//inter
+				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0] = (int8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+
+				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+
 			}
 
 
@@ -618,17 +737,19 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(cpu_info[2] & 0x100000)
+			if(cpu_info[2] & 0x100000)//if(0)//
 			{
-				printf("tenemos SSE42!!");
+				printf("SSE42 avaliable!!");
 
 				phvenc->funcs.sad = sse_aligned_sad;
-				phvenc->funcs.ssd = sse_aligned_ssd;
+				phvenc->funcs.ssd = ssd;
 				phvenc->funcs.modified_variance = sse_modified_variance;
 				phvenc->funcs.predict = sse_aligned_predict;
 				phvenc->funcs.reconst = sse_aligned_reconst;
 				phvenc->funcs.create_intra_planar_prediction = sse_create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = sse_create_intra_angular_prediction;
+				
+				phvenc->funcs.interpolate_chroma = sse_interpolate_chroma;
 
 				phvenc->funcs.quant = sse_aligned_quant;
 				phvenc->funcs.inv_quant = sse_aligned_inv_quant;
@@ -643,10 +764,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.modified_variance = modified_variance;
 				phvenc->funcs.predict = predict;
 				phvenc->funcs.reconst = reconst;
-
-
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
+
+				phvenc->funcs.interpolate_chroma = hmr_interpolate_chroma;
 
 				phvenc->funcs.quant = quant;
 				phvenc->funcs.inv_quant = iquant;
@@ -655,11 +776,17 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.itransform = itransform;
 			}
 
-
-			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
+			if(phvenc->deblock_filter_sem!=NULL)
+				SEM_DESTROY(phvenc->deblock_filter_sem);
+			SEM_INIT(phvenc->deblock_filter_semaphore, 0,1000);
+			SEM_COPY(phvenc->deblock_filter_sem, phvenc->deblock_filter_semaphore);
+			for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)
 			{
 				int depth_aux;
+				int j;
 				henc_thread_t* henc_th = (henc_thread_t*)calloc(1, sizeof(henc_thread_t));
+				int filter_buff_width, filter_buff_height;
+
 //				henc_th = &phvenc->_thread;
 				phvenc->thread[ithreads] = henc_th;
 				henc_th->ed = phvenc;
@@ -667,6 +794,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->funcs = &phvenc->funcs;
 				henc_th->wfpp_enable = phvenc->wfpp_enable;
 				henc_th->wfpp_num_threads = phvenc->wfpp_num_threads;
+
+				SEM_COPY(henc_th->deblock_filter_sem, phvenc->deblock_filter_semaphore);
+
+				if(henc_th->synchro_signal!=NULL)
+					SEM_DESTROY(henc_th->synchro_signal);
 
 				SEM_INIT(henc_th->synchro_sem, 0,1000);
 				SEM_COPY(henc_th->synchro_signal, henc_th->synchro_sem);
@@ -677,9 +809,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				memcpy(henc_th->pict_width, phvenc->pict_width, sizeof(henc_th->pict_width));
 				memcpy(henc_th->pict_height, phvenc->pict_height, sizeof(henc_th->pict_height));
-				henc_th->pict_width_in_cu = phvenc->pict_width_in_cu; 
-				henc_th->pict_height_in_cu = phvenc->pict_height_in_cu;			
-				henc_th->pict_total_cu = phvenc->pict_total_cu;
+				henc_th->pict_width_in_ctu = phvenc->pict_width_in_ctu; 
+				henc_th->pict_height_in_ctu = phvenc->pict_height_in_ctu;			
+				henc_th->pict_total_ctu = phvenc->pict_total_ctu;
 
 				memcpy(henc_th->ctu_width, phvenc->ctu_width, sizeof(henc_th->ctu_width));
 				memcpy(henc_th->ctu_height, phvenc->ctu_height, sizeof(henc_th->ctu_height));
@@ -691,6 +823,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->max_intra_tr_depth = phvenc->max_intra_tr_depth;
 				henc_th->max_inter_tr_depth = phvenc->max_inter_tr_depth;
 				henc_th->max_pred_partition_depth = phvenc->max_pred_partition_depth;//max depth for prediction
+//				henc_th->max_inter_pred_depth = phvenc->max_inter_pred_depth;//max depth for prediction
 
 				henc_th->num_partitions_in_cu = phvenc->num_partitions_in_cu;
 				henc_th->num_partitions_in_cu_shift = phvenc->num_partitions_in_cu_shift;
@@ -716,35 +849,47 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
 				//init partition list info
 				init_partition_info(henc_th, henc_th->partition_info);
-
 				//----------------------------current thread processing buffers allocation	-----
 				//alloc processing windows and buffers
 				henc_th->adi_size = 2*henc_th->ctu_height[0]+2*henc_th->ctu_width[0]+1;//vecinos de la columna izq y fila superior + la esquina
-				henc_th->adi_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->adi_filtered_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->top_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->left_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->bottom_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
-				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(short));
+				henc_th->adi_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->adi_filtered_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->top_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->left_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->bottom_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
 
 
-				wnd_alloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(byte));
+				wnd_realloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 
 				henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//tama�o del buffer auxiliar
 				henc_th->pred_aux_buff = (short*) aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
-				wnd_alloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(byte));
-				wnd_alloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+				wnd_realloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+				wnd_realloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
 				for(i=0;i<NUM_QUANT_WNDS;i++)
-					wnd_alloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));		
+					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));		
 
-				wnd_alloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(ushort));
+				wnd_realloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
-					wnd_alloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(byte));
+					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(int16_t));
+
+
+				filter_buff_width = MAX_CU_SIZE	+ 16;
+				filter_buff_height = MAX_CU_SIZE + 1;
+				for(j=0;j<4;j++)
+				{
+					wnd_realloc(&henc_th->filtered_blocks_temp_wnd[j], filter_buff_width, filter_buff_height+7, 0, 0, sizeof(int16_t));				
+					for(i=0;i<4;i++)
+					{
+						wnd_realloc(&henc_th->filtered_block_wnd[j][i], filter_buff_width, filter_buff_height, 0, 0, sizeof(int16_t));				
+					}
+				}
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
 				henc_th->cabac_aux_buff = (unsigned char*) aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));
@@ -752,26 +897,46 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//alloc buffers to gather and consolidate information
 				for(i=0;i<NUM_CBF_BUFFS;i++)
 				{
-					henc_th->cbf_buffs[Y_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->cbf_buffs[U_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->cbf_buffs[V_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[Y_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[U_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->intra_mode_buffs[V_COMP][i] = (byte*) aligned_alloc (256, sizeof(byte));
-					henc_th->tr_idx_buffs[i] = (byte*) aligned_alloc (256, sizeof(byte));
-				}
+					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
-				henc_th->cbf_buffs_chroma[U_COMP] = (byte*) aligned_alloc (256, sizeof(byte));
-				henc_th->cbf_buffs_chroma[V_COMP] = (byte*) aligned_alloc (256, sizeof(byte));
+					//inter
+/*					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+
+					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+
+					henc_th->ref_idx0[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
+					henc_th->ref_idx1[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+*/				}
+
+				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ctu_rd = (ctu_info_t*)calloc (1, sizeof(ctu_info_t));
-				henc_th->ctu_rd->part_size_type = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
-//				henc_th->ctu_rd->pred_mode = (byte*)calloc (MAX_NUM_PARTITIONS, sizeof(byte));
+				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->ctu_rd->pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->ctu_rd->skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
-
 			}
+
+			phvenc->deblock_partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
+			init_partition_info(phvenc->thread[0], phvenc->deblock_partition_info);
 
 			//exterchange wait and signal semaphores between sucessive threads
 			if(phvenc->wfpp_num_threads==1)
@@ -799,14 +964,39 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			memset(phvenc->ptl.subLayerProfilePresentFlag, 0, sizeof(phvenc->ptl.subLayerProfilePresentFlag));
 			memset(phvenc->ptl.subLayerLevelPresentFlag,   0, sizeof(phvenc->ptl.subLayerLevelPresentFlag  ));
 
-			//reference picture_t lists
-			phvenc->num_ref_lists =2;
-			phvenc->num_refs_idx_active_list[0] = 4;
-			phvenc->num_refs_idx_active_list[1] = 4;
+			//reference picture lists
+			phvenc->num_ref_lists = 2;
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc->intra_period==1?4:1;//this will need to be a consistent decission taken depending on the configuration
+			phvenc->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc->intra_period==1?4:1;
 
-			phvenc->num_short_term_ref_pic_sets = phvenc->num_ref_lists;
-			memset(phvenc->ref_pic_set_list,   0, sizeof(phvenc->ref_pic_set_list));
-			phvenc->ref_pic_set_index = 0;
+			phvenc->num_short_term_ref_pic_sets = phvenc->gop_size+1;
+			if(phvenc->ref_pic_set_list)
+				free(phvenc->ref_pic_set_list);
+			phvenc->ref_pic_set_list = (ref_pic_set_t*)calloc (phvenc->num_short_term_ref_pic_sets, sizeof(ref_pic_set_t));
+			for(i=0;i<phvenc->num_short_term_ref_pic_sets-1;i++)
+			{
+				if(phvenc->intra_period==1)
+					phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->ref_pic_set_list[i].num_positive_pics = phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+				else if(phvenc->num_b == 0)
+				{
+					int j;
+					phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->num_ref_frames;
+					for(j=0;j<phvenc->ref_pic_set_list[i].num_negative_pics;j++)
+					{
+						phvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
+						phvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+					}
+					phvenc->ref_pic_set_list[i].num_positive_pics = 0;
+					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
+				}
+				else
+				{
+					phvenc->ref_pic_set_list[i].num_positive_pics = phvenc->ref_pic_set_list[i].num_negative_pics = phvenc->num_ref_frames;
+					phvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+				}
+			}
+
+			hmr_rc_init(phvenc);
 
 			//----------------- start vps ------------------
 			phvenc->vps.video_parameter_set_id = 0;
@@ -817,7 +1007,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->vps.max_num_reorder_pics[i] = 0;
-				phvenc->vps.max_dec_pic_buffering[i] = 0;
+				phvenc->vps.max_dec_pic_buffering[i] = (phvenc->intra_period==1)?1:phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->vps.max_latency_increase[i] = 0;
 			}
 	
@@ -842,11 +1032,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.conf_win_bottom_offset = phvenc->pad_bottom/pad_unit_y[phvenc->sps.chroma_format_idc];
 			phvenc->sps.bit_depth_luma_minus8 = phvenc->sps.bit_depth_chroma_minus8 = phvenc->bit_depth-8;
 			phvenc->sps.pcm_enabled_flag = 0;
-			phvenc->sps.log2_max_pic_order_cnt_lsb_minus4 = 4; //bits for poc=8
+			phvenc->sps.log2_max_pic_order_cnt_lsb_minus4 = 0;//4; //bits for poc=8 - must be bigger than idr period
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
 				phvenc->sps.max_num_reorder_pics[i] = 0;
-				phvenc->sps.max_dec_pic_buffering[i] = 0;
+				phvenc->sps.max_dec_pic_buffering[i] = (phvenc->intra_period==1)?1:phvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				phvenc->sps.max_latency_increase[i] = 0;
 			}
 
@@ -862,11 +1052,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->sps.scaling_list_enabled_flag = 1;
 			phvenc->sps.scaling_list_data_present_flag = 0;
 
-			phvenc->sps.amp_enabled_flag = 1;
+			phvenc->sps.amp_enabled_flag = 0;
 			phvenc->sps.sample_adaptive_offset_enabled_flag = 0;//cfg->UseSAO;
 			phvenc->sps.temporal_id_nesting_flag = (phvenc->max_sublayers == 1);
 			phvenc->num_long_term_ref_pic_sets = 0;
-			phvenc->sps.temporal_mvp_enable_flag = 1;
+			phvenc->sps.temporal_mvp_enable_flag = 0;
 			phvenc->sps.strong_intra_smooth_enabled_flag = 1;
 			phvenc->sps.vui_parameters_present_flag = 0;
 			//----------------- end sps ------------------
@@ -878,18 +1068,25 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->pps.output_flag_present_flag = 0;
 			phvenc->pps.num_extra_slice_header_bits = 0;
 			phvenc->pps.sign_data_hiding_flag = cfg->sign_hiding;
-			phvenc->pps.cabac_init_present_flag = 1;
+			phvenc->pps.cabac_init_present_flag = 0;//1
 
+			phvenc->pps.num_ref_idx_l0_default_active_minus1 = 0;
+			phvenc->pps.num_ref_idx_l1_default_active_minus1 = 0;
+			
+#ifdef COMPUTE_AS_HM
 			phvenc->pps.pic_init_qp_minus26 = 0;
-
+#else
+			phvenc->pps.pic_init_qp_minus26 = phvenc->pict_qp - 26;
+#endif
 			phvenc->pps.constrained_intra_pred_flag = 0;
 			phvenc->pps.transform_skip_enabled_flag = 0;
-			phvenc->pps.cu_qp_delta_enabled_flag = 0;
+			phvenc->pps.cu_qp_delta_enabled_flag = (phvenc->bitrate_mode==BR_FIXED_QP)?0:1;
+			phvenc->pps.diff_cu_qp_delta_depth = phvenc->qp_depth;
 
-			phvenc->pps.pic_cb_qp_offset = 0;
-			phvenc->pps.pic_cr_qp_offset = 0;
+			phvenc->pps.cb_qp_offset = phvenc->chroma_qp_offset ;
+			phvenc->pps.cr_qp_offset = phvenc->chroma_qp_offset ;
 
-			phvenc->pps.pic_slice_level_chroma_qp_offsets_present_flag = 0;
+			phvenc->pps.slice_chroma_qp_offsets_present_flag = 0;
 			phvenc->pps.weighted_pred_flag = 0;
 			phvenc->pps.weighted_bipred_flag = 0;
 			phvenc->pps.output_flag_present_flag = 0;
@@ -902,6 +1099,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 */
 			phvenc->pps.loop_filter_across_slices_enabled_flag = 1;
 			phvenc->pps.deblocking_filter_control_present_flag = 0;
+			phvenc->pps.beta_offset_div2 = 0;
+			phvenc->pps.tc_offset_div2 = 0;
 /*			if(phvenc->pps.deblocking_filter_control_present_flag)
 				//.......................
 */			phvenc->pps.pps_scaling_list_data_present_flag = 0;
@@ -917,17 +1116,18 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			
 
 			//---------------- end slice -------------------
-			phvenc->run = 1;
-			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
+//			phvenc->run = 1;
+//			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
 		}	
 		break;
 
 	}   
-
 	if(err)     
     	return (FALSE);
 	else
 		return (TRUE);
+config_error:
+	return (FALSE);
 }
 
 int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
@@ -941,8 +1141,99 @@ int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
 }
 
 
+void reference_picture_border_padding(wnd_t *wnd)
+{
+	int   component, j, i;
 
-void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
+	for(component = Y_COMP; component <= V_COMP; component++)
+	{
+		int stride = WND_STRIDE_2D(*wnd, component);
+		int padding_x = wnd->data_padding_x[component];
+		int padding_y = wnd->data_padding_y[component];
+		int data_width = wnd->data_width[component];
+		int data_height = wnd->data_height[component];
+		int16_t *ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		int16_t *ptr_left = ptr-padding_x;
+		int16_t *ptr_right = ptr+data_width;
+		int16_t *ptr_top;// = ptr_left-stride;
+		int16_t *ptr_bottom;// = ptr_left+(data_height)*stride;
+		for(j=0;j<data_height;j++)
+		{
+			for(i=0;i<padding_x;i++)
+			{
+				ptr_left[i] = ptr[0];
+				ptr_right[i]  = ptr[data_width-1];
+			}
+//			memset(ptr_left, ptr[0], padding_x);
+//			memset(ptr_right, ptr[data_width-1], padding_x);
+			ptr_left+=stride;
+			ptr_right+=stride;
+			ptr+=stride;
+		}
+
+		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		ptr += (data_height-1)*stride-padding_x;
+		ptr_bottom = ptr+stride;
+		
+		for(j=0;j<padding_y;j++)
+		{
+			memcpy(ptr_bottom, ptr, stride*sizeof(ptr[0]));
+			ptr_bottom+=stride;
+		}
+
+		ptr = WND_DATA_PTR(int16_t *, *wnd, component);
+		ptr -= padding_x;
+		ptr_top = ptr-padding_y*stride;
+		for(j=0;j<padding_y;j++)
+		{
+			memcpy(ptr_top, ptr, stride*sizeof(ptr[0]));
+			ptr_top+=stride;
+		}
+	}
+}
+
+//TEncTop::selectReferencePictureSet
+void hmr_select_reference_picture_set(hvenc_t* ed, slice_t *currslice)
+{
+	currslice->ref_pic_set_index = 0;
+	
+	currslice->ref_pic_set = &ed->ref_pic_set_list[currslice->ref_pic_set_index];
+	currslice->ref_pic_set->num_pics = currslice->ref_pic_set->num_negative_pics+currslice->ref_pic_set->num_positive_pics;
+}
+
+void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
+{
+	int i, j;
+	video_frame_t *refpic;
+
+	currslice->ref_pic_list_cnt[REF_PIC_LIST_0] = currslice->ref_pic_list_cnt[REF_PIC_LIST_1] = 0;
+
+	for(i=0;i<MAX_NUM_REF;i++)
+	{
+		refpic = ed->reference_picture_buffer[(ed->reference_list_index-1-i)&MAX_NUM_REF_MASK];
+		if(refpic!=NULL)
+		{
+			refpic->is_reference = FALSE;
+			for(j=0;j<currslice->ref_pic_set->num_pics;j++)
+			{
+				if(currslice->poc + currslice->ref_pic_set->delta_poc_s0[j] == refpic->temp_info.poc )
+				{
+					refpic->is_reference = currslice->ref_pic_set->used_by_curr_pic_S0_flag[j];
+
+					if(refpic->is_reference)
+					{
+						if(currslice->ref_pic_set->delta_poc_s0[j] < 0)
+							currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic;
+						else
+							currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic;
+					}
+				}
+			}
+		}
+	}
+}
+
+void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 {
 	currslice->qp =  ed->pict_qp;
 	currslice->poc = ed->last_poc;
@@ -950,25 +1241,46 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->pps = &ed->pps;
 	currslice->slice_index = 0;
 	currslice->curr_cu_address = currslice->first_cu_address = 0;
-	currslice->last_cu_address = ed->pict_total_cu*ed->num_partitions_in_cu;
+	currslice->last_cu_address = ed->pict_total_ctu*ed->num_partitions_in_cu;
 
 	currslice->num_ref_idx[REF_PIC_LIST_0] = ed->num_refs_idx_active_list[REF_PIC_LIST_0];
 	currslice->num_ref_idx[REF_PIC_LIST_1] = ed->num_refs_idx_active_list[REF_PIC_LIST_1];
 	currslice->slice_temporal_mvp_enable_flag = ed->sps.temporal_mvp_enable_flag;
-	currslice->disable_deblocking_filter_flag = 0;//enabled
+	currslice->deblocking_filter_disabled_flag = 0;//enabled
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
+	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
+	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
+	currslice->max_num_merge_candidates = 5;
 
-	if((currslice->poc%ed->gop_size)==0)
+	if((currslice->poc%ed->intra_period)==0)
 	{
-		ed->pict_type = I_SLICE;
 		currslice->slice_type = I_SLICE;
-		currslice->slice_temporal_layer_non_reference_flag = 1;
+		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;
+		currslice->qp = ed->pict_qp;
 	}
-	if(ed->last_poc == 0)//first image?
+	else if(ed->num_b==0)
+	{
+		currslice->slice_type = P_SLICE;
+		currslice->slice_temporal_layer_non_reference_flag = 0;
+		currslice->is_dependent_slice = 0;
+		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
+		currslice->sublayer = 0;
+		currslice->depth = 0;	
+		currslice->qp = ed->pict_qp;//+2;
+	}
+
+	hmr_select_reference_picture_set(ed, currslice);
+
+	if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL || currslice->nalu_type == NALU_CODED_SLICE_IDR_N_LP)
+	{
+		ed->last_idr = currslice->poc;
+	}
+
+	if(currslice->poc == 0)//if(ed->last_poc == 0)//first image?
 	{
 //		sublayer_non_reference = 0;		
 	}
@@ -976,12 +1288,12 @@ void init_slice(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	switch(currslice->slice_type)
 	{
 		case I_SLICE:
+		case P_SLICE:
 		{
 			currslice->referenced = 1;
 		}
 		break;
 	}
-
 }
 
 
@@ -992,7 +1304,7 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 		ctu->ctu_left = NULL;
 	else
 	{
-		ctu->ctu_left = &et->ed->ctu_info_t[ctu->ctu_number-1];
+		ctu->ctu_left = &et->ed->ctu_info[ctu->ctu_number-1];
 	}
 	ctu->ctu_left_bottom = NULL;//en raster order este no existe. En wavefront si
 
@@ -1000,16 +1312,22 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 	{
 		ctu->ctu_top = NULL;	
 		ctu->ctu_top_right = NULL;
+		ctu->ctu_top_left = NULL;
 	}
 	else
 	{
-		ctu->ctu_top = &et->ed->ctu_info_t[ctu->ctu_number-et->pict_width_in_cu];	
+		ctu->ctu_top = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu];	
 
-		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_cu) == (et->pict_width_in_cu-1)))
+		if(ctu->x[Y_COMP]==0)
+			ctu->ctu_top_left = NULL;
+		else
+			ctu->ctu_top_left = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu-1];	
+
+		if(et->cu_current_y==0 || ((et->cu_current_x % et->pict_width_in_ctu) == (et->pict_width_in_ctu-1)))
 			ctu->ctu_top_right = NULL;
 		else
 		{
-			ctu->ctu_top_right = &et->ed->ctu_info_t[ctu->ctu_number-et->pict_width_in_cu+1];
+			ctu->ctu_top_right = &et->ed->ctu_info[ctu->ctu_number-et->pict_width_in_ctu+1];
 		}
 	}
 }
@@ -1019,7 +1337,7 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout)
 {
 	int nalu_idx, bytes_written=0;
-	byte code[4] = {0x0,0x0,0x0,0x1};
+	uint8_t code[4] = {0x0,0x0,0x0,0x1};
 
 	for (nalu_idx=0;nalu_idx<num_nalus;nalu_idx++)
 	{
@@ -1051,13 +1369,65 @@ int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, e
 
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu)
 {
-	byte *part_size_type = dst_ctu->part_size_type;
+	uint8_t *part_size_type = dst_ctu->part_size_type;
+	uint8_t *pred_mode = dst_ctu->pred_mode;
+	uint8_t *skipped = dst_ctu->skipped;
 	memcpy(dst_ctu, src_ctu, sizeof(ctu_info_t));
 	dst_ctu->part_size_type = part_size_type;
+	dst_ctu->pred_mode = pred_mode;
+	dst_ctu->skipped = skipped;
 }
 
 
-THREAD_RETURN intra_encode_thread(void *h)
+const uint8_t chroma_scale_conversion_table[58]=
+{
+   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,
+  17,18,19,20,21,22,23,24,25,26,27,28,29,29,30,31,32,
+  33,33,34,34,35,35,36,36,37,37,38,39,40,41,42,43,44,
+  45,46,47,48,49,50,51
+};
+
+
+ctu_info_t* init_ctu(henc_thread_t* et)
+{
+	ctu_info_t *ctu;
+	int ctu_width, ctu_height;
+	
+	ctu = &et->ed->ctu_info[et->cu_current];//&et->curr_ctu_group_info[0];
+	ctu->ctu_number = et->cu_current;
+	ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
+	ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
+	ctu->x[U_COMP] = ctu->x[V_COMP] = et->cu_current_x*et->ctu_width[U_COMP];
+	ctu->y[U_COMP] = ctu->y[V_COMP] = et->cu_current_y*et->ctu_height[U_COMP];
+	ctu->size = et->max_cu_size;
+	ctu->num_part_in_ctu = et->num_partitions_in_cu;
+	ctu->num_part_in_ctu = et->num_partitions_in_cu;
+	ctu->partition_list = &et->partition_info[0];
+
+	ctu_width = ((ctu->x[Y_COMP]+ctu->size)<et->pict_width[Y_COMP])?(ctu->size):et->pict_width[Y_COMP]-ctu->x[Y_COMP];
+	ctu_height = ((ctu->y[Y_COMP]+ctu->size)<et->pict_height[Y_COMP])?(ctu->size):et->pict_height[Y_COMP]-ctu->y[Y_COMP];
+
+	if(ctu_width!=ctu->size || ctu_height!=ctu->size)
+	{
+		int width_in_partitions = ctu_width>>2;
+		int height_in_partitions = ctu_height>>2;
+		int cu_size_in_partitions = ctu->size>>2;
+//		if(height_in_partitions == cu_size_in_partitions)
+//			height_in_partitions = cu_size_in_partitions-1;
+//		else if(width_in_partitions == cu_size_in_partitions)
+		height_in_partitions -= 1;
+		ctu->last_valid_partition =	et->ed->raster2abs_table[height_in_partitions*cu_size_in_partitions+width_in_partitions-1];
+	}
+	else
+	{
+		ctu->last_valid_partition = et->num_partitions_in_cu-1;
+	}
+	
+	CuGetNeighbors(et, ctu);//raster order
+	return ctu;
+}
+
+THREAD_RETURN_TYPE intra_encode_thread(void *h)
 {
 	henc_thread_t* et = (henc_thread_t*)h;
 	int gcnt=0;
@@ -1067,11 +1437,13 @@ THREAD_RETURN intra_encode_thread(void *h)
 
 	//printf("		+intra_encode_thread %d\r\n", et->index);
 
+	et->acc_dist = 0;
 	et->cu_current = 0;
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
+	et->num_intra_partitions = 0;
 
-	ctu = &et->ed->ctu_info_t[et->cu_current_y*et->pict_width_in_cu];
+	ctu = &et->ed->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
 
 
 	if(et->index==0)
@@ -1082,7 +1454,7 @@ THREAD_RETURN intra_encode_thread(void *h)
 		hmr_bitstream_init(et->ee->bs);
 
 		//resetEntropy
-		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp);//Init CABAC contexts
+		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp, et->pps->cabac_init_flag);//Init CABAC contexts
 		//cabac - reset binary encoder and entropy
 		et->ee->ee_start(et->ee->b_ctx);
 		et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&ed->ee);
@@ -1091,12 +1463,13 @@ THREAD_RETURN intra_encode_thread(void *h)
 #define  GRAIN					1
 #define  GRAIN_MASK				(GRAIN-1)
 
-	while(et->cu_current < et->pict_total_cu)//all ctus loop
+	while(et->cu_current < et->pict_total_ctu)//all ctus loop
 	{
-		et->cu_current = et->pict_width_in_cu*(et->cu_current_y)+et->cu_current_x;
-		et->cu_next = et->cu_current+min(1,et->pict_width_in_cu-et->cu_current_x);
+		int bits_allocated;
+		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
+		et->cu_next = et->cu_current+min(1,et->pict_width_in_ctu-et->cu_current_x);
 
-		if(et->cu_current_y > 0 && ((et->cu_current_x & GRAIN_MASK) == 0))
+		if(et->cu_current_y > 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_WAIT(et->synchro_wait);
 		}
@@ -1118,118 +1491,180 @@ THREAD_RETURN intra_encode_thread(void *h)
 
 
 //		for(et->cu_current;et->cu_current<et->cu_next;et->cu_current++)
+//		{
+		//init ctu
+		ctu = init_ctu(et);
+
+		//Prepare Memory
+		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
+		mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
+
+		copy_ctu(ctu, et->ctu_rd);
+
+		bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+
+		PROFILER_RESET(intra)
+
+		//map spatial features and neighbours in recursive partition structure
+		create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
+		if(currslice->slice_type != I_SLICE && !et->ed->is_scene_change)// && (ctu->ctu_number & 0x1) == 0)
 		{
-			//init ctu
-			et->curr_ctu_group_info = &et->ed->ctu_info_t[et->cu_current];
-			ctu = &et->curr_ctu_group_info[0];
-			ctu->ctu_number = et->cu_current;
-			ctu->x[Y_COMP] = et->cu_current_x*et->ctu_width[Y_COMP];
-			ctu->y[Y_COMP] = et->cu_current_y*et->ctu_height[Y_COMP];
-			ctu->x[U_COMP] = ctu->x[V_COMP] = et->cu_current_x*et->ctu_width[U_COMP];
-			ctu->y[U_COMP] = ctu->y[V_COMP] = et->cu_current_y*et->ctu_height[U_COMP];
-			ctu->size = et->max_cu_size;
-			ctu->num_part_in_ctu = et->num_partitions_in_cu;
-			ctu->partition_list = &et->partition_info[0];
-
-			CuGetNeighbors(et, ctu);//raster order
-			
-			//Prepare Memory
-			mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
-			mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
-
-			copy_ctu(ctu, et->ctu_rd);
-
-			PROFILER_RESET(intra)
+			int ll;
+			motion_inter(et, ctu, gcnt);
+			for(ll = 0; ll<et->num_partitions_in_cu;ll++)
+			{
+				if(ctu->pred_mode[ll]==INTRA_MODE)
+					et->num_intra_partitions++;
+			}
+		}
+		else
+		{
 			//make ctu intra prediction
 			motion_intra(et, ctu, gcnt);
-			PROFILER_ACCUMULATE(intra)
-			mem_transfer_decoded_blocks(et, ctu);
+			et->num_intra_partitions += et->num_partitions_in_cu;
+		}
+		PROFILER_ACCUMULATE(intra)
 
-			if(et->cu_current_x>GRAIN && et->cu_current_y+1 != et->pict_height_in_cu)
-			{
-				SEM_POST(et->synchro_signal);
-			}
-			//cabac - encode ctu
-			PROFILER_RESET(cabac)
-			ctu->coeff_wnd = &et->transform_quant_wnd[0];
-			ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
-			PROFILER_ACCUMULATE(cabac)
-			et->cu_current_x++;
+		mem_transfer_decoded_blocks(et, ctu);
+
+		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		{
+			SEM_POST(et->synchro_signal);
+		}
+		//cabac - encode ctu
+		PROFILER_RESET(cabac)
+		ctu->coeff_wnd = &et->transform_quant_wnd[0];
+
+		if(et->ed->num_encoded_frames == 5)//if(ctu->ctu_number==2)//et->cu_current+1 == et->pict_total_ctu)//
+		{
+			int iiiii=0;
 		}
 
-		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_cu)
+		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
+		PROFILER_ACCUMULATE(cabac)
+
+		et->acc_dist += ctu->partition_list[0].distortion;
+		et->num_encoded_ctus++;
+		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
+		et->cu_current_x++;
+//		}
+
+		//notify first synchronization as this line must go two ctus ahead from next line in wfpp
+		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
 				ee_copy_entropy_model(et->ee, et->ed->ee_list[(2*et->index+1)%et->ed->num_ee]);
 			SEM_POST(et->synchro_signal);
 		}
 
-		//notify sinchronization
-		if(et->cu_current_x==et->pict_width_in_cu && et->cu_current_y+1 != et->pict_height_in_cu)
+		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
+		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_signal);
 		}
-		if(et->cu_current_x==et->pict_width_in_cu)
+		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
+			if(et->cu_current_y!=0)
+			{
+//				printf("sem_post-a - line processed = %d\r\n",et->cu_current_y);
+				SEM_POST(et->deblock_filter_sem);
+			}
+			if(et->cu_current+1 == et->pict_total_ctu)
+			{
+//				printf("sem_post-b - line processed = %d\r\n",et->cu_current_y);
+				SEM_POST(et->deblock_filter_sem);			
+			}
+
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
 			et->cu_current_y+=et->wfpp_num_threads;
 			et->cu_current_x=0;
 		}
 
-		et->cu_current = et->pict_width_in_cu*(et->cu_current_y)+et->cu_current_x;
+		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 	}
 	
 	if(!et->wfpp_enable)
-		ee_end_slice(et->ee, currslice, ctu);
-
-	return 0;
-}
-
-
-
-int HOMER_enc_encode(void* handle, unsigned char *picture_t[])
-{
-	hvenc_t* ed = (hvenc_t*)handle;
-	put_frame_to_encode(ed, picture_t);
-
-	return 0;
-}
-
-int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-{
-	hvenc_t* ed = (hvenc_t*)handle;
-	*nalu_list_size = 0;
-
-	if(is_data_avaliable(ed->output_hmr_container))
 	{
-		nalu_set_t* ouput_nalus;
-		cont_get(ed->output_hmr_container, (void**)&ouput_nalus);
-		memcpy(nalu_out, ouput_nalus->nalu_list, ouput_nalus->num_nalus*sizeof(ouput_nalus->nalu_list[0]));
-		*nalu_list_size = ouput_nalus->num_nalus;
+		ee_end_slice(et->ee, currslice, ctu);
 	}
-
-	return 0;
+	return THREAD_RETURN;
 }
 
-
-#define SYNC_THREAD_CONTEXT(ed, et)									\
-		et->rd = ed->rd;
-
-//encodes a frame
-THREAD_RETURN encoder_thread(void *h)
+THREAD_RETURN_TYPE deblocking_filter_thread(void *h)
 {
 	hvenc_t* ed = (hvenc_t*)h;
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
-	int n, i;
 
-	while(ed->run)
+	if(ed->intra_period>1)
+		hmr_deblock_filter(ed, currslice);
+
+	return THREAD_RETURN;
+}
+
+int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame)
+{
+	hvenc_t* ed = (hvenc_t*)handle;
+	put_frame_to_encode(ed, input_frame->stream.streams);
+
+	return 0;
+}
+
+int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], unsigned int *nalu_list_size)
+{
+	hvenc_t* ed = (hvenc_t*)handle;
+	*nalu_list_size = 0;
+
+	if(get_num_elements(ed->output_hmr_container))
 	{
-		nalu_set_t* ouput_nalus = &ed->output_nalus[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
+		int comp, j, i, stride_src, stride_dst;
+		uint16_t *src;
+		uint8_t *dst;
+		output_set_t* ouput_set;
+		cont_get(ed->output_hmr_container, (void**)&ouput_set);
+		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
+//		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
+		*nalu_list_size = ouput_set->num_nalus;
+		if(output_frame!=NULL)
+		{
+			for(comp=Y_COMP;comp<=V_COMP;comp++)
+			{
+				src = WND_DATA_PTR(uint16_t*, ouput_set->frame->img, comp);
+				dst = output_frame->stream.streams[comp];
+				stride_src = WND_STRIDE_2D(ouput_set->frame->img, comp);
+				
+				for(j=0;j<ed->pict_height[comp];j++)
+				{
+					for(i=0;i<ed->pict_width[comp];i++)
+					{
+						*dst++ = src[i];						
+					}
+					src += stride_src;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+#define SYNC_THREAD_CONTEXT(ed, et)									\
+		et->rd = ed->rd;											
+
+THREAD_RETURN_TYPE encoder_thread(void *h)
+{
+	hvenc_t* ed = (hvenc_t*)h;
+	picture_t *currpict = &ed->current_pict;
+	slice_t *currslice = &currpict->slice;
+	int n, i, num_threads;
+
+//	while(ed->run)
+	{
+		output_set_t* ouput_sets = &ed->output_sets[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
 		int		output_nalu_cnt = 0;
 		int		nalu_list_size = NALU_SET_SIZE;
-		nalu_t	**output_nalu_list = ouput_nalus->nalu_list;
+		nalu_t	**output_nalu_list = ouput_sets->nalu_list;
 	
 
 		PROFILER_START(intra)
@@ -1255,6 +1690,7 @@ THREAD_RETURN encoder_thread(void *h)
 
 		//get next image
 		get_frame_to_encode(ed, &ed->current_pict.img2encode);//get next image to encode and init type
+		ed->num_pictures++;
 
 #ifdef COMPUTE_METRICS
 		if(ed->num_encoded_frames == 0)
@@ -1272,13 +1708,20 @@ THREAD_RETURN encoder_thread(void *h)
 */		}
 		profiler_start(&frame_metrics);
 #endif
+		hmr_slice_init(ed, &ed->current_pict, &currpict->slice);
+		hmr_rd_init(ed, &currpict->slice);
 
-		init_slice(ed, &ed->current_pict, &currpict->slice);
-		init_rd(ed);
+		if(ed->bitrate_mode != BR_FIXED_QP)
+		{
+			if(currslice->poc==0)
+				hmr_rc_init_seq(ed);
 
-		//get free img for decodede blocks
-		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_ref_wnd);
-	
+			hmr_rc_init_pic(ed, &currpict->slice);
+		}
+		//get free img for decoded blocks
+		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
+		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+
 		if(currslice->poc==0)//if(ed->pict_type == I_SLICE)
 		{
 			hmr_bitstream_init(&ed->vps_nalu.bs);
@@ -1301,10 +1744,8 @@ THREAD_RETURN encoder_thread(void *h)
 			hmr_put_pic_header(ed);//pic header
 		}
 
-		//init Entropy Coder Context Models
-
-		ed->last_poc++;
-		ed->num_pictures++;
+		apply_reference_picture_set(ed, currslice);
+		
 
 		for(n = 0; n<ed->wfpp_num_threads;n++)
 		{
@@ -1313,16 +1754,58 @@ THREAD_RETURN encoder_thread(void *h)
 			SEM_RESET(ed->thread[n]->synchro_wait)
 		}
 
-		CREATE_THREADS(ed->hthreads, intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		SEM_RESET(ed->deblock_filter_sem)
 
-		JOINT_THREADS(ed->hthreads, ed->wfpp_num_threads)	
+#ifdef COMPUTE_AS_HM
+		CREATE_THREADS((&ed->hthreads[0]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
+#else
+		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
 
-		cont_put(ed->cont_empty_reference_wnds,ed->curr_ref_wnd);
+		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
+		CREATE_THREADS((&ed->hthreads[1]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
 
+		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
+#endif
+		//calc average distortion
+		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
+		{
+			ed->avg_dist = 0;
+			for(n = 0;n<ed->wfpp_num_threads;n++)
+			{
+				henc_thread_t* henc_th = ed->thread[n];
+		
+				 ed->avg_dist+= henc_th->acc_dist;
+			}
+			ed->avg_dist /= ed->pict_total_ctu*ed->num_partitions_in_cu;
+			ed->avg_dist = clip(ed->avg_dist,.1,ed->avg_dist);
+			if(currslice->slice_type == I_SLICE)
+				ed->avg_dist*=1.5;
+			else if(ed->is_scene_change)
+				ed->avg_dist*=1.375;
+		}
+		else if(currslice->slice_type == I_SLICE)
+			ed->avg_dist/=1.5;
+
+		if(ed->bitrate_mode != BR_FIXED_QP)
+			hmr_rc_end_pic(ed, currslice);
+
+		ed->is_scene_change = 0;
+
+#ifdef COMPUTE_AS_HM
+		if(ed->intra_period>1)
+			hmr_deblock_filter(ed, currslice);
+#endif
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
 		output_nalu_list[output_nalu_cnt++] = ed->slice_nalu;
+
+		if(ed->num_encoded_frames == 5)
+		{
+			int iiiii = 0;
+		}
+
 		hmr_put_slice_header(ed, currslice);//slice header
 		if(ed->wfpp_enable)
 			hmr_slice_header_code_wfpp_entry_points(ed);
@@ -1355,7 +1838,7 @@ THREAD_RETURN encoder_thread(void *h)
 		PROFILER_PRINT(intra_luma_recon_ssd)//("intra_luma.recon+ssd");
 
 #ifdef WRITE_REF_FRAMES
-		wnd_write2file(ed->curr_ref_wnd);
+		wnd_write2file(&ed->curr_reference_frame->img);
 #endif
 		
 		ed->num_encoded_frames++;
@@ -1366,12 +1849,13 @@ THREAD_RETURN encoder_thread(void *h)
 
 			profiler_accumulate(&frame_metrics);
 
-			homer_psnr(&ed->current_pict, ed->curr_ref_wnd, ed->pict_width, ed->pict_height, ed->current_psnr); 
+			homer_psnr(&ed->current_pict, &ed->curr_reference_frame->img, ed->pict_width, ed->pict_height, ed->current_psnr); 
 			ed->accumulated_psnr[0] += ed->current_psnr[Y_COMP];
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
 			printf("\r\nPSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
-			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f\r\n", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
+			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
+			printf("- vbv: %.2f, avg_dist: %.2f\r\n", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
 			fflush(stdout);
 /*			if(ed->f_psnr)
 			{
@@ -1392,12 +1876,24 @@ THREAD_RETURN encoder_thread(void *h)
 */
 		}
 #endif
+		//prunning of references must be done in a selective way
+		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
+			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
+
+		//fill padding in reference picture
+		reference_picture_border_padding(&ed->curr_reference_frame->img);
+		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_reference_frame;
+		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
+		ed->last_poc++;
+
+
 		put_avaliable_frame(ed, ed->current_pict.img2encode);
 
-		ouput_nalus->num_nalus = output_nalu_cnt;
-		cont_put(ed->output_hmr_container, ouput_nalus);
+		ouput_sets->num_nalus = output_nalu_cnt;
+		ouput_sets->frame = ed->curr_reference_frame;
+		cont_put(ed->output_hmr_container, ouput_sets);
 	}
 
-	return 0;
+	return THREAD_RETURN;
 }
 

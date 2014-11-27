@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -24,6 +24,7 @@
 #ifndef __HOMER_HEVC_SSE42_PRIMITIVES__
 #define __HOMER_HEVC_SSE42_PRIMITIVES__
 
+#include "hmr_os_primitives.h"
 #include "hmr_os_primitives.h"
 #include <smmintrin.h>
 
@@ -65,6 +66,7 @@ typedef __m128i	__m128_i8;
 
 #define sse128_packs_i16_u8(a,b)			_mm_packus_epi16(a, b)
 //#define sse128_packs_i16_i8(a,b)			_mm_packs_epi16(a, b)
+#define sse128_packs_i32_i16(a,b)			_mm_packs_epi32(a, b)
 #define sse128_packs_u32_u16(a,b)			_mm_packs_epi32(a, b)//this is not correct but widely used. It should be _mm_packus_epi32. It must be checked before being changed
 
 
@@ -95,6 +97,7 @@ typedef __m128i	__m128_i8;
 #define sse_128_add_i32(a,b)				_mm_add_epi32(a,b)
 #define sse_128_add_i64(a,b)				_mm_add_epi64(a,b)
 
+#define sse_128_adds_u16(a,b)				_mm_adds_epu16(a,b)
 #define sse_128_adds_i16(a,b)				_mm_adds_epi16(a,b)
 
 #define sse_128_hsub_i16(a,b)				_mm_hsub_epi16(a,b)

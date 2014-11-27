@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -104,9 +104,9 @@ void hmr_put_vps_header(hvenc_t* ed)
 
 	for(i=0; i <= ed->max_sublayers-1; i++)
 	{
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_dec_pic_buffering[i]);
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_num_reorder_pics[i]);
-		hmr_bitstream_write_bits_uvlc(bs, vps->max_latency_increase[i]);
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_dec_pic_buffering[i]-1);//vps_max_dec_pic_buffering_minus1
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_num_reorder_pics[i]);//vps_max_num_reorder_pics
+		hmr_bitstream_write_bits_uvlc(bs, vps->max_latency_increase[i]);//vps_max_latency_increase_plus1
 		if (!vps->sub_layer_ordering_info_present_flag)
 		{
 			break;
@@ -137,7 +137,7 @@ void hmr_put_vps_header(hvenc_t* ed)
 	hmr_bitstream_nalu_ebsp(bs, &ed->vps_nalu.bs);
 }
 
-void short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
+void hmr_short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 {
 	int j;
 	if (idx > 0)
@@ -150,11 +150,14 @@ void short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 	}
 	else
 	{
+		int prev = 0;
 		hmr_bitstream_write_bits_uvlc(bs, rps->num_negative_pics);
 		hmr_bitstream_write_bits_uvlc(bs, rps->num_positive_pics);
 		for(j=0;j<rps->num_negative_pics;j++)
 		{
-			//...................
+			hmr_bitstream_write_bits_uvlc(bs, prev - rps->delta_poc_s0[j]-1);//delta_poc_s0_minus1
+			prev = rps->delta_poc_s0[j];
+			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S0_flag[j], 1);//inter_ref_pic_set_prediction_flag
 		}
 		for(j=0;j<rps->num_positive_pics;j++)
 		{
@@ -203,7 +206,7 @@ void hmr_put_seq_header(hvenc_t* ed)
 
 	for(i=0; i <= ed->max_sublayers-1; i++)
 	{
-		hmr_bitstream_write_bits_uvlc(bs, sps->max_dec_pic_buffering[i]);
+		hmr_bitstream_write_bits_uvlc(bs, sps->max_dec_pic_buffering[i]-1);//vps_max_dec_pic_buffering_minus1
 		hmr_bitstream_write_bits_uvlc(bs, sps->max_num_reorder_pics[i]);
 		hmr_bitstream_write_bits_uvlc(bs, sps->max_latency_increase[i]);
 	}
@@ -239,7 +242,7 @@ void hmr_put_seq_header(hvenc_t* ed)
 	hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
 	for(i=0;i<ed->num_short_term_ref_pic_sets;i++)
 	{
-		short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
+		hmr_short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
 	}
 	
 	hmr_bitstream_write_bits(bs, ed->num_long_term_ref_pic_sets?1:0,1);//long_term_ref_pics_present_flag
@@ -287,8 +290,8 @@ void hmr_put_pic_header(hvenc_t* ed)
 	hmr_bitstream_write_bits(bs, pps->sign_data_hiding_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cabac_init_present_flag,1);
 
-	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[0]-1);//num_ref_idx_l0_default_active_minus1
-	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[1]-1);//num_ref_idx_l1_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, ed->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
 	
 	hmr_bitstream_write_bits_svlc(bs, pps->pic_init_qp_minus26);
 
@@ -296,12 +299,12 @@ void hmr_put_pic_header(hvenc_t* ed)
 	hmr_bitstream_write_bits(bs, pps->transform_skip_enabled_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cu_qp_delta_enabled_flag,1);
 	if(pps->cu_qp_delta_enabled_flag)
-		hmr_bitstream_write_bits(bs, pps->diff_cu_qp_delta_depth,1);
+		hmr_bitstream_write_bits_uvlc(bs, pps->diff_cu_qp_delta_depth);
 	
-	hmr_bitstream_write_bits_svlc(bs, pps->pic_cb_qp_offset);
-	hmr_bitstream_write_bits_svlc(bs, pps->pic_cr_qp_offset);
+	hmr_bitstream_write_bits_svlc(bs, pps->cb_qp_offset);
+	hmr_bitstream_write_bits_svlc(bs, pps->cr_qp_offset);
 
-	hmr_bitstream_write_bits(bs, pps->pic_slice_level_chroma_qp_offsets_present_flag,1);
+	hmr_bitstream_write_bits(bs, pps->slice_chroma_qp_offsets_present_flag,1);
 	hmr_bitstream_write_bits(bs, pps->weighted_pred_flag,1);
 	hmr_bitstream_write_bits(bs, pps->weighted_bipred_flag,1);
 	hmr_bitstream_write_bits(bs, pps->transquant_bypass_enable_flag,1);
@@ -340,7 +343,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 	bitstream_t	*bs = &ed->slice_bs;//
 	sps_t	*sps = currslice->sps;
 	pps_t	*pps = currslice->pps;
-	int max_add_outer = ed->pict_total_cu;
+	int max_add_outer = ed->pict_total_ctu;
 	int bits_outer = 0;
 	int max_addr_inner, req_bits_inner = 0;
 	int slice_address;
@@ -412,10 +415,10 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 
 			hmr_bitstream_write_bits(bs, poc_lsb, bits_for_poc);
 
-			if(ed->ref_pic_set_index<0)
+			if(currslice->ref_pic_set_index<0)
 			{
 				hmr_bitstream_write_bits(bs, 0, 1);//short_term_ref_pic_set_sps_flag
-				//short_term_ref_pic_set( num_short_term_ref_pic_sets )
+				//hmr_short_term_ref_pic_set( num_short_term_ref_pic_sets )
 			}
 			else
 			{
@@ -427,12 +430,12 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 				}
 
 				if(num_bits)
-					hmr_bitstream_write_bits(bs, ed->ref_pic_set_index, num_bits);//short_term_ref_pic_set_sps_flag
+					hmr_bitstream_write_bits(bs, currslice->ref_pic_set_index, num_bits);//short_term_ref_pic_set_sps_flag
 
 /*				hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
 				for(i=0;i<ed->num_short_term_ref_pic_sets;i++)
 				{
-					short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
+					hmr_short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
 				}
 */
 			}
@@ -446,9 +449,29 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 			}
 		}
 
+
+		//if(use_sao)
+		//.....
+
 		if(!isIntra(currslice->slice_type))
 		{
-			
+			int override_flag = (currslice->num_ref_idx[REF_PIC_LIST_0]!=(pps->num_ref_idx_l0_default_active_minus1+1));// ||(pcSlice->isInterB()&&pcSlice->getNumRefIdx( REF_PIC_LIST_1 )!=pcSlice->getPPS()->getNumRefIdxL1DefaultActive()));
+			hmr_bitstream_write_bits(bs, override_flag, 1);//num_ref_idx_active_override_flag
+//			WRITE_FLAG( overrideFlag ? 1 : 0,                               "num_ref_idx_active_override_flag");
+			if (override_flag) 
+			{
+				hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l0_default_active_minus1);
+//				WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) - 1,      "num_ref_idx_l0_active_minus1" );
+				if (currslice->slice_type != B_SLICE)
+				{
+					hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l0_default_active_minus1);
+//					WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) - 1,    "num_ref_idx_l1_active_minus1" );
+				}
+				else
+				{
+					currslice->num_ref_idx[REF_PIC_LIST_1] = 0;
+				}
+			}			
 		}
 		else
 		{
@@ -468,8 +491,13 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 		{
 			if(pps->cabac_init_present_flag)
 			{
-			//	cabac_init_flag
-			}
+				//	cabac_init_flag
+/*				SliceType sliceType   = pcSlice->getSliceType();
+				Int  encCABACTableIdx = pcSlice->getPPS()->getEncCABACTableIdx();
+				Bool encCabacInitFlag = (sliceType!=encCABACTableIdx && encCABACTableIdx!=I_SLICE) ? true : false;
+				pcSlice->setCabacInitFlag( encCabacInitFlag );
+				WRITE_FLAG( encCabacInitFlag?1:0, "cabac_init_flag" );
+*/			}
 		}
 		if(currslice->slice_temporal_mvp_enable_flag)
 		{
@@ -486,12 +514,11 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 
 		if(!isIntra(currslice->slice_type))
 		{
-			//five_minus_max_num_merge_cand
+			hmr_bitstream_write_bits_uvlc(bs, 5 - currslice->max_num_merge_candidates);//five_minus_max_num_merge_cand			
 		}
+		hmr_bitstream_write_bits_svlc(bs, currslice->qp/*ed->pict_qp*/ - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
 		
-		hmr_bitstream_write_bits_svlc(bs, ed->pict_qp - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
-		
-		if(pps->pic_slice_level_chroma_qp_offsets_present_flag)
+		if(pps->slice_chroma_qp_offsets_present_flag)
 		{
 			//hmr_bitstream_write_bits_svlc(slice_qp_delta_cb
 			//hmr_bitstream_write_bits_svlc(slice_qp_delta_cr
@@ -505,11 +532,11 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 			}
 			if(currslice->deblocking_filter_override_flag)
 			{
-//				hmr_bitstream_write_bits(bs, currslice->disable_deblocking_filter_flag, 1);
+//				hmr_bitstream_write_bits(bs, currslice->deblocking_filter_disabled_flag, 1);
 			}
 			//............
 */		}
-		if(pps->loop_filter_across_slices_enabled_flag && ( /*slice_sao_luma_flag || slice_sao_chroma_flag ||*/ !currslice->disable_deblocking_filter_flag))
+		if(pps->loop_filter_across_slices_enabled_flag && ( /*slice_sao_luma_flag || slice_sao_chroma_flag ||*/ !currslice->deblocking_filter_disabled_flag))
 		{
 			hmr_bitstream_write_bits(bs, currslice->slice_loop_filter_across_slices_enabled_flag, 1);
 		}

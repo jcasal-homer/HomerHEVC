@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -30,14 +30,14 @@ void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* 
 {
 	int j, comp;
 	int decoded_buff_stride;
-	byte * __restrict decoded_buff_src;
-	byte * __restrict decoded_buff_dst;
+	int16_t *  decoded_buff_src;
+	int16_t *  decoded_buff_dst;
 
 	for(comp=U_COMP;comp<=V_COMP;comp++)
 	{
 		decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
-		decoded_buff_src = WND_POSITION_2D(byte *__restrict, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
-		decoded_buff_dst = WND_POSITION_2D(byte *__restrict, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
 
 		//bottom line
 		memcpy(decoded_buff_dst+decoded_buff_stride*(curr_part->size_chroma-1), decoded_buff_src+decoded_buff_stride*(curr_part->size_chroma-1), curr_part->size_chroma*sizeof(decoded_buff_src[0]));
@@ -57,21 +57,21 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 {
 	int j, comp;//, i;
 	int decoded_buff_stride;
-	byte * __restrict decoded_buff_src;
-	byte * __restrict decoded_buff_dst;
+	int16_t *  decoded_buff_src;
+	int16_t *  decoded_buff_dst;
 
 	int quant_buff_stride = curr_part->size_chroma;//0;//es lineal
-	short * __restrict quant_buff_src;
-	short * __restrict quant_buff_dst;
+	int16_t *  quant_buff_src;
+	int16_t *  quant_buff_dst;
 
 	for(comp=U_COMP;comp<=V_COMP;comp++)
 	{
 		decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
-		decoded_buff_src = WND_POSITION_2D(byte *__restrict, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
-		decoded_buff_dst = WND_POSITION_2D(byte *__restrict, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
 
-		quant_buff_src = WND_POSITION_1D(short  *__restrict, *quant_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
-		quant_buff_dst = WND_POSITION_1D(short  *__restrict, *quant_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
+		quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
+		quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
 
 		for(j=0;j<curr_part->size_chroma;j++)
 		{
@@ -105,25 +105,20 @@ void create_chroma_dir_list(int* list, int luma_mode)
 	}
 }	
 
-const byte chroma_scale_conversion_table[58]=
-{
-   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,
-  17,18,19,20,21,22,23,24,25,26,27,28,29,29,30,31,32,
-  33,33,34,34,35,35,36,36,37,37,38,39,40,41,42,43,44,
-  45,46,47,48,49,50,51
-};
+extern const uint8_t chroma_scale_conversion_table[];
 
-int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
+uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
 	int cu_mode, cu_mode_idx;
 	uint distortion = 0, best_distortion=0, bit_cost, cost, best_cost = INT_MAX, best_mode, best_mode_idx;
+	uint sum = 0, best_sum;
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	byte *__restrict pred_buff, *__restrict orig_buff, *__restrict decoded_buff;
-	short*__restrict residual_buff, *__restrict quant_buff, *__restrict iquant_buff;
-	byte *cbf_buff[3] = {NULL,NULL,NULL};
+	uint8_t * orig_buff;
+	int16_t *pred_buff, *residual_buff, * quant_buff, * iquant_buff, *decoded_buff;
+	uint8_t *cbf_buff[3] = {NULL,NULL,NULL};
 	int num_candidates = 3;
 	int best_pred_index = 0;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;//, *resi_wnd = NULL;
@@ -149,12 +144,21 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	double weight;
 	int initial_state, end_state;
 	int luma_mode;
+	int qp_chroma, per, rem;// = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
+	int chr_qp_offset = et->ed->chroma_qp_offset;
 
-	ctu->qp = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
-	ctu->per = ctu->qp/6;
-	ctu->rem = ctu->qp%6;
+	curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 
-	weight = pow( 2.0, (currslice->qp-ctu->qp)/3.0 ); 
+	weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 ); 
+	qp_chroma = chroma_scale_conversion_table[clip(curr_partition_info->qp+chr_qp_offset,0,57)];
+	per = qp_chroma/6;
+	rem = qp_chroma%6;
+
+//	ctu->qp_chroma = chroma_scale_conversion_table[clip(currslice->qp,0,57)];
+//	ctu->per = ctu->qp_chroma/6;
+//	ctu->rem = ctu->qp_chroma%6;
+
+//	weight = pow( 2.0, (currslice->qp-ctu->qp_chroma)/3.0 ); 
 
 	if(depth==0 && et->max_cu_size == MAX_CU_SIZE)
 	{
@@ -166,6 +170,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 		parent_part_info = curr_partition_info->parent;
 	}
+
 
 	luma_mode = et->intra_mode_buffs[Y_COMP][depth][curr_partition_info->abs_index] ;
 	create_chroma_dir_list(mode_list, luma_mode);
@@ -180,7 +185,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 	decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 	{	
-			distortion = cost = 0;
+			distortion = cost = sum = 0;
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
 				curr_part_x = curr_partition_info->x_position_chroma;
@@ -190,11 +195,11 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				curr_part_size_shift = et->max_cu_size_shift-(curr_depth+1);
 				curr_adi_size = 2*2*curr_part_size+1;
 
-				pred_buff = WND_POSITION_2D(byte *__restrict, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
-				orig_buff = WND_POSITION_2D(byte *__restrict, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
-				decoded_buff = WND_POSITION_2D(byte *__restrict, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
 
 				cu_mode = mode_list[cu_mode_idx];
@@ -203,7 +208,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 					cu_mode = luma_mode;
 				}
 
-				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, FALSE, FALSE);//don't create filtered adi samples
+				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, CHR_COMP, FALSE);//don't create filtered adi samples
 
 				//create prediction
 				if(cu_mode== PLANAR_IDX)
@@ -216,7 +221,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				cost += distortion;
 			}
 
-			if(et->rd_mode==1)			//info for rd
+			if(et->rd_mode==RD_FULL)			//info for rd
 			{
 				int bit_cost;
 				ctu_rd->intra_mode[CHR_COMP] = et->intra_mode_buffs[CHR_COMP][depth];
@@ -284,6 +289,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		while(!(curr_depth==(depth-(part_size_type==SIZE_NxN)) && depth_state[curr_depth]==(part_position&0x3)+1))
 		{
 			curr_partition_info = (parent_part_info==NULL)?curr_partition_info:parent_part_info->children[depth_state[curr_depth]];
+
 			tr_depth_luma = et->tr_idx_buffs[depth][curr_partition_info->abs_index]+depth-(part_size_type==SIZE_NxN);
 
 			while(curr_depth<tr_depth_luma)
@@ -314,17 +320,17 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
-				pred_buff = WND_POSITION_2D(byte *__restrict, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
-				orig_buff = WND_POSITION_2D(byte *__restrict, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, ch_component);
-				residual_buff = WND_POSITION_2D(short *__restrict, et->residual_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-				quant_buff = WND_POSITION_1D(short  *__restrict, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);
-				iquant_buff = WND_POSITION_1D(short  *__restrict, et->itransform_iquant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);
+				residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
+				iquant_buff = WND_POSITION_1D(int16_t  *, et->itransform_iquant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
-				decoded_buff = WND_POSITION_2D(byte *__restrict, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
-				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, FALSE, FALSE);//don't create filtered adi samples
+				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, CHR_COMP, FALSE);//don't create filtered adi samples
 
 				if(cu_mode== PLANAR_IDX)
 					et->funcs->create_intra_planar_prediction(et, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, curr_part_size_shift);//creamos el array de prediccion planar
@@ -334,19 +340,28 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 				//intra code
 				et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
 				et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, REG_DCT, quant_buff);//usamos quant buff como auxiliar
-				et->funcs->quant(et, ctu, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+				et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 
+				sum+=curr_sum;
 				//set cbf
 				memset(&cbf_buff[ch_component][curr_partition_info->abs_index], ((curr_sum ? 1 : 0) << (original_depth-depth+(part_size_type==SIZE_NxN)))|((curr_sum ? 1 : 0) << (curr_depth-depth+(part_size_type==SIZE_NxN))), curr_partition_info->num_part_in_cu*sizeof(cbf_buff[ch_component][0]));//(width*width)>>4 num parts of 4x4 in partition
 				cbf_split[ch_component-1][curr_depth] |= (curr_sum ? 1 : 0);
 
-				//intra decode 
-				et->funcs->inv_quant(et, ctu, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size);
-				et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, REG_DCT, et->pred_aux_buff);
-				et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+				if(curr_sum)
+				{
+					//intra decode 
+					et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, ch_component, 1, curr_part_size, per, rem);
+					et->funcs->itransform(et->bit_depth, residual_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, REG_DCT, et->pred_aux_buff);
+					et->funcs->reconst(pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+				}
+				else
+				{
+					et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);
+				}
 				partition_cost[depth_state[curr_depth]] += (int)(weight*et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size));//R-D
 			}//for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 
+			curr_partition_info->sum += sum;
 			distortion += partition_cost[depth_state[curr_depth]];
 
 #ifndef COMPUTE_AS_HM
@@ -395,7 +410,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 
 		cost = distortion;
 
-		if(et->rd_mode == 1 && cost<best_cost)
+		if(et->rd_mode == RD_FULL && cost<best_cost)
 		{
 			//rd
 			ctu_rd->cbf[U_COMP] = cbf_buff[U_COMP];
@@ -418,6 +433,7 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 		{
 			best_distortion = distortion;
 			best_cost = cost;
+			best_sum = sum;
 #ifndef COMPUTE_AS_HM
 			best_mode = best_pred_modes[cu_mode_idx];
 #else
@@ -425,19 +441,20 @@ int encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth,
 #endif
 			best_mode_idx = cu_mode_idx;
 
-			curr_partition_info->distortion_chroma = best_distortion;
-			curr_partition_info->cost_chroma = cost;
-			curr_partition_info->mode_chroma = cu_mode;
+//			curr_partition_info->distortion_chroma = best_distortion;
+//			curr_partition_info->cost_chroma = cost;
+//			curr_partition_info->mode_chroma = cu_mode;
 
 			//synchronize buffers for next iterations esto en verdad no seria necesario, quedaria todo en depth=1
-			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, &et->transform_quant_wnd[depth], decoded_wnd, &et->decoded_mbs_wnd[depth], gcnt);
+			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, &et->transform_quant_wnd[depth+1], decoded_wnd, &et->decoded_mbs_wnd[depth+1], gcnt);
 			memcpy(&et->cbf_buffs[U_COMP][depth][curr_partition_info->abs_index], &cbf_buff[U_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 			memcpy(&et->cbf_buffs[V_COMP][depth][curr_partition_info->abs_index], &cbf_buff[V_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 		}
 	}//for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 
 	memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], best_mode, curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
-	return curr_partition_info->cost_chroma;
+	curr_partition_info->sum+=best_sum;
+	return best_cost;//curr_partition_info->cost_chroma;
 }
 
 

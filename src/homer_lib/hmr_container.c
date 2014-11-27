@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -77,11 +77,13 @@ void cont_get(void* h,void **ppbuff)
 	cont->num_buffs_in_list--;
 }
 
-int is_data_avaliable(void* h)
+int get_num_elements(void* h)
 {
 	hmr_container_t *cont = (hmr_container_t *)h;
 	return (cont->num_buffs_in_list);
 }
+
+
 
 //------------------------------------------------------ SYNC hmr_container ------------------------------------------------
 //in this hmr_container it is supposed to be only one writer and only one reader

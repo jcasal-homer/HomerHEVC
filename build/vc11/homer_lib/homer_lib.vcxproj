@@ -23,20 +23,24 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_binary_encoding.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_bitstream.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_container.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_deblocking_filter.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_encoder_lib.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_headers.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_mem_transfer.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_metics.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_inter.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_intra.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_motion_intra_chroma.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_profiler.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_quant.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_rate_control.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_pixel.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_prediction.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_quant.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_transform.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_tables.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_transform.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_inter_prediction.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\homer_lib\hmr_cabac_tables.h" />
@@ -158,6 +162,10 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointModel>Precise</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

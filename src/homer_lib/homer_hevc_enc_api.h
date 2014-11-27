@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -52,6 +52,25 @@ enum HOMER_TIER {
   TIER_HIGH
 };
 
+enum HOMER_RD_MODES {
+	RD_DIST_ONLY = 0,
+	RD_FULL,
+	RD_FAST,
+	NUM_RD_MODES
+};
+
+enum HOMER_BR_MODES {
+	BR_FIXED_QP = 0,
+	BR_CBR,
+	NUM_BR_MODES
+};
+
+enum HOMER_PERFORMANCE_MODES {
+	PERF_FULL_COMPUTATION = 0,
+	PERF_FAST_COMPUTATION,
+	PERF_UFAST_COMPUTATION,//fastest
+	NUM_PERF_MODES
+};
 
 
 #define MAX_STREAMS	8
@@ -96,45 +115,38 @@ struct nalu_t
   bitstream_t	bs;
 };
 
-
-#define NALU_SET_SIZE	8
-typedef struct nalu_set_t nalu_set_t;
-struct nalu_set_t
-{
-	nalu_t  *nalu_list[NALU_SET_SIZE];
-	int		num_nalus;
-};
-
-
-
-
 typedef struct HVENC_Cfg HVENC_Cfg;
 struct HVENC_Cfg{
 	int size;
 	int profile;
-	int width, height; // frame size (pels) 
-	int N; // number of frames in Group of Pictures 
-	int M; // distance between I/P frames 
-	int qp;
-	int frame_rate;
-	int num_ref_frames;
+	int width, height; // frame size (pixels) 
+	float frame_rate;
 	int cu_size;
-	int max_pred_partition_depth;//esto no se si sirve para mucho. Con el tiempo quizas habria que quitarlo
+	int max_pred_partition_depth;
 	int max_intra_tr_depth;
 	int max_inter_tr_depth;
+	int intra_period;
+	int gop_size; 
+	int num_ref_frames;
+	int qp;//for fixed qp mode, or initial qp if cbr or vbr
+	int chroma_qp_offset;
 	int wfpp_enable;
 	int wfpp_num_threads;
 	int sign_hiding;
-	int performance_mode;//0 = accurate+high quality, 2= fast-less quality
-	int	rd_mode;//0 = no rd, 1 = rd enable, 2=fast rd
+	int bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
+	int bitrate;//in kbps
+	int vbv_size;//in kbps
+	int vbv_init;//in kbps
+	int	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
+	int performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
 };
 
 void *HOMER_enc_init();
 void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-//int HOMER_enc_encode(void* handle, unsigned char *picture_t[], nalu_t *nalu_out[], unsigned int *nalu_list_size);
-int HOMER_enc_encode(void* handle, unsigned char *picture_t[]);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-int HOMER_enc_get_coded_frame(void* handle, nalu_t *nalu_out[], unsigned int *nalu_list_size);
-//void encoder_thread(void *h);//void encoder_thread(void* ed);
+//int HOMER_enc_encode(void* handle, unsigned char *picture[], nalu_t *nalu_out[], unsigned int *nalu_list_size);
+int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame);//unsigned char *picture[]);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
+int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], unsigned int *nalu_list_size);
+void encoder_thread(void* ed);//void *encoder_thread(void *h);//
 int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout);
 int HOMER_enc_control(void *h, int cmd, void *in);
 

@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -28,9 +28,10 @@
 #include "hmr_os_primitives.h"
 #include "homer_hevc_enc_api.h"
 
+//#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1
+//#define COMPUTE_AS_HM			1	//to debug against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -48,6 +49,12 @@
 ********************************************************************/
 
 #define DOUBLE_MAX              (1.7e+308)    
+#define MAX_COST				(UINT_MAX/8)
+
+#define MIN_QP                      0
+#define MAX_QP                      51
+
+
 
 #define MAX_NUM_CTUs				8160	//1920*1088 resolution
 #define MAX_MB_GROUP_SIZE		1
@@ -65,6 +72,10 @@
 #define     MAX_NUM_PARTITIONS		256							//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
 
 #define QUANT_DEFAULT_DC	16
+
+#define CU_DQP_TU_CMAX 5                   //max number bins for truncated unary
+#define CU_DQP_EG_k 0                      //expgolomb order
+
 
 //for intra prediction
 #define NUM_INTRA_MODES					35
@@ -97,6 +108,12 @@
 #define MAX_TR_DYNAMIC_RANGE				15 // Maximum transform dynamic range (excluding sign bit)
 
 
+//deblock filter
+#define   EDGE_VER    0
+#define   EDGE_HOR    1
+
+#define DEBLOCK_SMALLEST_BLOCK  8
+#define DEFAULT_INTRA_TC_OFFSET 2
 
 //-------------------------init binary encode-------------------------------------
 #define NUM_SPLIT_FLAG_CTX            3       ///< number of context models for split flag
@@ -106,7 +123,7 @@
 #define NUM_MERGE_IDX_EXT_CTX         1       ///< number of context models for merge index of merge extended
 
 #define NUM_PART_SIZE_CTX             4       ///< number of context models for partition size
-#define NUM_CU_AMP_CTX                1       ///< number of context models for partition size (AMP)
+//#define NUM_CU_AMP_CTX                1       ///< number of context models for partition size (AMP)
 #define NUM_PRED_MODE_CTX             1       ///< number of context models for prediction mode
 
 #define NUM_ADI_CTX                   1       ///< number of context models for intra prediction
@@ -117,7 +134,7 @@
 
 #define NUM_REF_NO_CTX                2       ///< number of context models for reference index
 #define NUM_TRANS_SUBDIV_FLAG_CTX     3       ///< number of context models for transform subdivision flags
-#define NUM_QT_CBF_CTX                5       ///< number of context models for QT CBF
+#define NUM_QT_CBF_CTX                4       ///< number of context models for QT CBF
 #define NUM_QT_ROOT_CBF_CTX           1       ///< number of context models for QT ROOT CBF
 #define NUM_DELTA_QP_CTX              3       ///< number of context models for dQP
 
@@ -136,7 +153,7 @@
 #define NUM_ABS_FLAG_CTX_LUMA          4      ///< number of context models for greater than 2 flag of luma
 #define NUM_ABS_FLAG_CTX_CHROMA        2      ///< number of context models for greater than 2 flag of chroma
 
-#define NUM_MVP_IDX_CTX               2       ///< number of context models for MVP index
+#define NUM_MVP_IDX_CTX               1       ///< number of context models for MVP index
 
 #define NUM_SAO_MERGE_FLAG_CTX        1       ///< number of context models for SAO merge flags
 #define NUM_SAO_TYPE_IDX_CTX          1       ///< number of context models for SAO type index
@@ -151,19 +168,22 @@
 					+NUM_INTER_DIR_CTX+NUM_REF_NO_CTX+NUM_MV_RES_CTX+2*NUM_QT_CBF_CTX+NUM_TRANS_SUBDIV_FLAG_CTX	\
 					+NUM_QT_ROOT_CBF_CTX+2*NUM_SIG_CG_FLAG_CTX+NUM_SIG_FLAG_CTX+2*NUM_CTX_LAST_FLAG_XY	\
 					+2*NUM_CTX_LAST_FLAG_XY+NUM_ONE_FLAG_CTX+NUM_ABS_FLAG_CTX+NUM_MVP_IDX_CTX	\
-					+NUM_CU_AMP_CTX+NUM_SAO_MERGE_FLAG_CTX+NUM_SAO_TYPE_IDX_CTX	\
+					/*+NUM_CU_AMP_CTX*/+NUM_SAO_MERGE_FLAG_CTX+NUM_SAO_TYPE_IDX_CTX	\
 					+2*NUM_TRANSFORMSKIP_FLAG_CTX+NUM_CU_TRANSQUANT_BYPASS_FLAG_CTX)
 //-------------------------end binary encode-------------------------------------
 
 
 #define MAXnum_ref_frames_in_pic_order_cnt_cycle  256	
 typedef int Boolean;
+
 typedef unsigned char	byte;
+typedef unsigned char	uint8_t;
 typedef unsigned short	ushort;
 typedef unsigned int	uint;
 typedef long			int64;
 typedef unsigned long	uint64;
 
+#define BSIGN(x)				(x>0?0:1)
 #define SIGN(x)					(x<0?-1:1)
 #define QP_BITS                 15
 
@@ -190,7 +210,7 @@ typedef unsigned long	uint64;
 
 #define INTER_MODE				0           
 #define INTRA_MODE				1	
-
+#define NONE_MODE				2	
 
 // partition types
 typedef enum 
@@ -233,8 +253,8 @@ typedef enum {
 
 
 typedef enum {
-  P_SLICE,
   B_SLICE,
+  P_SLICE,
   I_SLICE,
   NUM_SLICE_TYPES
 } SliceTypes;
@@ -335,7 +355,7 @@ typedef enum
 #define IS_INTRA(mode)    (mode==SI4MB || mode==I4MB || mode==I16MB || mode==I8MB || mode==IPCM)
 
 //progressive scan pattern 
-static const byte scan_progressive[16][2] =
+static const uint8_t scan_progressive[16][2] =
 {
   {0,0},{1,0},{0,1},{0,2},
   {1,1},{2,0},{3,0},{2,1},
@@ -344,7 +364,7 @@ static const byte scan_progressive[16][2] =
 };
 
 //! interlaced scan pattern
-static const byte scan_interlaced[16][2] =
+static const uint8_t scan_interlaced[16][2] =
 {
   {0,0},{0,1},{1,0},{0,2},
   {0,3},{1,1},{1,2},{1,3},
@@ -353,11 +373,11 @@ static const byte scan_interlaced[16][2] =
 };
 
 
-/*static const byte ZZ_SCAN[16]  =
+/*static const uint8_t ZZ_SCAN[16]  =
 {  0,  1,  4,  8,  5,  2,  3,  6,  9, 12, 13, 10,  7, 11, 14, 15
 };
 
-static const byte ZZ_SCAN8[64] =
+static const uint8_t ZZ_SCAN8[64] =
 {  0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
    12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13,  6,  7, 14, 21, 28,
    35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
@@ -487,7 +507,7 @@ struct sps_t
 	unsigned int pcm_loop_filter_disable_flag;		//u(1)
 	unsigned int temporal_id_nesting_flag;			//u(1)
 //	unsigned int num_short_term_ref_pic_sets;		//ue(v) - moved to ed
-	//short_term_ref_pic_set(i)								- moved to ed
+	//hmr_short_term_ref_pic_set(i)								- moved to ed
 //	unsigned int long_term_ref_pics_present_flag;	//u(1)	- moved to ed
 //	unsigned int num_long_term_ref_pic_sps;			//ue(v)	- moved to ed
 //	unsigned int lt_ref_pic_poc_lsb_sps;			//u(v)
@@ -511,8 +531,9 @@ struct pps_t
 	unsigned int num_extra_slice_header_bits;					// u(1)
 	unsigned int sign_data_hiding_flag;							// u(1)
 	unsigned int cabac_init_present_flag;                       // u(1)
-//  unsigned int num_ref_idx_l0_default_active_minus1;          // ue(v)
-//  unsigned int num_ref_idx_l1_default_active_minus1;          // ue(v)
+	unsigned int cabac_init_flag;								// u(1)
+	unsigned int num_ref_idx_l0_default_active_minus1;          // ue(v)
+	unsigned int num_ref_idx_l1_default_active_minus1;          // ue(v)
 
 	unsigned int pic_init_qp_minus26;							// se(v)
 
@@ -520,10 +541,10 @@ struct pps_t
 	unsigned int transform_skip_enabled_flag;					// u(1)
 	unsigned int cu_qp_delta_enabled_flag;						// u(1)
 	unsigned int diff_cu_qp_delta_depth;						// ue(v)
-	unsigned int pic_cb_qp_offset;								// se(v)
-	unsigned int pic_cr_qp_offset;								// se(v)
+	unsigned int cb_qp_offset;								// se(v)
+	unsigned int cr_qp_offset;								// se(v)
 
-	unsigned int pic_slice_level_chroma_qp_offsets_present_flag;// u(1)
+	unsigned int slice_chroma_qp_offsets_present_flag;			// u(1)
 	unsigned int weighted_pred_flag;							// u(1)
 	unsigned int weighted_bipred_flag;							// u(1)
 	unsigned int transquant_bypass_enable_flag;					// u(1)
@@ -537,36 +558,60 @@ struct pps_t
 //	...........................
 	unsigned int loop_filter_across_slices_enabled_flag;		// u(1)
 	unsigned int deblocking_filter_control_present_flag;		// u(1)
+	unsigned int deblocking_filter_override_enabled_flag;		// u(1)
+	unsigned int deblocking_filter_disabled_flag;				// u(1)
+	unsigned int beta_offset_div2;								// u(1)
+	unsigned int tc_offset_div2;								// u(1)
 	//.......................
 	unsigned int pps_scaling_list_data_present_flag;			// u(1)
 	unsigned int lists_modification_present_flag;				// u(1)
-	unsigned int log2_parallel_merge_level_minus2;				// u(1)
-	unsigned int slice_header_extension_present_flag;			// u(1)
+	unsigned int log2_parallel_merge_level_minus2;				// se(v)
+	unsigned int slice_header_extension_present_flag;			// se(v)
 };
 
 
 typedef struct wnd_t wnd_t;
 struct wnd_t
 {
-	void	*pwnd[3];
+	void	*palloc[3];//allocated pointer
+	void	*pwnd[3];//valid data pointer
 	int		window_size_x[3];
 	int		window_size_y[3];
-	int		data_offset_x;//indica el desplazamiento de la ventana respecto a los macrobloques a predecir
-	int		data_offset_y;//indica el desplazamiento de la ventana respecto a los macrobloques a predecir
-	int		window_orig_x;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
-	int		window_orig_y;//indica la coordenada x del inicio de la ventana de busqueda en la imagen origen
+	int		data_padding_x[3];//left and right padding due to data pading or memory aligment
+	int		data_padding_y[3];//top and bottom padding due to data pading or memory aligment
+	int		data_width[3];//wnd data horizontal size
+	int		data_height[3];//wnd data vertical size
 	int		pix_size;
-#ifdef WRITE_REF_FRAMES
-	FILE	*out_file;//for debug porposes
-#endif
+//#ifdef WRITE_REF_FRAMES
+//	FILE	*out_file;//for debug porposes
+//#endif
+};
+
+typedef union temporal_info_t temporal_info_t;
+union temporal_info_t
+{
+	uint32_t	pts;
+	uint32_t	poc;
 };
 
 typedef struct video_frame_t video_frame_t;
 struct video_frame_t
 {
 	wnd_t			img;
-	unsigned int	pts;
+	temporal_info_t	temp_info;
+	int				is_reference;
 };
+
+
+#define NALU_SET_SIZE	8
+typedef struct output_set_t output_set_t;
+struct output_set_t
+{
+	video_frame_t	*frame;
+	nalu_t			*nalu_list[NALU_SET_SIZE];
+	int				num_nalus;
+};
+
 
 //picture_t pool for image storage
 /*#define PICT_POOL_SIZE 5
@@ -590,10 +635,10 @@ typedef struct symbol
 typedef struct bit_counter
 {
   int mb_total;
-  unsigned short mb_mode;
-  unsigned short mb_inter;
-  unsigned short mb_cbp;
-  unsigned short mb_delta_quant;
+  uint16_t mb_mode;
+  uint16_t mb_inter;
+  uint16_t mb_cbp;
+  uint16_t mb_delta_quant;
   int mb_y_coeff;
   int mb_uv_coeff;
   int mb_cb_coeff;
@@ -602,70 +647,114 @@ typedef struct bit_counter
 }bit_counter_t;
 */
 
+typedef struct motion_vector_t motion_vector_t;
+struct motion_vector_t
+{
+  int32_t hor_vector;
+  int32_t ver_vector;
+};
+
+
+#define AMVP_MAX_NUM_CANDS		2
+#define AMVP_MAX_NUM_CANDS_MEM	3
+
+typedef struct mv_candiate_list_t mv_candiate_list_t;
+struct mv_candiate_list_t
+{
+	int	num_mv_candidates;
+	motion_vector_t	mv_candidates[AMVP_MAX_NUM_CANDS_MEM];
+};
+
 typedef struct cu_partition_info_t cu_partition_info_t;
 struct cu_partition_info_t
 {
-	ushort list_index;
-	ushort depth;
-	ushort abs_index;
-	ushort size;
-	ushort size_chroma;
-	ushort x_position,x_position_chroma;
-	ushort y_position,y_position_chroma;
-	ushort num_part_in_cu;//tama�o en particiones minimas
+	uint16_t list_index;
+	uint16_t depth;
+	uint16_t abs_index;
+	uint16_t size;
+	uint16_t size_chroma;
+	uint16_t x_position,x_position_chroma;
+	uint16_t y_position,y_position_chroma;
+	uint16_t num_part_in_cu;//tama�o en particiones minimas
 
-	ushort raster_index;
-	ushort left_neighbour;
-	ushort top_neighbour; 
-	ushort left_bottom_neighbour;
-	ushort top_right_neighbour; 
-	ushort is_tl_inside_frame, is_b_inside_frame, is_r_inside_frame;
-	ushort abs_index_left_partition;
-	ushort abs_index_top_partition;
+	uint16_t raster_index;
+	uint16_t left_neighbour;
+	uint16_t top_neighbour; 
+	uint16_t left_bottom_neighbour;
+	uint16_t top_right_neighbour; 
+	uint16_t is_tl_inside_frame, is_b_inside_frame, is_r_inside_frame;
+	uint16_t abs_index_left_partition;
+	uint16_t abs_index_left_bottom_partition;
+	uint16_t abs_index_top_partition;
+	uint16_t abs_index_top_right_partition;
+	uint16_t abs_index_top_left_partition;
 
 	cu_partition_info_t	*parent;//pointer to parent partition
 	cu_partition_info_t	*children[4];//pointers to child partitions
 	
-	ushort mode;
-	ushort mode_chroma;
-
+	uint qp;
+//	uint16_t mode;
+//	uint16_t mode_chroma;
+	//intra
 	uint sum;
-	uint distortion_chroma, cost_chroma;
+//	uint distortion_chroma, cost_chroma;
 	uint distortion, cost;
-	uint variance, variance_chroma;
+	uint variance, variance_luma, variance_chroma;
 	uint recursive_split;
+
+	//inter prediction. Trying to avoid buffer consolidation
+//	uint inter_distortion, inter_distortion_chroma;
+//	uint inter_cost, inter_cost_chroma;
+	int prediction_mode;
+	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
+	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
+	motion_vector_t	inter_mv[2];
+	motion_vector_t	best_dif_mv[2];
+	int 	best_candidate_idx[2];
+	int		inter_ref_index[2];
 };
 
 typedef struct ctu_info_t ctu_info_t ;
 struct ctu_info_t 
 {
 	int				ctu_number;
-	int				x[3],y[3];//global in picture_t
+	int				x[3],y[3];//global coordinates in frame
 	int				size;
 	int				num_part_in_ctu;
-
+	int				last_valid_partition;
 	cu_partition_info_t	*partition_list;
 
-	byte			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];
-	byte			*intra_mode[NUM_PICT_COMPONENTS-1];//[MAX_NUM_PARTITIONS];
-	byte			*tr_idx;//[MAX_NUM_PARTITIONS];
-	byte			*pred_depth;//[MAX_NUM_PARTITIONS];
-	byte			*part_size_type;//[MAX_NUM_PARTITIONS];
-	//byte			*pred_mode;//[MAX_NUM_PARTITIONS];//intra or inter
-	int				pred_mode;
+	uint8_t			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];
+	uint8_t			*intra_mode[NUM_PICT_COMPONENTS-1];//[MAX_NUM_PARTITIONS];
+	uint8_t			*inter_mode;//[MAX_NUM_PARTITIONS];
+	uint8_t			*tr_idx;//[MAX_NUM_PARTITIONS];
+	uint8_t			*pred_depth;//[MAX_NUM_PARTITIONS];
+	uint8_t			*part_size_type;//[MAX_NUM_PARTITIONS];
+	uint8_t			*pred_mode;//[MAX_NUM_PARTITIONS];//intra or inter
+	uint8_t			*skipped;//[MAX_NUM_PARTITIONS];//intra or inter
+	uint8_t			*qp;
 	wnd_t			*coeff_wnd;
+
+	//inter
+	motion_vector_t		*mv_ref[2];
+	int8_t				*mv_ref_idx[2];
+	motion_vector_t		*mv_diff[2];
+	uint8_t				*mv_diff_ref_idx[2];
+
+//	uint8_t				*ref_idx1;
 
 	ctu_info_t		*ctu_left;
 	ctu_info_t		*ctu_left_bottom;
 	ctu_info_t		*ctu_top;
 	ctu_info_t		*ctu_top_right;
+	ctu_info_t		*ctu_top_left;
 	int				top;
 	int				left;
 	
 	//quant
-	int				qp/*, prev_qp, prev_dqp*/;
-    int				per;
-    int				rem;
+//	int				/*qp, */qp_chroma;/*, prev_qp, prev_dqp*/
+//    int				per;//, per_chroma;
+//    int				rem;//, rem_chroma;
 //    int				qpbits;
 //	uint			variance;
 };
@@ -698,7 +787,7 @@ typedef struct context_model_t context_model_t;
 struct context_model_t
 {
 	uint		num_bins_coded;
-	byte		state;
+	uint8_t		state;
 };
 
 //ContextModel3DBuffer
@@ -709,7 +798,7 @@ struct context_model_buff_t
 	int size_x;
 	int size_y;
 	int size_xy;
-	const byte *ref_ctx_model;
+	const uint8_t *ref_ctx_model;
 };
 
 //estos contextos en el HM estan dentro de TEncSbac
@@ -737,7 +826,7 @@ struct entropy_model_t
 	context_model_buff_t	cu_ctx_last_y_model;
 	context_model_buff_t	cu_one_model;
 	context_model_buff_t	cu_abs_model;
-	context_model_buff_t	mvp_idx_model;
+	context_model_buff_t	cu_mvp_idx_model;
 	context_model_buff_t	cu_amp_model;
 	context_model_buff_t	sao_merge_model;
 	context_model_buff_t	sao_type_model;
@@ -776,23 +865,45 @@ struct enc_env_t
 typedef struct rate_distortion_t rate_distortion_t;
 struct rate_distortion_t
 {
-  double                  lambda;
-  double                  sqrt_lambda;
-  uint                    lambda_SAD;
-  uint                    lambda_SSE;
-  double                  frame_lambda;
+	double    lambda;
+	double    sqrt_lambda;
+	uint      lambda_SAD;
+	uint      lambda_SSE;
+	double    frame_lambda;
 };
 
 
+typedef struct rate_control_t rate_control_t;
+struct rate_control_t
+{
+	double	vbv_size;
+	double	average_pict_size;
+	double  average_bits_per_ctu;
+	double	vbv_fullness;
+	double	target_pict_size;
+	double	target_bits_per_ctu;
+	double  acc_rate;
+	double  acc_avg;
+//	int		acc_qp;
+//	double	consumed_bitrate;
+//	int		consumed_ctus;
+};
 
-#define MAX_REF_PIC_SETS	4
+
+#define MAX_NUM_REF_PICS            16						//max. number of pictures used for reference
+#define MAX_NUM_REF                 16						//max. number of entries in picture reference list
+#define MAX_NUM_REF_MASK            (MAX_NUM_REF-1)         //max. number of entries in picture reference list
+
 typedef struct ref_pic_set_t ref_pic_set_t;
 struct ref_pic_set_t
 {
 	int inter_ref_pic_set_prediction_flag;
 	//..................
+	int num_pics;
 	int num_negative_pics;
 	int num_positive_pics;
+	int delta_poc_s0[MAX_NUM_REF];
+	int used_by_curr_pic_S0_flag[MAX_NUM_REF];
 };
 
 typedef struct slice_t slice_t;
@@ -807,18 +918,25 @@ struct slice_t
 	unsigned int is_dependent_slice;//
 	unsigned int slice_temporal_layer_non_reference_flag;//
 	unsigned int slice_temporal_mvp_enable_flag;
-	unsigned int disable_deblocking_filter_flag;
+	unsigned int deblocking_filter_disabled_flag;
 	unsigned int slice_loop_filter_across_slices_enabled_flag;
+	unsigned int slice_beta_offset_div2;
+	unsigned int slice_tc_offset_div2;
+	unsigned int max_num_merge_candidates;
 
 	sps_t		*sps;
 	pps_t		*pps;
 	
-	unsigned int qp;
+	int qp;
 	unsigned int poc;
 	unsigned int depth;
 	unsigned int sublayer;//TLayer
 	unsigned int referenced;
 	unsigned int num_ref_idx[2];
+	unsigned int ref_pic_set_index;
+	ref_pic_set_t	*ref_pic_set;
+	video_frame_t	*ref_pic_list[2][MAX_NUM_REF];
+	int				ref_pic_list_cnt[2];
 };
 
 typedef struct picture_t picture_t;
@@ -837,19 +955,21 @@ typedef struct hvenc_t hvenc_t;
 typedef struct low_level_funcs_t low_level_funcs_t;
 struct low_level_funcs_t
 {
-	uint32_t (*sad)(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
-	uint32_t (*ssd)(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
-	void (*predict)(uint8_t * __restrict orig, int orig_stride, uint8_t* __restrict pred, int pred_stride, int16_t * __restrict residual, int residual_stride, int size);
-	void (*reconst)(uint8_t* pred, int pred_stride, int16_t * residual, int residual_stride, uint8_t* decoded, int decoded_stride, int size);
-	uint32_t (*modified_variance)(uint8_t *__restrict p, int size, int stride, int modif);
+	uint32_t (*sad)(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+	uint32_t (*ssd)(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+	void (*predict)(uint8_t * orig, int orig_stride, int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int size);
+	void (*reconst)(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride, int size);
+	uint32_t (*modified_variance)(uint8_t *p, int size, int stride, int modif);
 
-	void (*create_intra_planar_prediction)(henc_thread_t* et, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
-	void (*create_intra_angular_prediction)(henc_thread_t* et, ctu_info_t* ctu, uint8_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
+	void (*create_intra_planar_prediction)(henc_thread_t* et, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
+	void (*create_intra_angular_prediction)(henc_thread_t* et, ctu_info_t* ctu, int16_t *prediction, int pred_stride, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 
-	void (*quant)(henc_thread_t* et, ctu_info_t *ctu, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size);
-	void (*inv_quant)(henc_thread_t* et, ctu_info_t *ctu, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size);
+	void (*interpolate_chroma)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 
-	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
+	void (*quant)(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
+	void (*inv_quant)(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
+
+	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
 	void (*itransform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
 };
 
@@ -857,11 +977,9 @@ struct low_level_funcs_t
 
 
 
-#define NUM_QUANT_WNDS			(MAX_PARTITION_DEPTH+1)
-#define NUM_DECODED_WNDS		(MAX_PARTITION_DEPTH+1)
+#define NUM_QUANT_WNDS			(MAX_PARTITION_DEPTH+2)//consolidation buffer + 5 depths + 1 extra depth for non 2Nx2N computation in inter prediction
+#define NUM_DECODED_WNDS		(MAX_PARTITION_DEPTH+2)//consolidation buffer + 5 depths + 1 extra depth for non 2Nx2N computation in inter prediction
 #define NUM_CBF_BUFFS			MAX_PARTITION_DEPTH
-#define NUM_CBF_BUFFS_CHROMA	5		//0 not used, U_COMP, V_COMP to consolidate best mode, U_COMP+2, V_COMP+2 for curr operation
-#define NUM_REFF_WNDS		5
 
 struct henc_thread_t
 {
@@ -872,6 +990,7 @@ struct henc_thread_t
 	hmr_sem_t	synchro_sem;
 	hmr_sem_ptr	synchro_signal;
 	hmr_sem_ptr	synchro_wait;
+	hmr_sem_ptr	deblock_filter_sem;
 
 	bitstream_t	*bs;
 
@@ -883,8 +1002,8 @@ struct henc_thread_t
 	//Encoder Cfg	
 	//Encoding layer
 	int				pict_width[3], pict_height[3];
-	int				pict_width_in_cu, pict_height_in_cu;
-	int				pict_total_cu;
+	int				pict_width_in_ctu, pict_height_in_ctu;
+	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
 
@@ -894,7 +1013,7 @@ struct henc_thread_t
 	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth;//max depth for prediction
+	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 
 	int				num_partitions_in_cu;
 	int				num_partitions_in_cu_shift;
@@ -909,41 +1028,25 @@ struct henc_thread_t
 	int				bit_depth;
 	int				rd_mode;
 	int				performance_mode;
+	uint			num_intra_partitions;
 
-
-	//pointers to common buffers for all threads	 
-//	picture_t			*current_pict;
-//	wnd_t			*curr_decoding_wnd;
-
-	//-------these are for abs_index partitions---------------------
-//	unsigned short		*abs2raster_table; //g_auiZscanToRaster en HM
-//	unsigned short		*raster2abs_table; //g_auiRasterToZscan en HM
-	//--------------------------------------------------------------
-//	uint				*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
-//	int					*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-//	int					*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-//	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	int					*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
-
 	//current processing state and buffers
 	int				cu_current, cu_next;
 	int				cu_current_x, cu_current_y;
-//	int				cu_num_pixels, cu_num_pixels_shift;
-//	int				frame_num, idr_num;
-
-//	wnd_t			fw_wnd;
-//	wnd_t			bw_wnd;
 
 	wnd_t			curr_mbs_wnd;									//original MBs to be coded
-//	wnd_t			*curr_prediction_wnd;
 	wnd_t			prediction_wnd;									//prediction applied to original MBs
 	wnd_t			residual_wnd;									//residual after substracting prediction
+	wnd_t			residual_dec_wnd;								//decoded residual. output of inverse transform
 	wnd_t			transform_quant_wnd[NUM_QUANT_WNDS];			//for transform coefficients and quantification 
 	wnd_t			itransform_iquant_wnd;							//for itransform coefficients and iquantification
 	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
 
+	wnd_t			filtered_block_wnd[4][4];
+	wnd_t			filtered_blocks_temp_wnd[4];
 	//intra predicition
 	short				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
 	short				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
@@ -951,19 +1054,26 @@ struct henc_thread_t
 	short				(*left_pred_buff);//intermediate buffer to calculate intra prediction samples
 	short				(*bottom_pred_buff);//intermediate buffer to calculate intra prediction samples
 	short				(*right_pred_buff);//intermediate buffer to calculate intra prediction samples
-	int					adi_size;//tama�o del patron de prediccion (el buffer es el doble)
+	int					adi_size;//size of adi buffer 
 	short				(*pred_aux_buff);
-	int					pred_aux_buff_size;//tama�o del buffer auxiliar
+	int					pred_aux_buff_size;//size of aux buffer
 	short				(*aux_buff);
-	byte				(*cabac_aux_buff);
+	uint8_t				(*cabac_aux_buff);
 	int					cabac_aux_buff_size;
-	ctu_info_t			*curr_ctu_group_info;	//esto esta pensado para poder ser una ventana peque�a, podria haber otra ventana con los macrobloques que sirven como referencia (left, top-left, top, top-right)
-	byte				*cbf_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	byte				*cbf_buffs_chroma[NUM_PICT_COMPONENTS];//processing buffers for iteration buff
-	byte				*intra_mode_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	byte				*tr_idx_buffs[NUM_CBF_BUFFS];
+//	ctu_info_t			*curr_ctu_group_info;	//this is supposed to be a small window matching the processing grain
+	uint8_t				*cbf_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+	uint8_t				*cbf_buffs_chroma[NUM_PICT_COMPONENTS];//processing buffers for iteration buff
+	uint8_t				*intra_mode_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+	uint8_t				*tr_idx_buffs[NUM_CBF_BUFFS];
 
-//	ctu_info_t			*ctu_info_t;//[MAX_MB_GROUP_SIZE];
+	//inter
+	mv_candiate_list_t	mv_candidates[2];
+//	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+//	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
+
+	//rd
 	ctu_info_t			*ctu_rd;//[MAX_MB_GROUP_SIZE];
 
 	enc_env_t			*ee;//encoding enviroment of the processing element
@@ -971,6 +1081,16 @@ struct henc_thread_t
 
 	//rate distortion
 	rate_distortion_t	rd;
+	uint				acc_dist;
+
+	//rate control
+	uint				num_encoded_ctus;
+	uint				num_bits;
+	uint				target_pict_size;
+	int					acc_qp;
+	int					write_qp_flag;
+	int					curr_ref_qp;//for qp modification when cbf=0
+	int					found_zero_cbf;//for qp modification when cbf=0
 	low_level_funcs_t	*funcs;
 };
 
@@ -983,11 +1103,14 @@ struct hvenc_t
 {
 	int num_encoded_frames;
 
-//	henc_thread_t	_thread;//*encoders_list;
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 	hmr_thread_t	encoder_thread;
+	hmr_sem_t		deblock_filter_semaphore;
+	hmr_sem_ptr		deblock_filter_sem;
+	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
 	int				run;
+
 	//nalus
 	nalu_t		vps_nalu;
 	nalu_t		sps_nalu;
@@ -1006,6 +1129,7 @@ struct hvenc_t
 
 	//Encoder Cfg	
 	//Encoding layer
+	int				intra_period;
 	int				gop_size;
 	int				num_b;
 //	img_pool_t		img_list;
@@ -1014,20 +1138,21 @@ struct hvenc_t
 	unsigned int	pad_left, pad_right;
 	unsigned int	pad_top, pad_bottom;
 	int				pict_width[3], pict_height[3];
-	int				pict_width_in_cu, pict_height_in_cu;
-	int				pict_total_cu;
+	int				pict_width_in_ctu, pict_height_in_ctu;
+	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
 	int				ctu_group_size;
-	int				blocks_per_macroblock;
-
+	//statistics for scene change detection
+	double			avg_dist;
+	int				is_scene_change;
 	//cfg
-	int				frame_rate;
+	float			frame_rate;
 	int				max_cu_size;
-	int				max_cu_size_shift;//log2 del tama�o del CU maximo
-	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
+	int				max_cu_size_shift;//log2 of cu max size
+	int				max_cu_size_shift_chroma;//log2 of cu chroma max size
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
-	int				max_pred_partition_depth;//max depth for prediction
+	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 	int				wfpp_enable;
 	uint			wfpp_num_threads;
 
@@ -1042,7 +1167,6 @@ struct hvenc_t
 	int				max_tu_size_shift;//log2
 
 	int				partition_depth_start[MAX_PARTITION_DEPTH];//start of depths in the partition_info list
-//	cu_partition_info_t			*partition_info;//information for rd
 
 	int				profile;
 	int				bit_depth;
@@ -1053,91 +1177,69 @@ struct hvenc_t
 
 	//current picture_t Config
 	picture_t		current_pict;
-	wnd_t			*curr_ref_wnd;
-	wnd_t			ref_wnds[NUM_REFF_WNDS];
+	video_frame_t	*curr_reference_frame;
+	video_frame_t	ref_wnds[MAX_NUM_REF*2];
 
-	void			*cont_empty_reference_wnds;//para la gestion de los frames libres sobre los que se decodifica y que despues se utilizan como referencia
+	void			*cont_empty_reference_wnds;//for decoding and reference frames
+	video_frame_t	*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
+	int				reference_list_index;
 	int				last_poc, last_idr, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
+	int				num_ref_frames;
 
-	int				pict_type, slice_type;		//264-tiene que desaparecer
-	int				pict_qp;					//264-tiene que desaparecer
+	//deblock filter
+	uint8_t			*deblock_edge_filter[2];
+	uint8_t			*deblock_filter_strength_bs[2];
 
-//	int				mb_current, mb_next;
-//	int				mb_current_x, mb_current_y;
-//	int				mb_num_pixels, mb_num_pixels_shift;
-//	int				frame_num, idr_num;
-
-	wnd_t			fw_wnd;
-	wnd_t			bw_wnd;
-
-//	wnd_t			curr_mbs_wnd;									//original MBs to be coded
-//	wnd_t			*curr_prediction_wnd;
-//	wnd_t			prediction_wnd;									//prediction applied to original MBs
-//	wnd_t			residual_wnd;									//residual after substracting prediction
-//	wnd_t			transform_quant_wnd[NUM_QUANT_WNDS];			//for transform coefficients and quantification 
-//	wnd_t			itransform_iquant_wnd;							//for itransform coefficients and iquantification
-//	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
+//	int				slice_type;
 
 	//intra predicition
-	ctu_info_t		*ctu_info_t;//[MAX_MB_GROUP_SIZE];
-//	ctu_info_t		*ctu_rd;//[MAX_MB_GROUP_SIZE];
-//	short				(*__restrict adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
-//	short				(*__restrict adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
-//	short				(*__restrict top_pred_buff);//intermediate buffer to calculate intra prediction samples
-//	short				(*__restrict left_pred_buff);//intermediate buffer to calculate intra prediction samples
-//	short				(*__restrict bottom_pred_buff);//intermediate buffer to calculate intra prediction samples
-//	short				(*__restrict right_pred_buff);//intermediate buffer to calculate intra prediction samples
-//	int					adi_size;//tama�o del patron de prediccion (el buffer es el doble)
-//	short				(*__restrict pred_aux_buff);
-//	int					pred_aux_buff_size;//tama�o del buffer auxiliar
-//	short				(*__restrict aux_buff);
-//	byte				(*__restrict cabac_aux_buff);
-//	int					cabac_aux_buff_size;
-//	ctu_info_t			*curr_ctu_group_info;	//esto esta pensado para poder ser una ventana peque�a, podria haber otra ventana con los macrobloques que sirven como referencia (left, top-left, top, top-right)
-//	byte				*cbf_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-//	byte				*cbf_buffs_chroma[NUM_PICT_COMPONENTS];//processing buffers for iteration buff
-//	byte				*intra_mode_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-//	byte				*tr_idx_buffs[NUM_CBF_BUFFS];
-//	byte				*pred_depth_buff;
-//	byte				*part_size_buff;
+	ctu_info_t			*ctu_info;//[MAX_MB_GROUP_SIZE];
 	int					performance_mode;
 	int					rd_mode;
+	int					bitrate_mode;
+	double				bitrate;
+	double				vbv_size;
+	double				vbv_init;
+	int					qp_depth;//granularity of qp diff
+	int					pict_qp, chroma_qp_offset;//for fixed qp mode or initial qp in cbr or vbr
+
 	//scan tables	 
 	//-------these are for abs_index partitions---------------------
-	unsigned short		*abs2raster_table; //g_auiZscanToRaster en HM
-	unsigned short		*raster2abs_table; //g_auiRasterToZscan en HM
+	uint16_t			*abs2raster_table; //g_auiZscanToRaster en HM
+	uint16_t			*raster2abs_table; //g_auiRasterToZscan en HM
 	//--------------------------------------------------------------
-	ushort				*ang_table;//for angular intra prediction    
-	ushort				*inv_ang_table;//for angular intra prediction
+	uint16_t			*ang_table;//for angular intra prediction    
+	uint16_t			*inv_ang_table;//for angular intra prediction
 	uint				*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
 	int					*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	int					*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	//reference pictures
-	int					ref_pic_set_index;
+//	int					ref_pic_set_index;//moved to slice_t
 	int					num_short_term_ref_pic_sets;
-	ref_pic_set_t		ref_pic_set_list[MAX_REF_PIC_SETS];
+	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
 	int					num_long_term_ref_pic_sets;
 
 	//arithmetic coding
 	uint				num_ee;
-	enc_env_t				**ee_list;//encoding enviroment list hmr_container 
+	enc_env_t			**ee_list;//encoding enviroment list hmr_container 
 	uint				num_ec;
-	enc_env_t				*ec_list;//encoding enviroment list
-//	enc_env_t				*ee;//encoding enviroment of the processing element
-//	enc_env_t				*ec;//encoding counter  of the processing element
+	enc_env_t			*ec_list;//encoding enviroment list
 
 	//rate distortion
 	rate_distortion_t	rd;
+	//rate control
+	rate_control_t		rc;
+
 	low_level_funcs_t	funcs;
 
 	//input and output
 	video_frame_t	input_frames[NUM_INPUT_FRAMES];
 	void			*input_hmr_container;
-	nalu_set_t		output_nalus[NUM_OUTPUT_NALUS];
+	output_set_t	output_sets[NUM_OUTPUT_NALUS];
 	void			*output_hmr_container;
 
 #ifdef COMPUTE_METRICS
@@ -1145,6 +1247,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
+//	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

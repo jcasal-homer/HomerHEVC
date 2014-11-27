@@ -14,13 +14,18 @@ C_SRCS += \
 ../../../../src/homer_lib/hmr_metics.c \
 ../../../../src/homer_lib/hmr_motion_intra.c \
 ../../../../src/homer_lib/hmr_motion_intra_chroma.c \
+../../../../src/homer_lib/hmr_motion_inter.c \
+../../../../src/homer_lib/hmr_rate_control.c \
+../../../../src/homer_lib/hmr_deblocking_filter.c \
 ../../../../src/homer_lib/hmr_profiler.c \
 ../../../../src/homer_lib/hmr_quant.c \
 ../../../../src/homer_lib/hmr_sse42_functions_pixel.c \
 ../../../../src/homer_lib/hmr_sse42_functions_prediction.c \
 ../../../../src/homer_lib/hmr_sse42_functions_quant.c \
 ../../../../src/homer_lib/hmr_sse42_functions_transform.c \
+../../../../src/homer_lib/hmr_sse42_functions_inter_prediction.c \
 ../../../../src/homer_lib/hmr_tables.c \
+../../../../src/homer_lib/hmr_transform.c \
 ../../../../src/homer_lib/hmr_transform.c \
 
 OBJS += \
@@ -34,12 +39,16 @@ OBJS += \
 ./hmr_metics.o \
 ./hmr_motion_intra.o \
 ./hmr_motion_intra_chroma.o \
+./hmr_motion_inter.o \
+./hmr_rate_control.o \
+./hmr_deblocking_filter.o \
 ./hmr_profiler.o \
 ./hmr_quant.o \
 ./hmr_sse42_functions_pixel.o \
 ./hmr_sse42_functions_prediction.o \
 ./hmr_sse42_functions_quant.o \
 ./hmr_sse42_functions_transform.o \
+./hmr_sse42_functions_inter_prediction.o \
 ./hmr_tables.o \
 ./hmr_transform.o \
 
@@ -55,12 +64,16 @@ C_DEPS += \
 ./hmr_metics.d \
 ./hmr_motion_intra.d \
 ./hmr_motion_intra_chroma.d \
+./hmr_motion_inter.d \
+./hmr_rate_control.d \
+./hmr_deblocking_filter.d \
 ./hmr_profiler.d \
 ./hmr_quant.d \
 ./hmr_sse42_functions_pixel.d \
 ./hmr_sse42_functions_prediction.d \
 ./hmr_sse42_functions_quant.d \
 ./hmr_sse42_functions_transform.d \
+./hmr_sse42_functions_inter_prediction.d \
 ./hmr_tables.d \
 ./hmr_transform.d \
 

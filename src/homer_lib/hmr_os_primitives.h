@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -34,7 +34,8 @@
 #define ALIGN(a)	__declspec(align(a))
 
 //thread function return format
-#define THREAD_RETURN	void
+#define THREAD_RETURN_TYPE	void
+#define THREAD_RETURN	
 
 //thread handle format
 typedef void* hmr_thread_t;
@@ -52,7 +53,7 @@ typedef void* hmr_thread_t;
 
 #define JOINT_THREAD(thread)		WaitForSingleObject(thread, INFINITE);CloseHandle(thread);						
 
-#define JOINT_THREADS(threads, nthreads)								\
+#define JOIN_THREADS(threads, nthreads)								\
 {																		\
 	int nFork;															\
 	WaitForMultipleObjects(nthreads-1,threads,1,INFINITE);				\
@@ -96,7 +97,8 @@ typedef void* hmr_sem_ptr;
 #define ALIGN(a)	__attribute__((aligned(a)))
 
 //thread function return format
-#define THREAD_RETURN	void*
+#define THREAD_RETURN_TYPE	void *
+#define THREAD_RETURN	0
 
 //thread handle format
 typedef pthread_t hmr_thread_t;
@@ -116,7 +118,7 @@ typedef pthread_t hmr_thread_t;
 
 #define JOINT_THREAD(thread)				pthread_join(thread, NULL);
 
-#define JOINT_THREADS(thread, nthreads)									\
+#define JOIN_THREADS(thread, nthreads)									\
 {																		\
 	int nFork;															\
 	for(nFork=0;nFork<nthreads-1;nFork++)								\
