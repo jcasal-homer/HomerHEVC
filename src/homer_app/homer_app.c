@@ -177,7 +177,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->max_inter_tr_depth);
 		}
-		else if(strcmp(argv[args_parsed], "-intra_preriod")==0 && args_parsed+1<argc)//Period between two I images
+		else if(strcmp(argv[args_parsed], "-intra_period")==0 && args_parsed+1<argc)//Period between two I images
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->intra_period);
@@ -272,8 +272,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 1575+25;//25;//1050;//800;//200;
-	int num_frames = 700;//2200;//100;//700;
+	int skipped_frames = 25;//400+1575+25;//25;//1050;//800;//200;
+	int num_frames = 1852;//500;//2200;//100;//700;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -297,7 +297,7 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 20;
+	HmrCfg.intra_period = 100;
 	HmrCfg.gop_size = 1;
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = FPS;

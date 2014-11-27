@@ -78,7 +78,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
 	curr_cu_info->sum = *curr_sum;
 
-	curr_cu_info->inter_cbf[Y_COMP] = (( curr_cu_info->sum ? 1 : 0 ) << (curr_depth - depth));// + (part_size_type == SIZE_NxN)));
+	curr_cu_info->inter_cbf[Y_COMP] = (( *curr_sum ? 1 : 0 ) << (curr_depth - depth));// + (part_size_type == SIZE_NxN)));
 	curr_cu_info->inter_tr_idx = (curr_depth - depth);// + (part_size_type == SIZE_NxN));
 
 	et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, Y_COMP, 0, curr_part_size, per, rem);
@@ -153,10 +153,10 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
 
 	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
-	curr_cu_info->sum = *curr_sum;
+	curr_cu_info->sum += *curr_sum;
 
 
-	curr_cu_info->inter_cbf[component] = (( curr_cu_info->sum ? 1 : 0 ) << (original_depth-depth));//+(part_size_type==SIZE_NxN)));
+	curr_cu_info->inter_cbf[component] = (( *curr_sum ? 1 : 0 ) << (original_depth-depth));//+(part_size_type==SIZE_NxN)));
 
 	et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, component, 0, curr_part_size, per, rem);
 
@@ -958,6 +958,18 @@ void get_mv_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, c
 }
 
 
+float squareRoot(float x)
+{
+  unsigned int i = *(unsigned int*) &x;
+
+  // adjust bias
+  i  += 127 << 23;
+  // approximation of square root
+  i >>= 1;
+
+  return *(float*) &i;
+}
+
 //xCheckBestMVP
 int select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int ref_pic_list, motion_vector_t *mv)
 {
@@ -967,8 +979,8 @@ int select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, in
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-		int cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		int cost_mvx = 30*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 30*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
 		int cost = 3+cost_mvx+cost_mvy;
 
 		if(best_cost>cost)
@@ -994,10 +1006,10 @@ int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
-		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
-		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
-//		int cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-//		int cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+//		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
+//		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
+		int cost_mvx = 30*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = 30*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
 
 		int cost = 3+cost_mvx+cost_mvy;
 
@@ -1832,10 +1844,13 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	}
 	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 
+	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/15)
+		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
+	else
+		avg_distortion = et->ed->avg_dist;
+
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/15)
 	{
-		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
-
 		if(total_intra_partitions > (total_partitions/3))
 		{
 			et->ed->is_scene_change = 1;
@@ -1858,6 +1873,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		double cost = 0, intra_cost = 0;
 		int stop_recursion = FALSE;
 		PartSize part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
+		uint variance;
 		curr_depth = curr_cu_info->depth;
 		num_part_in_cu = curr_cu_info->num_part_in_cu;
 		abs_index = curr_cu_info->abs_index;
@@ -1865,7 +1881,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
 
 		//rc
-		if(currslice->slice_type != I_SLICE && curr_depth<=et->ed->qp_depth)
+		if(currslice->slice_type != I_SLICE)// && curr_depth<=et->ed->qp_depth)
 		{
 			int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 			uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
@@ -1876,6 +1892,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
 			curr_cu_info->variance_chroma += 1.25*et->funcs->modified_variance(orig_buff, curr_cu_info->size_chroma, orig_buff_stride, 2)/(curr_cu_info->size_chroma*curr_cu_info->size_chroma);
 			curr_cu_info->variance = curr_cu_info->variance_luma + curr_cu_info->variance_chroma;
+			variance = (curr_cu_info->variance_luma*(curr_cu_info->size*curr_cu_info->size)+curr_cu_info->variance_chroma*(curr_cu_info->size_chroma*curr_cu_info->size_chroma))/curr_cu_info->num_part_in_cu;
 		}
 
 		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
@@ -1907,7 +1924,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				curr_cu_info->prediction_mode = INTER_MODE;
 
 #ifndef COMPUTE_AS_HM
-				if((dist<.4*avg_distortion*curr_cu_info->num_part_in_cu || (/*dist<.5*avg_distortion*curr_cu_info->num_part_in_cu*/ curr_cu_info->size== et->max_cu_size && curr_cu_info->sum < curr_cu_info->size*.2) || 
+				if((dist<.4*avg_distortion*curr_cu_info->num_part_in_cu || (/*dist<.5*avg_distortion*curr_cu_info->num_part_in_cu curr_cu_info->size== et->max_cu_size && */curr_cu_info->sum < curr_cu_info->size*.1) || 
 					(curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/5)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 				{
 					int max_processing_depth;
@@ -1934,7 +1951,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 				}
 
-				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu+4000*curr_cu_info->num_part_in_cu)) || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
+				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*curr_cu_info->num_part_in_cu/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
 #endif
 				{
 					//encode intra
@@ -1947,7 +1964,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					if(intra_cost < cost)
 #else
 					intra_cost = intra_dist+DEPHT_COST*curr_depth;
-					if(1.3*intra_cost+45*curr_cu_info->sum<cost+45*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+					if(1.25*intra_cost+45*curr_cu_info->sum<cost+45*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 #endif
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = intra_cost;
@@ -1966,7 +1983,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				}
 #ifndef COMPUTE_AS_HM
 				dist = curr_cu_info->distortion;
-				if(!stop_recursion && (dist<.4*avg_distortion*curr_cu_info->num_part_in_cu || (curr_cu_info->size == et->max_cu_size && curr_cu_info->sum < curr_cu_info->size*.2) || 
+				if(!stop_recursion && (dist<.4*avg_distortion*curr_cu_info->num_part_in_cu || (/*curr_cu_info->size == et->max_cu_size &&*/ curr_cu_info->sum < curr_cu_info->size*.1) || 
 					(curr_cu_info->parent!=NULL && curr_cu_info->cost<curr_cu_info->parent->cost/5)) && (curr_depth+1)<et->max_pred_partition_depth && curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//stop recursion calls
 				{
 					int max_processing_depth;
@@ -1994,10 +2011,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				}
 
 				//if this matches, it is useless to continue the recursion. the case where curr_depth!=et->max_pred_partition_depth is checked at the end of the consolidation loop)
-				if(curr_depth>0 && depth_state[curr_depth]!=3 && curr_depth == et->max_pred_partition_depth && cost_sum[curr_depth]+curr_cu_info->cost>parent_part_info->cost && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+/*				if(curr_depth>0 && depth_state[curr_depth]!=3 && curr_depth == et->max_pred_partition_depth && cost_sum[curr_depth]+curr_cu_info->cost>parent_part_info->cost && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 				{
 					depth_state[curr_depth] = 3;
 				}
+*/
 #endif
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
@@ -2049,7 +2067,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						intra_cost=intra_dist+5*curr_depth;
 						if(intra_cost < cost)
 #else
-						if(1.5*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
+						if(1.25*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
 #endif
 						{	//we prefer intra and it is already in its buffer
 							curr_cu_info->cost = intra_cost;

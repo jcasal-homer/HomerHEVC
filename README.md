@@ -16,8 +16,8 @@ Code style of the development is C'99 and recursive functions have been implemen
 
 HomerHEVC is still under development and will improve in quality and performance during the development.
 
-Current Features (HomerHEVC_v1.0_Beta)
-----------------
+Current Features (latest version is HomerHEVC_v1.0_Beta)
+--------------------------------------------------------
 
 - 8 bit-depth.
 - Intra and Baseline profile (I and P images with 1 reference image).
@@ -93,39 +93,49 @@ These are a list of the configuration variables currently supported:
 
     options:
 
-    -h:					help
-    -i:					input yuv file
-    -o:					output 265 file
-    -widthxheight:           		frame resolution, default = 1280x720
-    -cu_size:                		cu size[16,32 or 64], default = 64
-    -qp:                     		fixed qp[0-51], default = 32
-    -n_wpp_threads:          		0:no wpp, >0:number of wpp threads, default = 1
-    -max_intra_pred_depth:   	  [0-4], default = 4
-    -max_intra_tr_depth:     	  [0-4], default = 4
-    -sign_hiding:            		0=off, 1=on, default = 1
-    -performance_mode:       	    	0=full computation, 1=fast , 2= ultra fast
-    -rd:                     		    0=off, 1=full rd , 2= fast rd
-    -n_frames                       default = 40
+	homer_app [-option] [value]...
+	options:
+	-h:                      help
+	-i:                      input yuv file
+	-o:                      output 265 file
+	-o-raw:                  output raw frames in yuv format
+	-widthxheight:           default = 1280x720
+	-frame_rate:             default = 50 fps
+	-cu_size:                cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)
+	-intra_preriod:          default = 20
+	-gop_size:               0:intra profile, 1: IPPP.. profile, default = 1
+	-num_ref_frame:          default = 1 (only 1 reference currently supported)
+	-qp:                     qp[0-51], default = 32
+	-chroma_qp_offset:       chroma_qp_offset[-12,12], default = 2
+	-n_wpp_threads:          0:no wpp, >0-number of wpp threads, default = 10
+	-max_pred_depth:         [0-4], default = 4
+	-max_intra_tr_depth:     [0-4], default = 2
+	-max_inter_tr_depth:     [0-4], default = 1
+	-sign_hiding:            0=off, 1=on, default = 1
+	-bitrate_mode:           0=fixed qp, 1=CBR (Constant bitrate), default = CBR
+	-bitrate:                in kbps when bitrate_mode=CBR, default = 5000
+	-vbv_size:               in kbps when bitrate_mode=CBR, default = .5*bitrate
+	-vbv_init:               in kbps when bitrate_mode=CBR, default = .1*bitrate
+	-performance_mode:       0=full computation, 1=fast , 2= ultra fast, default = fast
+	-rd:                     0=off, 1=full rd (only in intra) , 2= fast rd, default = fast
+	-n_frames:               default = 40
+	-skipped_frames:         default = 0
 
-Configuration examples:
+examples:
 
-    homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265  -widthxheight 1280x720 -n_wpp_threads 10
-    -performance_mode 2 -rd_mode 2 -n_frames 40
+intra:
+homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 50 -intra_period 1 -gop_size 0 -max_pred_depth 4 -max_intra_tr_depth 3 -bitrate 25000 -vbv_size 1000 -vbv_init 1000 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400
 
-    homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10
-    -performance_mode 1 -rd_mode 2  -n_frames 40
+inter:
+homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 50 -intra_period 100 -gop_size 1 -max_pred_depth 4 -max_intra_tr_depth 3 -max_inter_tr_depth 1 -bitrate 5000 -vbv_size 2500 -vbv_init 750 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400
 
-    homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10
-    -performance_mode 1 -rd_mode 1  -n_frames 40
-
-
-Contributors:
+Contribute:
 --------------
 We encourage developers and users to participate in the project as contributors by: developing new features, reporting bugs, and giving feedback.
 
 HomerHEVC Contribution License Agreement (CLA) must be signed before starting contributing.
 
-if you would like to contribute, please ask for the CLA to jcasal@homerhevc.com and send it back signed.
+if you would like to contribute, please write to jcasal@homerhevc.com.
 
 
 More Info:

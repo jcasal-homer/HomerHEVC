@@ -150,20 +150,19 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(currslice->slice_type == I_SLICE && ed->intra_period>1)
 	{
-//		ed->rc.vbv_fullness -= 1.*ed->rc.average_pict_size;
 		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		consumed_bitrate = ed->rc.average_pict_size;
 		ed->rc.vbv_fullness -= consumed_bitrate;
 	}
-/*	else if(consumed_bitrate>2.*ed->rc.average_pict_size)
+	else if(consumed_bitrate>3.0*ed->rc.average_pict_size && ed->is_scene_change && ed->rc.vbv_fullness<.75*ed->rc.vbv_size)
 	{
-		ed->rc.acc_rate += consumed_bitrate - 2.*ed->rc.average_pict_size;
+		ed->rc.acc_rate += consumed_bitrate - 3.0*ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-		consumed_bitrate = 2*ed->rc.average_pict_size;
+		consumed_bitrate = 3.0*ed->rc.average_pict_size;
 		ed->rc.vbv_fullness -= consumed_bitrate;	
 	}
-*/	else
+	else
 	{
 		ed->rc.vbv_fullness -= consumed_bitrate;
 		ed->rc.vbv_fullness -= ed->rc.acc_avg;
@@ -173,13 +172,13 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
 		printf("HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
-		ed->rc.vbv_fullness>ed->rc.vbv_size;
+		ed->rc.vbv_fullness=ed->rc.vbv_size;
 	}
 
 	if(ed->rc.vbv_fullness<0)
 	{
 		printf("HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
-		ed->rc.vbv_fullness>ed->rc.vbv_size;
+		ed->rc.vbv_fullness=ed->rc.vbv_size;
 	}
 }
 
@@ -232,12 +231,17 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 
 	vbv_corrector = 1.0-clip((min_vbv_size-consumed_bitrate+ed->rc.target_bits_per_ctu*consumed_ctus)/ed->rc.vbv_size, 0.0, 1.0);
 
-	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-2.);
+	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-7.);
+
+//	qp = (((pic_corrector+vbv_corrector+(entropy-2.)/51.)));/*(pic_corrector-1)+*/;
+//	qp*=MAX_QP;
+//	qp = 12.0 + 6.0 * log(qp/0.85) / log(2.0);
+//	qp = 12.0 + 6.0 * log(qp/0.85) / log(2.0);
 
 	if(curr_thread->ed->intra_period>1)
 	{
 		if(currslice->slice_type == I_SLICE)
-			qp/=1.25;
+			qp/=1.2;
 		if(ed->is_scene_change)
 			qp/=1.05;
 	}

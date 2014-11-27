@@ -1041,7 +1041,7 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 	curr_partition_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(intra_luma_q)
 
-	curr_partition_info->intra_cbf[Y_COMP] = (( curr_partition_info->sum ? 1 : 0 ) << (curr_depth-depth+(part_size_type==SIZE_NxN)));// + (part_size_type == SIZE_NxN)));
+	curr_partition_info->intra_cbf[Y_COMP] = (( *curr_sum ? 1 : 0 ) << (curr_depth-depth+(part_size_type==SIZE_NxN)));// + (part_size_type == SIZE_NxN)));
 	curr_partition_info->intra_tr_idx = (curr_depth-depth+(part_size_type==SIZE_NxN));
 	curr_partition_info->intra_mode[Y_COMP] = cu_mode;
 	if(et->rd_mode == RD_FULL)
@@ -1803,8 +1803,9 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 #ifndef COMPUTE_AS_HM
 
-			if((et->performance_mode == 1 && curr_partition_info->recursive_split && curr_partition_info->children[0] && curr_partition_info->children[0]->recursive_split && curr_partition_info->children[1]->recursive_split && curr_partition_info->children[2]->recursive_split && curr_partition_info->children[3]->recursive_split) ||
-				(et->performance_mode == 2 && curr_partition_info->recursive_split))
+//			if((et->performance_mode == 1 && curr_partition_info->recursive_split && curr_partition_info->children[0] && curr_partition_info->children[0]->recursive_split && curr_partition_info->children[1]->recursive_split && curr_partition_info->children[2]->recursive_split && curr_partition_info->children[3]->recursive_split) ||
+//				(et->performance_mode == 2 && curr_partition_info->recursive_split))
+			if(et->performance_mode != 0 && curr_partition_info->recursive_split)
 			{
 				cost_luma = MAX_COST;
 				cost_chroma = 0;//MAX_COST;
@@ -1866,12 +1867,13 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		depth_state[curr_depth]++;
 
 #ifndef COMPUTE_AS_HM
+		//This doesn't make sense any more when calculating the 4 NxN cus at one time
 		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation loop)
-		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
-		{
+//		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+/*		{
 			depth_state[curr_depth]=4;
 		}
-
+*/
 		//stop recursion
 		if(et->performance_mode>0 && (curr_partition_info->recursive_split==0 || curr_partition_info->cost == 0) && /*curr_depth && */part_size_type != SIZE_NxN && curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)
 		{

@@ -361,6 +361,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 				partition_cost[depth_state[curr_depth]] += (int)(weight*et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size));//R-D
 			}//for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 
+			curr_partition_info->sum += sum;
 			distortion += partition_cost[depth_state[curr_depth]];
 
 #ifndef COMPUTE_AS_HM

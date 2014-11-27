@@ -1787,11 +1787,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		else if(currslice->slice_type == I_SLICE)
 			ed->avg_dist/=1.5;
 
-		ed->is_scene_change = 0;
-
-
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
+
+		ed->is_scene_change = 0;
 
 #ifdef COMPUTE_AS_HM
 		if(ed->intra_period>1)
