@@ -23,7 +23,7 @@ Current Features (latest version is HomerHEVC_v1.0_Beta)
 - Intra and Baseline profile (I and P images with 1 reference image).
 - All intra prediction modes.
 - 2Nx2N and NxN inter prediction modes.
-- CTU size 64 (Intra mode permits CTU size 64, 32 and 16).
+- CTU size 64 (Intra mode suports CTU size 64, 32 and 16).
 - All transform sizes (32,16,8,4).
 - high accuracy VBV based rate control.
 - Deblocking filter.
