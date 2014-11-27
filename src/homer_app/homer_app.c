@@ -116,12 +116,11 @@ void print_help()
 
 void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames)
 {
-	int args_parsed = 0;
-	args_parsed = 1;
+	int args_parsed = 1;
 
 /*	if(argc==1)
 	{
-		printf ("\r\ntype -h for extended help");
+		printf ("\r\nno args passed!\r\ntype -h for extended help\r\n");
 		exit(0);
 	}
 */
