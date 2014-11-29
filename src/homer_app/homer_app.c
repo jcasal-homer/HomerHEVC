@@ -271,8 +271,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 25;//400+1575+25;//25;//1050;//800;//200;
-	int num_frames = 1852;//500;//2200;//100;//700;
+	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;
+	int num_frames = 40;//1500;//500;//2200;//100;//700;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -305,8 +305,8 @@ int main (int argc, char **argv)
 	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_enable = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -411,7 +411,7 @@ int main (int argc, char **argv)
 		{
 			num_nalus = 8;
 			HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
-			printf("\r\ninput_frame %d: calling HOMER_enc_encode", encoded_frames);
+//			printf("\r\ninput_frame %d: calling HOMER_enc_encode", encoded_frames);
 			fflush(stdout);
 			input_frames++;
 

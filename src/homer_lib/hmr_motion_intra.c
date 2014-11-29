@@ -1701,7 +1701,7 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 				for (l=0;l<4;l++)
 				{
-					uint child_variance = .5+((double)curr_depth/4.)*sqrt((double)parent_part_info->children[l]->variance)+4*/*et->performance_mode*/2*curr_depth;
+					uint child_variance = .5+((double)curr_depth/4.)*sqrt((double)parent_part_info->children[l]->variance)+3*/*et->performance_mode2**/curr_depth;
 					uint parent_variance = .5+sqrt((double)parent_part_info->variance);
 
 					if((parent_variance > child_variance) || parent_part_info->children[l]->recursive_split)

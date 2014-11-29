@@ -18,7 +18,6 @@ HomerHEVC is still under development and will improve in quality and performance
 
 Current Features (latest version is HomerHEVC_v1.0_Beta)
 --------------------------------------------------------
-
 - 8 bit-depth.
 - Intra and Baseline profile (I and P images with 1 reference image).
 - All intra prediction modes.
@@ -45,14 +44,12 @@ Optimizations (SSE42):
 
 Version Releases and Expected Evolution
 ----------------------------------------
-
 A new version (v1.0, v2.0, ...) is expected to be released every 4 months including new features and further optimizations. 
 Reported bugs and small improvements of the already published versions will be published as soon as they are developed, being signaled by increasing the subversion index (eg. v0.1, v0.2, v0.3...).
 
 
 Roadmap
 -------
-
 Current Version improvements - homerHEVC_V1.0 (November 2014)
 - Inter prediction.
 - Rate control
