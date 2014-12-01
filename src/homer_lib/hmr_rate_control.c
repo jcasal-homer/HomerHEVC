@@ -207,7 +207,8 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		consumed_ctus += henc_th->num_encoded_ctus;
 	}
 
-	entropy = sqrt(((double)ed->avg_dist/2000.)*(curr_cu_info->variance+.5*curr_cu_info->variance_chroma))/40;//25.0;
+	entropy = sqrt(((double)ed->avg_dist/3000.)*(curr_cu_info->variance+.5*curr_cu_info->variance_chroma))/40;//25.0;
+//	entropy = sqrt((curr_cu_info->variance+.5*curr_cu_info->variance_chroma))/40;//25.0;
 	if(consumed_ctus>0)
 	{
 		if(consumed_bitrate>1.5*ed->rc.target_bits_per_ctu)//*consumed_ctus && currslice->slice_type != I_SLICE)

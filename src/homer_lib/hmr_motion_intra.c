@@ -107,29 +107,40 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 	return ssd;
 }
 
+uint32_t sad_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
+{
+	unsigned int sad = 0;
+	int x, y;
+
+	for(y=0;y<size;y++)
+	{
+		for(x=0;x<size;x++)
+		{
+			sad += abs(src[x] - pred[x]);
+		}
+		src+=src_stride;
+		pred+=pred_stride;
+	}
+
+	return sad;
+}
 
 uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
 {
 	unsigned int ssd = 0;
 	int  aux;
-	int subblock_x, subblock_y;
+	int x, y;
 
-
-	src_stride-=size;
-	pred_stride-=size;
-
-	for(subblock_y=0;subblock_y<size;subblock_y++)
+	for(y=0;y<size;y++)
 	{
-		for(subblock_x=0;subblock_x<size;subblock_x+=4)
+		for(x=0;x<size;x++)
 		{
-			aux = *src++ - *pred++;ssd +=aux*aux; 
-			aux = *src++ - *pred++;ssd +=aux*aux; 
-			aux = *src++ - *pred++;ssd +=aux*aux;
-			aux = *src++ - *pred++;ssd +=aux*aux; 
+			aux = src[x] - pred[x];ssd +=aux*aux; 
 		}
 		src+=src_stride;
 		pred+=pred_stride;
-	}	
+	}
+
 	return ssd;
 }
 
@@ -1068,7 +1079,7 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 	else
 	{
 		PROFILER_RESET(intra_luma_recon_ssd)
-		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros
+		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 	}
 
 	ssd_ = et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);

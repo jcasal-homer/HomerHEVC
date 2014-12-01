@@ -186,6 +186,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size, int ctu_valid_colums, int ctu_valid_lines);
 uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+uint32_t sad_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t modified_variance(uint8_t *p, int size, int stride, int modif);
 void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int component, int is_filtered);

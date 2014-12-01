@@ -38,8 +38,8 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
-//#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
@@ -48,9 +48,9 @@
 //#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
 
-#define HOR_SIZE	1280//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			50//25//50
+#define HOR_SIZE	720//1280//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	576//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define FPS			25//25//50
 
 
 #ifdef _MSC_VER
@@ -166,12 +166,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->max_pred_partition_depth);
 		}
-		else if(strcmp(argv[args_parsed], "-max_intra_tr_depth")==0 && args_parsed+1<argc)//transform of intra prediction, default 4
+		else if(strcmp(argv[args_parsed], "-max_intra_tr_depth")==0 && args_parsed+1<argc)//transform of intra prediction, default 2
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->max_intra_tr_depth);
 		}
-		else if(strcmp(argv[args_parsed], "-max_inter_tr_depth")==0 && args_parsed+1<argc)//transform of inter prediction, default 4
+		else if(strcmp(argv[args_parsed], "-max_inter_tr_depth")==0 && args_parsed+1<argc)//transform of inter prediction, default 1
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->max_inter_tr_depth);
@@ -272,7 +272,7 @@ int main (int argc, char **argv)
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;
-	int num_frames = 40;//1500;//500;//2200;//100;//700;
+	int num_frames = 15;//1500;//500;//2200;//100;//700;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -296,16 +296,16 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 100;
-	HmrCfg.gop_size = 1;
+	HmrCfg.intra_period = 20;//1;
+	HmrCfg.gop_size = 1;//0;
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_pred_partition_depth = 3;
+	HmrCfg.max_intra_tr_depth = 1;
 	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.wfpp_enable = 10;
+	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
@@ -415,7 +415,7 @@ int main (int argc, char **argv)
 			fflush(stdout);
 			input_frames++;
 
-			encoder_thread(pEncoder);
+//			encoder_thread(pEncoder);
 
 			if(reffile!=NULL)//ouput yuv decoded frames (makes internal copy of data) - recomended for debug purposes
 				HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
@@ -445,10 +445,10 @@ int main (int argc, char **argv)
 
 		if(!bCoding)
 		{
+			HOMER_enc_close(pEncoder);
 			msTotal += get_ms()-msInit;
 			printf("\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
 
-			HOMER_enc_close(pEncoder);
 			break;
 		}
 	}
