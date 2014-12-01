@@ -45,7 +45,7 @@
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
 #define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//bin"//"output_32_.265"
-//#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
+#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
 
 
 #define HOR_SIZE	720//1280//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
@@ -70,9 +70,9 @@ unsigned int get_ms()
 #endif
 
 
-char file_in_name[256];
-char file_out_name[256];
-char file_ref_name[256];
+char file_in_name[256] = "";
+char file_out_name[256] = "";
+char file_ref_name[256] = "";
 
 void print_help()
 {
@@ -106,9 +106,11 @@ void print_help()
 	printf("-skipped_frames: \t default = 0\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 2 -rd_mode 2 -n_frames 40\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 40\r\n");
-	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -n_wpp_threads 10 -performance_mode 1 -rd_mode 1 -n_frames 40\r\n");
+	printf("intra:\r\n");
+	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 50 -intra_period 1 -gop_size 0 -max_pred_depth 4 -max_intra_tr_depth 3 -bitrate 25000 -vbv_size 1000 -vbv_init 1000 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
+
+	printf("inter:\r\n");
+	printf("homer_app -i /home/juan/Patrones/720p5994_parkrun_ter.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 50 -intra_period 100 -gop_size 1 -max_pred_depth 4 -max_intra_tr_depth 3 -max_inter_tr_depth 1 -bitrate 5000 -vbv_size 2500 -vbv_init 750 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
 }
 
 
@@ -288,10 +290,8 @@ int main (int argc, char **argv)
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
 #ifdef FILE_REF
-	strcpy(file_ref_name, FILE_REF);
+//	strcpy(file_ref_name, FILE_REF);
 #endif
-#define P_FRAME_DEVELOPMENT
-#ifdef P_FRAME_DEVELOPMENT
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
@@ -302,8 +302,8 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 3;
-	HmrCfg.max_intra_tr_depth = 1;
+	HmrCfg.max_pred_partition_depth = 4;
+	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 1;
@@ -315,32 +315,6 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
-#else
-	HmrCfg.size = sizeof(HmrCfg);
-	HmrCfg.width = HOR_SIZE;
-	HmrCfg.height = VER_SIZE;
-	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 1;
-//	HmrCfg.num_b = 0;
-	HmrCfg.gop_size = 0;	
-	HmrCfg.qp = 32;
-	HmrCfg.frame_rate = FPS;
-	HmrCfg.num_ref_frames = 1;
-	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 3;
-	HmrCfg.max_intra_tr_depth = 2;
-	HmrCfg.max_inter_tr_depth = 2;
-	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
-	HmrCfg.sign_hiding = 1;
-	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 25000;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
-	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
-#endif // DEBUG
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 
@@ -359,8 +333,8 @@ int main (int argc, char **argv)
 #ifdef FILE_REF
 	if(!(reffile = fopen(file_ref_name, "wb")))
 	{
-		printf("Error opening raw output file: %s\r\n", file_ref_name);
-		exit(0);
+//		printf("Error opening raw output file: %s\r\n", file_ref_name);
+//		exit(0);
 	}
 #endif // FILE_REF
 
