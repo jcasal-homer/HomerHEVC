@@ -315,7 +315,7 @@ void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
 	int		bitdepth_luma_qp_scale = 0;
 	double	qp_factor = 0.4624;
 	double	qp_temp = (double) ed->current_pict.slice.qp /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
-	double	lambda_scale = 1.0 - clip(0.05*(double)(ed->mb_interlaced ? (ed->gop_size-1)/2 : (ed->gop_size-1)), 0.0, 0.5);
+	double	lambda_scale = 1.0 - clip(0.05*(double)(/*ed->mb_interlaced*/0 ? (ed->gop_size-1)/2 : (ed->gop_size-1)), 0.0, 0.5);
 	double	lambda;
     int depth, poc = currslice->poc%ed->gop_size;
 

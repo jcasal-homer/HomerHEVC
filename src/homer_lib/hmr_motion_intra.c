@@ -1844,6 +1844,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					PROFILER_ACCUMULATE(intra_chroma)
 
 					curr_partition_info->cost = cost_luma + cost_chroma;
+					cost_sum[curr_depth] += curr_partition_info->cost;
 				}
 				else if(part_size_type == SIZE_NxN)
 				{
@@ -1890,7 +1891,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int max_processing_depth;// = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
-			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, MAX_COST, FALSE, cost_sum);
+			consolidate_prediction_info(et, ctu, ctu_rd, curr_partition_info, curr_partition_info->cost, MAX_COST, FALSE, NULL);
 
 			stop_recursion = 1;
 

@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -106,6 +106,11 @@
 #define QUANT_SHIFT							14 // Q(4) = 2^14
 #define SCALE_BITS							15 // Inherited from TMuC, pressumably for fractional bit estimates in RDOQ
 #define MAX_TR_DYNAMIC_RANGE				15 // Maximum transform dynamic range (excluding sign bit)
+
+
+//interpolation filter
+#define   INTERPOLATE_HOR		0
+#define   INTERPOLATE_VERT		1
 
 
 //deblock filter
@@ -656,7 +661,7 @@ struct motion_vector_t
 
 
 #define AMVP_MAX_NUM_CANDS		2
-#define AMVP_MAX_NUM_CANDS_MEM	3
+#define AMVP_MAX_NUM_CANDS_MEM	5//3
 
 typedef struct mv_candiate_list_t mv_candiate_list_t;
 struct mv_candiate_list_t
@@ -1046,7 +1051,7 @@ struct henc_thread_t
 	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
 
 	wnd_t			filtered_block_wnd[4][4];
-	wnd_t			filtered_blocks_temp_wnd[4];
+	wnd_t			filtered_block_temp_wnd[4];
 	//intra predicition
 	short				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
 	short				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
@@ -1068,6 +1073,7 @@ struct henc_thread_t
 
 	//inter
 	mv_candiate_list_t	mv_candidates[2];
+	mv_candiate_list_t	mv_search_candidates;
 //	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
@@ -1130,10 +1136,12 @@ struct hvenc_t
 	//Encoder Cfg	
 	//Encoding layer
 	int				intra_period;
+	int				last_intra;
 	int				gop_size;
+	int				gop_reinit_on_scene_change;
 	int				num_b;
 //	img_pool_t		img_list;
-	int				pic_interlaced, mb_interlaced;
+//	int				pic_interlaced, mb_interlaced;
 	unsigned int	conformance_mode;
 	unsigned int	pad_left, pad_right;
 	unsigned int	pad_top, pad_bottom;
@@ -1247,7 +1255,7 @@ struct hvenc_t
 	double			accumulated_psnr[3];
 //	FILE			*f_psnr;
 #endif
-//	FILE			*debug_file;
+	FILE			*debug_file;
 };
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

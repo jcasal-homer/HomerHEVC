@@ -26,7 +26,6 @@ C_SRCS += \
 ../../../../src/homer_lib/hmr_sse42_functions_inter_prediction.c \
 ../../../../src/homer_lib/hmr_tables.c \
 ../../../../src/homer_lib/hmr_transform.c \
-../../../../src/homer_lib/hmr_transform.c \
 
 OBJS += \
 ./hmr_arithmetic_encoding.o \

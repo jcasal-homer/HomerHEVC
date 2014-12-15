@@ -146,7 +146,7 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
+	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
 
 /*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
@@ -449,6 +449,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 //			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
+			cfg->reinit_gop_on_scene_change = 0;
 			//cfg->chroma_qp_offset = 0;
 #endif
 			if(phvenc->run==1)
@@ -518,6 +519,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			phvenc->profile = cfg->profile;
 			phvenc->intra_period = cfg->intra_period;
+			phvenc->last_intra = -cfg->intra_period;
+			phvenc->gop_reinit_on_scene_change = cfg->reinit_gop_on_scene_change;
 			phvenc->gop_size = phvenc->intra_period==1?1:cfg->gop_size;
 			phvenc->num_b = phvenc->intra_period==1?0:0;
 			phvenc->num_ref_frames = phvenc->gop_size>0?cfg->num_ref_frames:0;
@@ -646,8 +649,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			}
 
 			phvenc->frame_rate = cfg->frame_rate;
-			phvenc->pic_interlaced = 0;
-			phvenc->mb_interlaced = 0;
+//			phvenc->pic_interlaced = 0;
+//			phvenc->mb_interlaced = 0;
 
 			phvenc->bit_depth = 8;
 
@@ -881,14 +884,15 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 
 				filter_buff_width = MAX_CU_SIZE	+ 16;
-				filter_buff_height = MAX_CU_SIZE + 1;
+				filter_buff_height = MAX_CU_SIZE + 2;//MAX_CU_SIZE + 1; - modified for the chroma
 				for(j=0;j<4;j++)
 				{
-					wnd_realloc(&henc_th->filtered_blocks_temp_wnd[j], filter_buff_width, filter_buff_height+7, 0, 0, sizeof(int16_t));				
+					wnd_realloc(&henc_th->filtered_block_temp_wnd[j], filter_buff_width, filter_buff_height+8, 0, 0, sizeof(int16_t));//filter_buff_height+7 - modified for chroma
 					for(i=0;i<4;i++)
 					{
 						wnd_realloc(&henc_th->filtered_block_wnd[j][i], filter_buff_width, filter_buff_height, 0, 0, sizeof(int16_t));				
 					}
+
 				}
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
@@ -1252,8 +1256,10 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
 	currslice->max_num_merge_candidates = 5;
 
-	if((currslice->poc%ed->intra_period)==0)
+//	if((currslice->poc%ed->intra_period)==0)
+	if(currslice->poc==(ed->last_intra + ed->intra_period))
 	{
+		ed->last_intra = currslice->poc;
 		currslice->slice_type = I_SLICE;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
@@ -1463,6 +1469,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 #define  GRAIN					1
 #define  GRAIN_MASK				(GRAIN-1)
 
+
 	while(et->cu_current < et->pict_total_ctu)//all ctus loop
 	{
 		int bits_allocated;
@@ -1658,7 +1665,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	int n, i, num_threads;
-
 	while(ed->run)
 	{
 		output_set_t* ouput_sets = &ed->output_sets[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];

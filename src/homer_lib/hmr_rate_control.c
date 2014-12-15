@@ -63,7 +63,11 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 	hvenc_t* ed = et->ed;
 	if(ed->is_scene_change)
 	{
-		double pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
+		double pic_size_new;
+		if(et->ed->gop_reinit_on_scene_change && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
+		else
+			pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
 		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
 
 		ed->rc.target_bits_per_ctu = ed->rc.target_pict_size/ed->pict_total_ctu;
@@ -160,6 +164,13 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 		consumed_bitrate = ed->rc.average_pict_size;
 		ed->rc.vbv_fullness -= consumed_bitrate;
 	}
+	else if((ed->is_scene_change && ed->gop_reinit_on_scene_change) && ed->intra_period>1 && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+	{
+		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
+		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
+		consumed_bitrate = ed->rc.average_pict_size;
+		ed->rc.vbv_fullness -= consumed_bitrate;	
+	}
 /*	else if(consumed_bitrate>3.0*ed->rc.average_pict_size && ed->is_scene_change && ed->rc.vbv_fullness<.75*ed->rc.vbv_size)
 	{
 		ed->rc.acc_rate += consumed_bitrate - 3.0*ed->rc.average_pict_size;
@@ -240,7 +251,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		vbv_corrector = 1.0-clip((min_vbv_size-consumed_bitrate+ed->rc.target_bits_per_ctu*consumed_ctus)/ed->rc.vbv_size, 0.0, 1.0);
 	else
 		vbv_corrector = 1.0-clip((min_vbv_size)/ed->rc.vbv_size, 0.0, 1.0);
-	qp = ((pic_corrector+vbv_corrector)/1.)*MAX_QP+/*(pic_corrector-1)+*/(entropy-3.);
+	qp = ((pic_corrector+vbv_corrector)/1.)*(MAX_QP)+/*(pic_corrector-1)+*/(entropy-3.);
 
 //	qp = (((pic_corrector+vbv_corrector+(entropy-2.)/51.)));/*(pic_corrector-1)+*/;
 //	qp*=MAX_QP;
@@ -249,10 +260,10 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 
 	if(curr_thread->ed->intra_period>1)
 	{
-		if(currslice->slice_type == I_SLICE)
+		if(currslice->slice_type == I_SLICE || (ed->is_scene_change && ed->gop_reinit_on_scene_change))
 			qp/=1.4-((double)ed->avg_dist/50000.);
-		if(ed->is_scene_change)
-			qp/=1.2;
+		else if(ed->is_scene_change)
+			qp/=1.15;
 	}
 
 	if((/*ctu->ctu_number<2 || */ed->is_scene_change) && qp<=5)
