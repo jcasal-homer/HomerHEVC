@@ -40,80 +40,297 @@
 #define IF_INTERNAL_OFFS (1<<(IF_INTERNAL_PREC-1)) ///< Offset used internally
 
 
-/*int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
+ALIGN(16) const int16_t sse_luma_filter_coeffs[4][NTAPS_LUMA] =
 {
-  {  0, 64,  0,  0 },
-  { -2, 58, 10, -2 },
-  { -4, 54, 16, -2 },
-  { -6, 46, 28, -4 },
-  { -4, 36, 36, -4 },
-  { -4, 28, 46, -6 },
-  { -2, 16, 54, -4 },
-  { -2, 10, 58, -2 }
+  {  0, 0,   0, 64,  0,   0, 0,  0 },
+  { -1, 4, -10, 58, 17,  -5, 1,  0 },
+  { -1, 4, -11, 40, 40, -11, 4, -1 },
+  {  0, 1,  -5, 17, 58, -10, 4, -1 }
 };
 
-//interpolate chroma from reference into prediction buff
-void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+void sse_filter_copy_4xn(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	int bit_depth = 8;
-	int num_taps = NTAPS_CHROMA;//argument
-	int ref_stride = ( is_vertical ) ? reference_buff_stride : 1;
+	int row, col;
+  
+	if ( is_first == is_last )
+	{
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=4)
+			{
+				sse_64_storel_vector_u(dst+col, sse_128_loadlo_vector64(src+col));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}              
+	}
+	else if ( is_first )
+	{
+		int shift = IF_INTERNAL_PREC - bit_depth;
+		__m128_i16 _128_offset = sse_128_vector_i16(IF_INTERNAL_OFFS);
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=8)
+			{
+				__m128_i16 val = sse_128_shift_l_i16(sse_128_loadlo_vector64(src+col), shift);
+				sse_64_storel_vector_u(dst+col, sse_128_sub_i16(val,_128_offset));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}          
+	}
+	else
+	{
+		int shift = IF_INTERNAL_PREC - bit_depth;
+		__m128_i16 _128_offset = sse_128_vector_i16(IF_INTERNAL_OFFS + (shift?(1 << (shift - 1)):0));
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=8)
+			{
+				__m128_i16 val = sse_128_add_i16(sse_128_loadlo_vector64(src+col),_128_offset);
+				val =sse_128_shift_r_i16(val, shift);
+				sse_64_storel_vector_u(dst+col, sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val)));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}              
+	}
+}
 
+void sse_filter_copy_8nxm(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int row, col;
+  
+	if ( is_first == is_last )
+	{
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=8)
+			{
+				sse_128_store_vector_a(dst+col, sse_128_load_vector_u(src+col));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}              
+	}
+	else if ( is_first )
+	{
+		int shift = IF_INTERNAL_PREC - bit_depth;
+		__m128_i16 _128_offset = sse_128_vector_i16(IF_INTERNAL_OFFS);
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=8)
+			{
+				__m128_i16 val = sse_128_shift_l_i16(sse_128_load_vector_u(src+col), shift);
+				sse_128_store_vector_a(dst+col, sse_128_sub_i16(val,_128_offset));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}          
+	}
+	else
+	{
+		int shift = IF_INTERNAL_PREC - bit_depth;
+		__m128_i16 _128_offset = sse_128_vector_i16(IF_INTERNAL_OFFS + (shift?(1 << (shift - 1)):0));
+		for (row = 0; row < height; row++)
+		{
+			for (col = 0; col < width; col+=8)
+			{
+				__m128_i16 val = sse_128_add_i16(sse_128_load_vector_u(src+col),_128_offset);
+				val =sse_128_shift_r_i16(val, shift);
+				sse_128_store_vector_a(dst+col, sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val)));
+			}
+			src += src_stride;
+			dst += dst_stride;
+		}              
+	}
+}
+
+void sse_filter_copy(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	if(width<8)
+	{
+		sse_filter_copy_4xn(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
+	else
+	{
+		sse_filter_copy_8nxm(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
+}
+
+void sse_hmr_interpolation_filter_luma_8nxm(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	int bit_depth = 8;
+	int num_taps = NTAPS_LUMA;//argument
+	int y, x;
 	int offset;
 	short maxVal;
 	int headRoom = IF_INTERNAL_PREC - bit_depth;
 	int shift = IF_FILTER_PREC;
-	int y, x;//row, col;
-	int16_t c[4];
-	int16_t	*coeffs = chroma_filter_coeffs[fraction];
-	int16_t *ref_buff = reference_buff - (( num_taps/2 - 1 )*ref_stride);
-	
-//	reference_buff -= ( num_taps/2 - 1 ) * ref_stride;
-
-	c[0] = coeffs[0];
-	c[1] = coeffs[1];
-	c[2] = coeffs[2];
-	c[3] = coeffs[3];
+	int row, col;
+	int16_t c[8];
 
 	if ( is_last )
 	{
 		shift += (is_first) ? 0 : headRoom;
 		offset = 1 << (shift - 1);
 		offset += (is_first) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
-		maxVal = (1 << bit_depth) - 1;
 	}
 	else
 	{
 		shift -= (is_first) ? headRoom : 0;
 		offset = (is_first) ? -IF_INTERNAL_OFFS << shift : 0;
-		maxVal = 0;
 	}
 
-	for (y = 0; y < height; y++)//row
+	if(!is_vertical)
 	{
-		for (x = 0; x < width; x++)//col
+		//horizontal
+		int16_t *src_buff_init = src - ( num_taps/2 - 1 );
+		__m128_i16 coeff = sse_128_load_vector_u(sse_luma_filter_coeffs[fraction]);
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)
 		{
-			int sum;
-			short val;//why HM uses short?
-			sum  = ref_buff[ x + 0 * ref_stride] * c[0];
-			sum += ref_buff[ x + 1 * ref_stride] * c[1];
-			sum += ref_buff[ x + 2 * ref_stride] * c[2];
-			sum += ref_buff[ x + 3 * ref_stride] * c[3];
-
-			val = ( sum + offset ) >> shift;
-			if ( is_last)
+			for (x = 0; x < width; x+=8)
 			{
-				val = clip(val,0,maxVal);
-			}
-			pred_buff[x] = val;
-		}
+				int16_t *src_buff = src_buff_init+x;
+				int16_t *dst_buff = dst+x;
+				__m128_i16 pixels0 = sse_128_load_vector_u(src_buff);
+				__m128_i16 pixels1 = sse_128_load_vector_u(src_buff+1);
+				__m128_i16 pixels2 = sse_128_load_vector_u(src_buff+2);
+				__m128_i16 pixels3 = sse_128_load_vector_u(src_buff+3);
+				__m128_i16 pixels4 = sse_128_load_vector_u(src_buff+4);
+				__m128_i16 pixels5 = sse_128_load_vector_u(src_buff+5);
+				__m128_i16 pixels6 = sse_128_load_vector_u(src_buff+6);
+				__m128_i16 pixels7 = sse_128_load_vector_u(src_buff+7);
 
-		ref_buff += reference_buff_stride;
-		pred_buff += pred_buff_stride;
+				__m128_i32 sum0 = sse_128_madd_i16_i32(pixels0, coeff);
+				__m128_i32 sum1 = sse_128_madd_i16_i32(pixels1, coeff);
+				__m128_i32 sum2 = sse_128_madd_i16_i32(pixels2, coeff);
+				__m128_i32 sum3 = sse_128_madd_i16_i32(pixels3, coeff);
+				__m128_i32 sum4 = sse_128_madd_i16_i32(pixels4, coeff);
+				__m128_i32 sum5 = sse_128_madd_i16_i32(pixels5, coeff);
+				__m128_i32 sum6 = sse_128_madd_i16_i32(pixels6, coeff);
+				__m128_i32 sum7 = sse_128_madd_i16_i32(pixels7, coeff);
+
+				__m128_i32 sum01 = sse_128_hadd_i32(sum0, sum1);
+				__m128_i32 sum23 = sse_128_hadd_i32(sum2, sum3);
+				__m128_i32 sum0123 = sse_128_hadd_i32(sum01, sum23);
+				__m128_i32 sum45 = sse_128_hadd_i32(sum4, sum5);
+				__m128_i32 sum67 = sse_128_hadd_i32(sum6, sum7);
+				__m128_i32 sum4567 = sse_128_hadd_i32(sum45, sum67);
+				__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+				if ( is_last)
+				{
+					val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+				}
+				sse_128_store_vector_u(dst_buff, val);
+			}
+			src_buff_init += src_stride;
+			dst += dst_stride;
+		}
+	}
+	else
+	{
+		//vertical
+		int16_t *src_buff_init = src - (( num_taps/2 - 1 )*src_stride);
+		__m128_i16 coeff = sse_128_load_vector_u(sse_luma_filter_coeffs[fraction]);
+		__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+
+		for (y = 0; y < height; y++)
+		{
+			for (x = 0; x < width; x+=8)
+			{
+				int16_t *src_buff = src_buff_init+x;
+				int16_t *dst_buff = dst+x;
+
+				__m128_i16 l0 = sse_128_load_vector_u(src_buff);
+				__m128_i16 l1 = sse_128_load_vector_u(src_buff+src_stride);
+				__m128_i16 l2 = sse_128_load_vector_u(src_buff+2*src_stride);
+				__m128_i16 l3 = sse_128_load_vector_u(src_buff+3*src_stride);
+				__m128_i16 l4 = sse_128_load_vector_u(src_buff+4*src_stride);
+				__m128_i16 l5 = sse_128_load_vector_u(src_buff+5*src_stride);
+				__m128_i16 l6 = sse_128_load_vector_u(src_buff+6*src_stride);
+				__m128_i16 l7 = sse_128_load_vector_u(src_buff+7*src_stride);
+
+				//TRANSPOSE_MATRIX_8x8_16BITS
+				__m128_i16 l0l1_l = sse128_unpacklo_u16(l0,l1);		
+				__m128_i16 l0l1_h = sse128_unpackhi_u16(l0,l1);		
+				__m128_i16 l2l3_l = sse128_unpacklo_u16(l2,l3);		
+				__m128_i16 l2l3_h = sse128_unpackhi_u16(l2,l3);		
+				__m128_i16 l4l5_l = sse128_unpacklo_u16(l4,l5);		
+				__m128_i16 l4l5_h = sse128_unpackhi_u16(l4,l5);		
+				__m128_i16 l6l7_l = sse128_unpacklo_u16(l6,l7);		
+				__m128_i16 l6l7_h = sse128_unpackhi_u16(l6,l7);		
+																	
+				__m128_i16 l0l1l2l3_ll = sse128_unpacklo_u32(l0l1_l,l2l3_l);	
+				__m128_i16 l0l1l2l3_lh = sse128_unpackhi_u32(l0l1_l,l2l3_l);	
+				__m128_i16 l0l1l2l3_hl = sse128_unpacklo_u32(l0l1_h,l2l3_h);	
+				__m128_i16 l0l1l2l3_hh = sse128_unpackhi_u32(l0l1_h,l2l3_h);	
+				__m128_i16 l4l5l6l7_ll = sse128_unpacklo_u32(l4l5_l,l6l7_l);	
+				__m128_i16 l4l5l6l7_lh = sse128_unpackhi_u32(l4l5_l,l6l7_l);	
+				__m128_i16 l4l5l6l7_hl = sse128_unpacklo_u32(l4l5_h,l6l7_h);	
+				__m128_i16 l4l5l6l7_hh = sse128_unpackhi_u32(l4l5_h,l6l7_h);	
+																	
+				__m128_i16 col0 = sse128_unpacklo_u64(l0l1l2l3_ll,l4l5l6l7_ll);	
+				__m128_i16 col1 = sse128_unpackhi_u64(l0l1l2l3_ll,l4l5l6l7_ll);	
+				__m128_i16 col2 = sse128_unpacklo_u64(l0l1l2l3_lh,l4l5l6l7_lh);	
+				__m128_i16 col3 = sse128_unpackhi_u64(l0l1l2l3_lh,l4l5l6l7_lh);	
+				__m128_i16 col4 = sse128_unpacklo_u64(l0l1l2l3_hl,l4l5l6l7_hl);	
+				__m128_i16 col5 = sse128_unpackhi_u64(l0l1l2l3_hl,l4l5l6l7_hl);	
+				__m128_i16 col6 = sse128_unpacklo_u64(l0l1l2l3_hh,l4l5l6l7_hh);	
+				__m128_i16 col7 = sse128_unpackhi_u64(l0l1l2l3_hh,l4l5l6l7_hh);	
+				//----------------TRANSPOSE_MATRIX_8x8_16BITS---------------
+
+				__m128_i32 sum0 = sse_128_madd_i16_i32(col0, coeff);
+				__m128_i32 sum1 = sse_128_madd_i16_i32(col1, coeff);
+				__m128_i32 sum2 = sse_128_madd_i16_i32(col2, coeff);
+				__m128_i32 sum3 = sse_128_madd_i16_i32(col3, coeff);
+				__m128_i32 sum4 = sse_128_madd_i16_i32(col4, coeff);
+				__m128_i32 sum5 = sse_128_madd_i16_i32(col5, coeff);
+				__m128_i32 sum6 = sse_128_madd_i16_i32(col6, coeff);
+				__m128_i32 sum7 = sse_128_madd_i16_i32(col7, coeff);
+
+				__m128_i32 sum01 = sse_128_hadd_i32(sum0, sum1);
+				__m128_i32 sum23 = sse_128_hadd_i32(sum2, sum3);
+				__m128_i32 sum0123 = sse_128_hadd_i32(sum01, sum23);
+				__m128_i32 sum45 = sse_128_hadd_i32(sum4, sum5);
+				__m128_i32 sum67 = sse_128_hadd_i32(sum6, sum7);
+				__m128_i32 sum4567 = sse_128_hadd_i32(sum45, sum67);
+				__m128_i16 val = sse128_packs_i32_i16(sse_128_shift_r_i32(sse_128_add_i32(sum0123, _m128_offset), shift), sse_128_shift_r_i32(sse_128_add_i32(sum4567, _m128_offset), shift));// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate
+				if ( is_last)
+				{
+					val = sse_128_convert_u8_i16(sse128_packs_i16_u8(val,val));
+				}
+				sse_128_store_vector_u(dst_buff, val);
+			}
+			src_buff_init += src_stride;
+			dst += dst_stride;
+		}
 	}
 }
 
-*/
+
+void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	if(fraction==0)
+	{
+		sse_filter_copy(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
+	else
+	{
+		sse_hmr_interpolation_filter_luma_8nxm(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
+}
+
+
+
+
+
+
+
 ALIGN(16) int16_t sse_chroma_filter_coeffs_horizontal[8][2*NTAPS_CHROMA] =
 {
   {  0, 64,  0,  0,  0, 64,  0,  0 },

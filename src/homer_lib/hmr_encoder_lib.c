@@ -146,7 +146,7 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
+//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
 
 
 /*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
@@ -752,6 +752,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.create_intra_planar_prediction = sse_create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = sse_create_intra_angular_prediction;
 				
+				phvenc->funcs.interpolate_luma = sse_interpolate_luma;
 				phvenc->funcs.interpolate_chroma = sse_interpolate_chroma;
 
 				phvenc->funcs.quant = sse_aligned_quant;
@@ -770,6 +771,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
 
+				phvenc->funcs.interpolate_luma = hmr_interpolate_luma;
 				phvenc->funcs.interpolate_chroma = hmr_interpolate_chroma;
 
 				phvenc->funcs.quant = quant;

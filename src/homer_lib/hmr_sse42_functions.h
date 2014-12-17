@@ -117,7 +117,11 @@ void sse_create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int
 
 
 //----------------------------------------------- inter prediction -------------------------------------------
-void sse_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+void sse_interpolate_chroma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+
+void sse_filter_copy(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+
 
 //----------------------------------------------variance ------------------------------------------------
 uint32_t sse_modified_variance(uint8_t * p, int size, int stride, int modif);
