@@ -714,6 +714,7 @@ struct cu_partition_info_t
 	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
 	motion_vector_t	inter_mv[2];
+	motion_vector_t	subpix_mv[2];
 	motion_vector_t	best_dif_mv[2];
 	int 	best_candidate_idx[2];
 	int		inter_ref_index[2];

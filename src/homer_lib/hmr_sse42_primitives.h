@@ -124,5 +124,7 @@ typedef __m128i	__m128_i8;
 #define sse_128_shuffle_32(a,b)				_mm_shuffle_epi32(a,b)
 #define sse_128_shuffle_8(a,b)				_mm_shuffle_epi8(a,b)
 
+#define sse_128_clip_16(val,min,max)		_mm_max_epi16(_mm_min_epi16(val, max), min)
+
 
 #endif	/*__HOMER_HEVC_SSE42_PRIMITIVES__*/
