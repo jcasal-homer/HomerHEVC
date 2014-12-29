@@ -396,67 +396,6 @@ void hmr_half_pixel_estimation_luma_hm(henc_thread_t* et, int16_t *reference_buf
 }
 
 
-void hmr_half_pixel_estimation_luma_fast(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, cu_partition_info_t* curr_cu_info, int width, int height, int curr_part_size_shift, motion_vector_t *mv, int dir_x, int dir_y)
-{
-	int is_bi_predict = 0;
-	int x_fraction;// = mv->hor_vector&0x3;
-	int y_fraction;// = mv->ver_vector&0x3;
-
-//	int x_vect = mv->hor_vector>>3;
-//	int y_vect = mv->ver_vector>>3;
-	int filter_size = NTAPS_LUMA;
-	int half_filter_size = (filter_size>>1);
-	int src_stride = reference_buff_stride;
-	int16_t *src = reference_buff - half_filter_size*src_stride - 1;
-	int16_t *dst;
-	int dst_stride;
-	int curr_part_x = curr_cu_info->x_position, curr_part_y = curr_cu_info->y_position;
-
-	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[0], Y_COMP);
-	if(dir_y!=0)
-	{
-		//copy original samples
-		src_stride = reference_buff_stride;
-		src = reference_buff - half_filter_size*src_stride - 1;
-		dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width+1, height+filter_size, INTERPOLATE_HOR, TRUE, FALSE);
-
-		//half pixel vertical interpolation of original pixels
-		src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[0], Y_COMP);
-		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride+1;
-		dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[2][0], Y_COMP);
-		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height+1, INTERPOLATE_VERT, FALSE, TRUE);
-/*
-		src_stride = reference_buff_stride;
-		src = reference_buff - half_filter_size*src_stride - 1  +  (half_filter_size-1)*src_stride+1;
-		dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[2][0], Y_COMP);
-		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height+1, INTERPOLATE_VERT, TRUE, TRUE);
-*/	}
-
-	//half pixel horizontal interpolation 
-	src_stride = reference_buff_stride;
-	src = reference_buff - half_filter_size*src_stride - 1;
-	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[2], Y_COMP);
-	dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width+1, height+filter_size, INTERPOLATE_HOR, TRUE, FALSE);
-
-	src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[2], Y_COMP);
-	dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[0][2], Y_COMP);
-
-	//copy half pixel horizontal interpolation
-	src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
-	dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width+1, height, INTERPOLATE_HOR, FALSE, TRUE);
-
-	//half pixel vertical interpolation of horizontaly interpolated pixels
-	src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
-	dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width+1, height+1, INTERPOLATE_VERT, FALSE, TRUE);
-}
-
-
 void hmr_quarter_pixel_estimation_luma_hm(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, cu_partition_info_t* curr_cu_info, int width, int height, int curr_part_size_shift, motion_vector_t *half_peel_mv)
 {
 	int filter_size = NTAPS_LUMA;
@@ -581,6 +520,540 @@ void hmr_quarter_pixel_estimation_luma_hm(henc_thread_t* et, int16_t *reference_
 }
 
 
+void hmr_quarter_pixel_estimation_luma_fast(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, cu_partition_info_t* curr_cu_info, int width, int height, int curr_part_size_shift, motion_vector_t *half_peel_mv, int dir_x, int dir_y, int zero_curr_best)
+{
+	int filter_size = NTAPS_LUMA;
+	int half_filter_size = (filter_size>>1);
+	int src_stride = reference_buff_stride;
+	int16_t *src;
+	int16_t *dst;
+	int dst_stride;
+	int processed = 0;
+	int curr_part_x = curr_cu_info->x_position, curr_part_y = curr_cu_info->y_position;
+	int ext_height = (half_peel_mv->ver_vector == 0) ? height + filter_size : height + filter_size-1;
+	//horizontal filter 1,0
+	src = reference_buff - half_filter_size*src_stride - 1;
+	if(half_peel_mv->ver_vector>0)
+		src += src_stride;
+	if(half_peel_mv->hor_vector>=0)
+		src += 1;
+	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[1], Y_COMP);
+	dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, ext_height, INTERPOLATE_HOR, TRUE, FALSE);
+
+	src = reference_buff - half_filter_size*src_stride - 1;
+	//horizontal filter 3,0
+	if(half_peel_mv->ver_vector>0)
+		src += src_stride;
+	if(half_peel_mv->hor_vector>0)
+		src += 1;
+	dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, ext_height, INTERPOLATE_HOR, TRUE, FALSE);
+
+	src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[1], Y_COMP);
+	dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[1][1], Y_COMP);
+
+	if(zero_curr_best)
+	{
+		if(dir_x<0)
+		{
+			//vertical filter 3,0
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);    					
+			processed++;
+		}
+		else if(dir_x>0)
+		{
+			//vertical filter 1,0
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);			
+			processed++;		
+		}
+
+		if(dir_y>0)
+		{
+			//filter 0,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector>=0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+		else if(dir_y<0)
+		{
+			//filter 0,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector>0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x<=0 && dir_y<=0)
+		{
+			//filter 3,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;		
+		}
+
+		if(dir_x<=0 && dir_y>=0)
+		{
+			//filter 3,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x>=0 && dir_y<=0)
+		{
+			//vertical filter 1,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x>=0 && dir_y>=0)
+		{
+			//vertical filter 1,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+	}
+	else
+	{
+		if(dir_y==0)
+		{
+			if(dir_x>0)
+			{
+				//vertical filter 1,0
+				src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+				dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+				et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);			
+				processed++;
+			}
+			else if(dir_x<0)
+			{
+				//vertical filter 3,0
+				src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+				dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+				et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);    					
+				processed++;
+			}
+			else
+			{
+				int iiiii=0;			
+			}
+		}
+		
+		if(dir_x==0)
+		{
+			if(dir_y>0)
+			{
+				//filter 0,1
+				src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+				dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+				if(half_peel_mv->ver_vector>=0)
+					src += src_stride;
+				et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+				processed++;
+			}
+			else if(dir_y<0)
+			{
+				//filter 0,3
+				src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+				dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+				if(half_peel_mv->ver_vector>0)
+					src += src_stride;
+				et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+				processed++;
+			}
+			else
+			{
+				int iiiii=0;			
+			}
+		}
+
+		if(dir_x>0 && dir_y>0)
+		{
+			//vertical filter 1,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x>0 && dir_y<0)
+		{
+			//vertical filter 1,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x<0 && dir_y>0)
+		{
+			//filter 3,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+		if(dir_x<0 && dir_y<0)
+		{
+			//filter 3,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+
+
+		if(dir_x>=0 && dir_y!=0)
+		{
+			//vertical filter 1,2
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+		
+		if(dir_x<=0 && dir_y!=0)
+		{
+			//vertical filter 3,2
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+			processed++;
+		}
+
+		if(dir_y>=0 && dir_x!=0)
+		{
+			//filter 2,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>=0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			processed++;
+		}
+		
+		if(dir_y<=0 && dir_x!=0)
+		{
+			//filter 2,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+			processed++;
+		}
+	}
+	if(processed!=3)
+		printf("processed=%d", processed);
+
+}
+
+
+void hmr_half_pixel_estimation_luma_fast(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, cu_partition_info_t* curr_cu_info, int width, int height, int curr_part_size_shift, motion_vector_t *mv, int dir_x, int dir_y)
+{
+	int is_bi_predict = 0;
+	int x_fraction;// = mv->hor_vector&0x3;
+	int y_fraction;// = mv->ver_vector&0x3;
+
+//	int x_vect = mv->hor_vector>>3;
+//	int y_vect = mv->ver_vector>>3;
+	int filter_size = NTAPS_LUMA;
+	int half_filter_size = (filter_size>>1);
+	int src_stride = reference_buff_stride;
+	int16_t *src = reference_buff - half_filter_size*src_stride - 1;
+	int16_t *dst;
+	int dst_stride;
+	int curr_part_x = curr_cu_info->x_position, curr_part_y = curr_cu_info->y_position;
+
+	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[0], Y_COMP);
+	if(dir_y!=0)
+	{
+		//copy original samples
+		src_stride = reference_buff_stride;
+		src = reference_buff - half_filter_size*src_stride - 1;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width+1, height+filter_size, INTERPOLATE_HOR, TRUE, FALSE);
+
+		//half pixel vertical interpolation of original pixels
+		src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[0], Y_COMP);
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride+1;
+		dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[2][0], Y_COMP);
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height+1, INTERPOLATE_VERT, FALSE, TRUE);
+/*
+		src_stride = reference_buff_stride;
+		src = reference_buff - half_filter_size*src_stride - 1  +  (half_filter_size-1)*src_stride+1;
+		dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[2][0], Y_COMP);
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height+1, INTERPOLATE_VERT, TRUE, TRUE);
+*/	}
+
+	//half pixel horizontal interpolation 
+	src_stride = reference_buff_stride;
+	src = reference_buff - half_filter_size*src_stride - 1;
+	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[2], Y_COMP);
+	dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width+1, height+filter_size, INTERPOLATE_HOR, TRUE, FALSE);
+
+	src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[2], Y_COMP);
+	dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[0][2], Y_COMP);
+
+	//copy half pixel horizontal interpolation
+	src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+	dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width+1, height, INTERPOLATE_HOR, FALSE, TRUE);
+
+	//half pixel vertical interpolation of horizontaly interpolated pixels
+	src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+	dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+	et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width+1, height+1, INTERPOLATE_VERT, FALSE, TRUE);
+}
+
+void hmr_quarter_pixel_estimation_luma_fast_(henc_thread_t* et, int16_t *reference_buff, int reference_buff_stride, cu_partition_info_t* curr_cu_info, int width, int height, int curr_part_size_shift, motion_vector_t *half_peel_mv, int dir_x, int dir_y)
+{
+	int filter_size = NTAPS_LUMA;
+	int half_filter_size = (filter_size>>1);
+	int src_stride = reference_buff_stride;
+	int16_t *src;
+	int16_t *dst;
+	int dst_stride;
+	int curr_part_x = curr_cu_info->x_position, curr_part_y = curr_cu_info->y_position;
+	int ext_height = (half_peel_mv->ver_vector == 0) ? height + filter_size : height + filter_size-1;
+
+	dst_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[1], Y_COMP);
+
+	if(dir_x<=0)
+	{
+		src = reference_buff - half_filter_size*src_stride - 1;
+		//horizontal filter 3,0
+		if(half_peel_mv->ver_vector>0)
+			src += src_stride;
+		if(half_peel_mv->hor_vector>0)
+			src += 1;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, ext_height, INTERPOLATE_HOR, TRUE, FALSE);
+	}
+
+	if(dir_x>=0)
+	{
+		//horizontal filter 1,0
+		src = reference_buff - half_filter_size*src_stride - 1;
+		if(half_peel_mv->ver_vector>0)
+			src += src_stride;
+		if(half_peel_mv->hor_vector>=0)
+			src += 1;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, ext_height, INTERPOLATE_HOR, TRUE, FALSE);
+	}
+
+	src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[1], Y_COMP);
+	dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[3][2], Y_COMP);
+
+
+	if(dir_y==0)
+	{
+		//2,3 final
+		//filter 2,3
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->hor_vector>0)
+			src += 1;
+		if(half_peel_mv->ver_vector>0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+
+		//2,1 final		
+		//filter 2,1
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->hor_vector>0)
+			src += 1;
+		if(half_peel_mv->ver_vector>=0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+
+		if(dir_x<0)
+		{			
+			//3,0 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);    		
+		}
+		else if(dir_x>0)
+		{
+			//1,0 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[0][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 0, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}
+	}
+	else if(dir_x==0)
+	{
+		//1,2 final
+		//vertical filter 1,2
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->ver_vector==0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+
+		//3,2 final
+		//vertical filter 3,2
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->ver_vector==0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+
+		if(dir_y<0)
+		{
+			//0,3 final
+			//filter 0,3
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector>0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}
+		else
+		{
+			//0,1 final
+			//filter 0,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride + 1;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][0], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector>=0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}
+	}
+	else if(dir_x<0)
+	{
+		//3,2 final
+		//vertical filter 3,2
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->ver_vector==0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+
+		if(dir_y<0)
+		{
+			//2,3 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+			//3,3 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}
+		else
+		{
+			//2,1 final
+			//filter 2,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>=0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+			//3,1 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}
+	}
+	else //if(dir_x>0)
+	{
+		//1,2 final
+		src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+		dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[2][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+		if(half_peel_mv->ver_vector==0)
+			src += src_stride;
+		et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 2, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+
+		if(dir_y<0)
+		{
+			//1,3 final
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+
+			//2,3 final	
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[3][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 3, width, height, INTERPOLATE_VERT, FALSE, TRUE);    
+		}
+		else //if(dir_y<0)
+		{
+			//1,1 final
+			src_stride = WND_STRIDE_2D(et->filtered_block_temp_wnd[1], Y_COMP);
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst_stride = WND_STRIDE_2D(et->filtered_block_wnd[1][1], Y_COMP);
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][1], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->ver_vector==0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+
+			//2,1 final
+			//filter 2,1
+			src = WND_POSITION_2D(int16_t *, et->filtered_block_temp_wnd[2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width) + (half_filter_size-1)*src_stride;
+			dst = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[1][2], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+			if(half_peel_mv->hor_vector>0)
+				src += 1;
+			if(half_peel_mv->ver_vector>=0)
+				src += src_stride;
+			et->funcs->interpolate_luma(src, src_stride, dst, dst_stride, 1, width, height, INTERPOLATE_VERT, FALSE, TRUE);
+		}	
+	}
+}
+
+
+
 
 void hmr_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
@@ -682,6 +1155,7 @@ static const int s_acMvRefineQ[9][2] =
 	{ -1,  1 }, // 7
 	{  1,  1 }  // 8
 };
+
 
 static const int diamond_small[][2] = {{0,-1},{-1,0},{1,0},{0,1}};
 static const int diamond_big[][2] = {{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{1,1},{0,2}};
@@ -889,6 +1363,62 @@ uint32_t hmr_motion_estimation_HM(henc_thread_t* et, ctu_info_t* ctu, cu_partiti
 
 
 
+static const int quarter_search_points_top_left[3][2] =
+{
+	{ -1, -2 }, // 0
+	{ -1, -1 }, // 1
+	{ -2, -1 }, // 2
+};
+
+static const int quarter_search_points_top[3][2] =
+{
+	{ -1, -2 }, // 0
+	{  0, -1 }, // 1
+	{  1, -2 }, // 2
+};
+
+static const int quarter_search_points_top_right[3][2] =
+{
+	{  1, -2 }, // 0
+	{  1, -1 }, // 1
+	{  2, -1 }, // 2
+};
+
+static const int quarter_search_points_right[3][2] =
+{
+	{  2, -1 }, // 0
+	{  1,  0 }, // 1
+	{  2,  1 }, // 2
+};
+
+static const int quarter_search_points_bottom_right[3][2] =
+{
+	{  2,  1 }, // 0
+	{  1,  1 }, // 1
+	{  1,  2 }, // 2
+};
+
+static const int quarter_search_points_bottom[3][2] =
+{
+	{  1,  2 }, // 0
+	{  0,  1 }, // 1
+	{ -1,  2 }, // 2
+};
+
+static const int quarter_search_points_bottom_left[3][2] =
+{
+	{  2, -1 }, // 0
+	{ -1,  1 }, // 1
+	{ -2,  1 }, // 2
+};
+
+static const int quarter_search_points_left[3][2] =
+{
+	{ -2,  1 }, // 0
+	{ -1,  0 }, // 1
+	{ -2, -1 }, // 2
+};
+
 
 uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
 						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv, motion_vector_t *subpix_mv, uint32_t threshold)
@@ -1069,7 +1599,7 @@ last_search:
 	best_x = curr_best_x;
 	best_y = curr_best_y;
 	prev_best_rd = MAX_COST;
-	prev_best_sad = best_sad;
+	prev_best_sad = MAX_COST;
 	prev_best_x = best_x;
 	prev_best_y = best_y;
 
@@ -1132,135 +1662,6 @@ last_search:
 
 	mv->hor_vector = (best_x<<2);// + curr_best_x;
 	mv->ver_vector = (best_y<<2);// + curr_best_y;
-/*
-	//perform half-sample and quarter-sample motion estimation
-//	if(0)
-	{
-		int curr_best_idx;
-		int curr_part_x = curr_cu_info->x_position;
-		int curr_part_y = curr_cu_info->y_position;
-		uint32_t curr_sad;
-		motion_vector_t half_mv;
-		int dir_x = prev_best_x - curr_best_x;//prev_best_x - curr_best_x;
-		int dir_y = prev_best_y - curr_best_y;
-		int loop_start;
-
-		hmr_half_pixel_estimation_luma_hm(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, mv);
-//		hmr_half_pixel_estimation_luma_fast(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, mv, dir_x, dir_y);
-
-		if(dir_x==0)
-		{
-			if(dir_y<0)
-				loop_start = 0;
-			else
-				loop_start = 4;
-		}
-		else if(dir_x>0)
-		{
-			if(dir_y<0)
-				loop_start = 1;
-			else if(dir_y==0)
-				loop_start = 2;
-			else if(dir_y>0)
-				loop_start = 3;
-		}
-		else //if(dir_x<0)
-		{
-			if(dir_y<0)
-				loop_start = 7;
-			else if(dir_y==0)
-				loop_start = 6;
-			else if(dir_y>0)
-				loop_start = 5;
-		}
-
-		curr_best_x = 0;
-		curr_best_y = 0;
-		curr_best_idx = 0;
-		prev_sad = MAX_COST;
-//		for (i = loop_start; i < loop_start+3; i++)
-		//for (i = 0; i < 8; i++)
-		for (i = 0; i < 9; i++)
-		{
-			int curr_x = s_acMvRefineH_HM[i][0]*2;
-			int curr_y = s_acMvRefineH_HM[i][1]*2;
-			int idx = (i);
-//			int idx = (i&7);
-//			int curr_x = s_acMvRefineH[idx][0]*2;
-//			int curr_y = s_acMvRefineH[idx][1]*2;
-			int src_stride;
-			int16_t *src;
-
-			src_stride = WND_STRIDE_2D(et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP);
-			src = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-			
-			if ( curr_x == 2 && ( curr_y & 1 ) == 0 )
-			{
-				src += 1;
-			}
-			if ( ( curr_x & 1 ) == 0 && curr_y == 2 )
-			{
-				src += src_stride;
-			}
-
-			curr_sad = sad(orig_buff, orig_buff_stride, src, src_stride, curr_cu_info->size);
-			if(curr_sad < curr_best_sad)
-			{
-				curr_best_sad = curr_sad;
-				curr_best_x = curr_x;
-				curr_best_y = curr_y;
-				curr_best_idx = (idx);
-			}
-			else if(i!=loop_start && curr_sad>prev_sad)
-			{
-				break;
-			}
-			prev_sad = curr_sad;
-		}
-		half_mv.hor_vector = s_acMvRefineH[curr_best_idx][0];//curr_best_x;//s_acMvRefineH[curr_best_idx][0];
-		half_mv.ver_vector = s_acMvRefineH[curr_best_idx][1];//curr_best_y;//s_acMvRefineH[curr_best_idx][1];
-
-//		curr_best_x = half_mv.hor_vector*2;
-//		curr_best_y = half_mv.ver_vector*2;
-
-		hmr_quarter_pixel_estimation_luma_hm(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, &half_mv);
-
-		for (i = 1; i < 9; i++)
-		{
-			int curr_x = half_mv.hor_vector*2+s_acMvRefineQ[i][0]*1;
-			int curr_y = half_mv.ver_vector*2+s_acMvRefineQ[i][1]*1;
-			int src_stride;
-			int16_t *src;
-
-			src_stride = WND_STRIDE_2D(et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP);
-			src = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-			
-			if ( curr_x == 2 && ( curr_y & 1 ) == 0 )
-			{
-				src += 1;
-			}
-			if ( ( curr_x & 1 ) == 0 && curr_y == 2 )
-			{
-				src += src_stride;
-			}
-
-			curr_sad = sad(orig_buff, orig_buff_stride, src, src_stride, curr_cu_info->size);
-			if(curr_sad < curr_best_sad)
-			{
-				curr_best_sad = curr_sad;
-				curr_best_x = curr_x;
-				curr_best_y = curr_y;
-				curr_best_idx = i;
-			}
-		}
-
-		best_sad = curr_best_sad;
-		mv->hor_vector = (best_x<<2) + curr_best_x;
-		mv->ver_vector = (best_y<<2) + curr_best_y;
-		subpix_mv->hor_vector = curr_best_x;//we need to keep this value to be used in the motion compensation. From the mv we are not able to know wether it was calculated as positive or negative (2 or -2, 3 or -1,...) so we can't match the buffer
-		subpix_mv->ver_vector = curr_best_y;//
-	}
-*/
 	{
 		int curr_best_idx;
 		int curr_part_x = curr_cu_info->x_position;
@@ -1300,9 +1701,15 @@ last_search:
 				loop_start = 5;
 		}
 
+
+		prev_best_rd = MAX_COST;
+		prev_best_sad = MAX_COST;
+		prev_best_x = 0;
+		prev_best_y = 0;
+
 		curr_best_x = 0;
 		curr_best_y = 0;
-		curr_best_idx = 100;
+		curr_best_idx = 0;
 //		for (i = 1; i < 9; i++)
 //		for (i = 0; i < 8; i++)
 		for (i = loop_start; i < loop_start+3; i++)
@@ -1330,55 +1737,209 @@ last_search:
 			curr_sad = sad(orig_buff, orig_buff_stride, src, src_stride, curr_cu_info->size);
 			if(curr_sad < curr_best_sad)
 			{
+				prev_best_x = curr_best_x;
+				prev_best_y = curr_best_y;
+				prev_best_sad = curr_best_sad;
+
 				curr_best_sad = curr_sad;
 				curr_best_x = curr_x;
 				curr_best_y = curr_y;
 				curr_best_idx = idx;//i;
 			}
+			else if(curr_sad < prev_best_rd)
+			{
+				prev_best_sad = curr_sad;
+				prev_best_x = curr_x;
+				prev_best_y = curr_y;			
+			}
 		}
-		if(curr_best_idx==100)
-		{	
-			half_mv.hor_vector = 0;//curr_best_x;//s_acMvRefineH[curr_best_idx][0];
-			half_mv.ver_vector = 0;//curr_best_y;//s_acMvRefineH[curr_best_idx][1];
-		}
-		else
-		{	
-			half_mv.hor_vector = s_acMvRefineH[curr_best_idx][0];
-			half_mv.ver_vector = s_acMvRefineH[curr_best_idx][1];
-		}
-/*		hmr_quarter_pixel_estimation_luma_hm(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, &half_mv);
+		half_mv.hor_vector = curr_best_x;//s_acMvRefineH[curr_best_idx][0];
+		half_mv.ver_vector = curr_best_y;//s_acMvRefineH[curr_best_idx][1];
 
-		curr_best_x = half_mv.hor_vector*2;
-		curr_best_y = half_mv.ver_vector*2;
-		for (i = 0; i < 9; i++)
+//		curr_best_x = half_mv.hor_vector;//*2
+//		curr_best_y = half_mv.ver_vector;//*2
+
 		{
-			int curr_x = half_mv.hor_vector*2+s_acMvRefineQ[i][0]*1;
-			int curr_y = half_mv.ver_vector*2+s_acMvRefineQ[i][1]*1;
-			int src_stride;
-			int16_t *src;
+			int loop_start, loop_size, loop_incr;
+			int zero_curr_best = (curr_best_x==0 && curr_best_y==0);//if cur_best=(0,0) take prev_curr_best direction to predict
+			int dir_x = zero_curr_best?prev_best_x:curr_best_x;
+			int dir_y = zero_curr_best?prev_best_y:curr_best_y;
 
-			src_stride = WND_STRIDE_2D(et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP);
-			src = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
+//			if(!zero_curr_best)
+				hmr_quarter_pixel_estimation_luma_fast(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, &half_mv, dir_x, dir_y, zero_curr_best);
+//			else
+//				hmr_quarter_pixel_estimation_luma_hm(et, reference_buff+best_y*reference_buff_stride+best_x, reference_buff_stride, curr_cu_info, curr_part_size, curr_part_size, curr_part_size_shift, &half_mv);
+
+
+			if(zero_curr_best)
+			{
+				if(dir_y<0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 7;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x==0)
+					{
+						loop_start = 0;//3;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 1;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+				}
+				else if(dir_y==0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 6;//1;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x==0)
+					{
+						//this is not used
+						loop_start = 0;
+						loop_size = 0;
+						loop_incr = 0;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 2;//5;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+				}
+				else if(dir_y>0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 5;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x==0)
+					{
+						loop_start = 4;//7;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 3;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+				}
+			}
+			else
+			{
+				if(dir_y<0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 3;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x==0)
+					{
+						loop_start = 3;//3;
+						loop_size = 5;
+						loop_incr = 2;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 5;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+				}
+				else if(dir_y==0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 1;//1;
+						loop_size = 5;
+						loop_incr = 2;
+					}
+					else if(dir_x==0)
+					{
+						//this is not used
+						loop_start = 0;
+						loop_size = 8;
+						loop_incr = 1;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 5;//5;
+						loop_size = 5;
+						loop_incr = 2;
+					}
+				}
+				else if(dir_y>0)
+				{
+					if(dir_x<0)
+					{
+						loop_start = 1;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+					else if(dir_x==0)
+					{
+						loop_start = 7;//7;
+						loop_size = 5;
+						loop_incr = 2;
+					}
+					else if(dir_x>0)
+					{
+						loop_start = 7;
+						loop_size = 3;
+						loop_incr = 1;
+					}
+				}
+			}
+
+//			for (i = 0; i < 9; i++)
+			for (i = loop_start; i < loop_start+loop_size; i+=loop_incr)
+			{
+				int idx = (i&7);
+				int curr_x = half_mv.hor_vector+s_acMvRefineH[idx][0]*1;
+				int curr_y = half_mv.ver_vector+s_acMvRefineH[idx][1]*1;
+//				int curr_x = half_mv.hor_vector+s_acMvRefineQ[i][0]*1;
+//				int curr_y = half_mv.ver_vector+s_acMvRefineQ[i][1]*1;
+				int src_stride;
+				int16_t *src;
+
+				src_stride = WND_STRIDE_2D(et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP);
+				src = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
 			
-			if ( curr_x == 2 && ( curr_y & 1 ) == 0 )
-			{
-				src += 1;
-			}
-			if ( ( curr_x & 1 ) == 0 && curr_y == 2 )
-			{
-				src += src_stride;
-			}
+				if ( curr_x == 2 && ( curr_y & 1 ) == 0 )
+				{
+					src += 1;
+				}
+				if ( ( curr_x & 1 ) == 0 && curr_y == 2 )
+				{
+					src += src_stride;
+				}
 
-			curr_sad = sad(orig_buff, orig_buff_stride, src, src_stride, curr_cu_info->size);
-			if(curr_sad < curr_best_sad)
-			{
-				curr_best_sad = curr_sad;
-				curr_best_x = curr_x;
-				curr_best_y = curr_y;
-				curr_best_idx = i;
+				curr_sad = sad(orig_buff, orig_buff_stride, src, src_stride, curr_cu_info->size);
+				if(curr_sad < curr_best_sad)
+				{
+					curr_best_sad = curr_sad;
+					curr_best_x = curr_x;
+					curr_best_y = curr_y;
+					curr_best_idx = i;
+				}
 			}
 		}
-*/	}
+	}
 	mv->hor_vector = (best_x<<2) + curr_best_x;
 	mv->ver_vector = (best_y<<2) + curr_best_y;
 	subpix_mv->hor_vector = curr_best_x;//we need to keep this value to be used in the motion compensation. From the mv we are not able to know wether it was calculated as positive or negative (2 or -2, 3 or -1,...) so we can't match the buffer
@@ -1391,26 +1952,6 @@ end:
 //	mv->ver_vector = (best_y<<2) + curr_best_y;
 
 	return best_sad;
-
-/*
-	best_sad = curr_best_sad;
-	best_rd = curr_best_rd;
-	best_x = curr_best_x;
-	best_y = curr_best_y;
-
-	//interpolate between curr_best and prev_best
-	{
-		int16_t *pred_buff;
-		int pred_buff_stride;
-		int curr_part_x = curr_cu_info->x_position;
-		int curr_part_y = curr_cu_info->y_position;
-
-		pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-		pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
-
-		hmr_half_pixel_estimation_luma_hm(et, reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, curr_part_size, curr_part_size_shift, mv);
-	}
-*/
 }
 
 
