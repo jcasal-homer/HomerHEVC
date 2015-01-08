@@ -603,6 +603,7 @@ typedef struct video_frame_t video_frame_t;
 struct video_frame_t
 {
 	wnd_t			img;
+	int				img_type;
 	temporal_info_t	temp_info;
 	int				is_reference;
 };
@@ -615,6 +616,8 @@ struct output_set_t
 	video_frame_t	*frame;
 	nalu_t			*nalu_list[NALU_SET_SIZE];
 	int				num_nalus;
+	int				image_type;
+	uint32_t		pts;
 };
 
 
@@ -1021,6 +1024,7 @@ struct henc_thread_t
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
+	int				motion_estimation_precision;
 
 	int				num_partitions_in_cu;
 	int				num_partitions_in_cu_shift;
@@ -1163,6 +1167,7 @@ struct hvenc_t
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
+	int				motion_estimation_precision;
 	int				wfpp_enable;
 	uint			wfpp_num_threads;
 

@@ -29,7 +29,7 @@
 
 #define ALIGNMENT 64
 
-void *aligned_alloc(int num, int size)
+void *hmr_aligned_alloc(int num, int size)
 {
     unsigned char *mem = (unsigned char *)malloc(num*size+ALIGNMENT+sizeof(void*));
     void **ptr = (void**)((uint64_t)(mem+ALIGNMENT+sizeof(void*)) & ~(ALIGNMENT-1));
@@ -37,7 +37,8 @@ void *aligned_alloc(int num, int size)
     return ptr;
 }
 
-void aligned_free(void *ptr) {
+void hmr_aligned_free(void *ptr) 
+{
     free(((void**)ptr)[-1]);
 }
 
@@ -65,7 +66,7 @@ void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, i
 		wnd->window_size_x[comp] = aligned_padding_x+aligned_width+aligned_padding_x;
 		wnd->window_size_y[comp] = padding_size_y+height+padding_size_y;
 
-		if((wnd->palloc[comp] = (void*)aligned_alloc(wnd->window_size_x[comp]*wnd->window_size_y[comp]*pix_size, sizeof(byte)))==NULL)
+		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc(wnd->window_size_x[comp]*wnd->window_size_y[comp]*pix_size, sizeof(byte)))==NULL)
 			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
 
 		wnd->pwnd[comp]=(void*)((uint8_t*)wnd->palloc[comp]+((padding_size_y*wnd->window_size_x[comp]+aligned_padding_x)*wnd->pix_size));
@@ -84,7 +85,7 @@ void wnd_delete(wnd_t *wnd)
 	for(i=0;i<3;i++)
 	{
 		if(wnd->pwnd[i] != NULL)
-			aligned_free(wnd->palloc[i]);
+			hmr_aligned_free(wnd->palloc[i]);
 	}
 }
 

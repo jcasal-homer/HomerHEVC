@@ -36,7 +36,6 @@ extern "C" {
 
 
 
-
 enum HOMER_CMD {
 	HENC_SETCFG
 };
@@ -72,6 +71,18 @@ enum HOMER_PERFORMANCE_MODES {
 	NUM_PERF_MODES
 };
 
+enum HOMER_IMG_TYPES {
+  IMAGE_B,
+  IMAGE_P,
+  IMAGE_I,
+  IMAGE_AUTO
+};
+
+enum HOMER_MOTION_ESTIMATION_PRECISSION {
+  PEL,
+  HALF_PEL,
+  QUARTER_PEL
+};
 
 #define MAX_STREAMS	8
 
@@ -88,10 +99,10 @@ typedef struct encoder_in_out_t encoder_in_out_t;
 struct encoder_in_out_t
 {
 	stream_t stream;
-	unsigned int uiPTS;
-	unsigned int uiDTS;
-	char *pUserdata;
-	unsigned int sizeUserdata;
+	unsigned int pts;
+	unsigned int image_type;//HOMER_IMG_TYPES - this field allows to force the type of an image whenever is needed. otherwise use IMAGE_AUTO
+	char *user_data;
+	unsigned int user_data_size;
 };
 
 
@@ -128,6 +139,7 @@ struct HVENC_Cfg{
 	int intra_period;
 	int gop_size; 
 	int num_ref_frames;
+	int motion_estimation_precision;
 	int qp;//for fixed qp mode, or initial qp if cbr or vbr
 	int chroma_qp_offset;
 	int wfpp_enable;

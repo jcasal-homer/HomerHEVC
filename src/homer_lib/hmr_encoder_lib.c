@@ -91,10 +91,10 @@ void *HOMER_enc_init()
 	size=2;
 	for ( i=0; i<MAX_CU_DEPTHS; i++ ) //scan block size (2x2, ....., 128x128)
 	{
-		phvenc->scan_pyramid[0][i] = (uint*) aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[1][i] = (uint*) aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[2][i] = (uint*) aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[3][i] = (uint*) aligned_alloc (size*size, sizeof(uint));
+		phvenc->scan_pyramid[0][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
+		phvenc->scan_pyramid[1][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
+		phvenc->scan_pyramid[2][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
+		phvenc->scan_pyramid[3][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
 		init_scan_pyramid( phvenc, phvenc->scan_pyramid[0][i], phvenc->scan_pyramid[1][i], phvenc->scan_pyramid[2][i], phvenc->scan_pyramid[3][i], size, size, i);
 
 		size <<= 1;
@@ -109,9 +109,9 @@ void *HOMER_enc_init()
 			short *quant_def_table = get_default_qtable(size_index, list_index);
 			for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
 			{
-				phvenc->quant_pyramid[size_index][list_index][qp] = (int*) aligned_alloc (size*size, sizeof(uint));
-				phvenc->dequant_pyramid[size_index][list_index][qp] = (int*) aligned_alloc (size*size, sizeof(uint));
-				phvenc->scaling_error_pyramid[size_index][list_index][qp] = (double*) aligned_alloc (size*size, sizeof(double));
+				phvenc->quant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint));
+				phvenc->dequant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint));
+				phvenc->scaling_error_pyramid[size_index][list_index][qp] = (double*) hmr_aligned_alloc (size*size, sizeof(double));
 				init_quant_pyramids( phvenc, phvenc->quant_pyramid[size_index][list_index][qp], phvenc->dequant_pyramid[size_index][list_index][qp], phvenc->scaling_error_pyramid[size_index][list_index][qp],
 									quant_def_table, size, size, ratio, min(NUM_MAX_MATRIX_SIZE, size), QUANT_DEFAULT_DC, size_index+2, qp);
 
@@ -130,10 +130,10 @@ void *HOMER_enc_init()
 
 
 	//deblocking filter
-	phvenc->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-	phvenc->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-	phvenc->deblock_edge_filter[EDGE_VER] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-	phvenc->deblock_edge_filter[EDGE_HOR] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_VER] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+	phvenc->deblock_edge_filter[EDGE_HOR] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 	//angular intra table
 	phvenc->ang_table = (ushort*)calloc (9, sizeof(ushort));//number of elements in CU
@@ -214,12 +214,12 @@ void HOMER_enc_close(void* h)
 		wnd_delete(&henc_th->curr_mbs_wnd);
 		
 		//alloc processing windows and buffers
-		aligned_free(henc_th->adi_pred_buff);
-		aligned_free(henc_th->adi_filtered_pred_buff);
-		aligned_free(henc_th->top_pred_buff);
-		aligned_free(henc_th->left_pred_buff);
-		aligned_free(henc_th->bottom_pred_buff);
-		aligned_free(henc_th->right_pred_buff);
+		hmr_aligned_free(henc_th->adi_pred_buff);
+		hmr_aligned_free(henc_th->adi_filtered_pred_buff);
+		hmr_aligned_free(henc_th->top_pred_buff);
+		hmr_aligned_free(henc_th->left_pred_buff);
+		hmr_aligned_free(henc_th->bottom_pred_buff);
+		hmr_aligned_free(henc_th->right_pred_buff);
 
 		wnd_delete(&henc_th->prediction_wnd);
 		wnd_delete(&henc_th->residual_wnd);
@@ -232,40 +232,40 @@ void HOMER_enc_close(void* h)
 		for(i=0;i<NUM_DECODED_WNDS;i++)
 			wnd_delete(&henc_th->decoded_mbs_wnd[i]);
 
-		aligned_free(henc_th->pred_aux_buff);
-		aligned_free(henc_th->aux_buff);
-		aligned_free(henc_th->cabac_aux_buff);
+		hmr_aligned_free(henc_th->pred_aux_buff);
+		hmr_aligned_free(henc_th->aux_buff);
+		hmr_aligned_free(henc_th->cabac_aux_buff);
 
 		//alloc buffers to gather and consolidate information
 		for(i=0;i<NUM_CBF_BUFFS;i++)
 		{
-			aligned_free(henc_th->cbf_buffs[Y_COMP][i]);
-			aligned_free(henc_th->cbf_buffs[U_COMP][i]);
-			aligned_free(henc_th->cbf_buffs[V_COMP][i]);
-			aligned_free(henc_th->intra_mode_buffs[Y_COMP][i]);
-			aligned_free(henc_th->intra_mode_buffs[U_COMP][i]);
-			aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
-			aligned_free(henc_th->tr_idx_buffs[i]);
+			hmr_aligned_free(henc_th->cbf_buffs[Y_COMP][i]);
+			hmr_aligned_free(henc_th->cbf_buffs[U_COMP][i]);
+			hmr_aligned_free(henc_th->cbf_buffs[V_COMP][i]);
+			hmr_aligned_free(henc_th->intra_mode_buffs[Y_COMP][i]);
+			hmr_aligned_free(henc_th->intra_mode_buffs[U_COMP][i]);
+			hmr_aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
+			hmr_aligned_free(henc_th->tr_idx_buffs[i]);
 
-/*			aligned_free(henc_th->mv_ref0[Y_COMP][i]);
-			aligned_free(henc_th->mv_ref0[U_COMP][i]);
-			aligned_free(henc_th->mv_ref0[V_COMP][i]);
+/*			hmr_aligned_free(henc_th->mv_ref0[Y_COMP][i]);
+			hmr_aligned_free(henc_th->mv_ref0[U_COMP][i]);
+			hmr_aligned_free(henc_th->mv_ref0[V_COMP][i]);
 
-			aligned_free(henc_th->mv_ref1[Y_COMP][i]);
-			aligned_free(henc_th->mv_ref1[U_COMP][i]);
-			aligned_free(henc_th->mv_ref1[V_COMP][i]);
+			hmr_aligned_free(henc_th->mv_ref1[Y_COMP][i]);
+			hmr_aligned_free(henc_th->mv_ref1[U_COMP][i]);
+			hmr_aligned_free(henc_th->mv_ref1[V_COMP][i]);
 
-			aligned_free(henc_th->ref_idx0[Y_COMP][i]);
-			aligned_free(henc_th->ref_idx0[V_COMP][i]);
-			aligned_free(henc_th->ref_idx0[U_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx0[Y_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx0[V_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx0[U_COMP][i]);
 
-			aligned_free(henc_th->ref_idx1[Y_COMP][i]);
-			aligned_free(henc_th->ref_idx1[V_COMP][i]);
-			aligned_free(henc_th->ref_idx1[U_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx1[Y_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx1[V_COMP][i]);
+			hmr_aligned_free(henc_th->ref_idx1[U_COMP][i]);
 */		}
 
-		aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
-		aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
+		hmr_aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
+		hmr_aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
 
 		free(henc_th->ctu_rd->part_size_type);
 		free(henc_th->ctu_rd->pred_mode);
@@ -321,10 +321,10 @@ void HOMER_enc_close(void* h)
 
 	for ( i=0; i<MAX_CU_DEPTHS; i++ ) //scan block size (2x2, ....., 128x128)
 	{
-		aligned_free(phvenc->scan_pyramid[0][i]);
-		aligned_free(phvenc->scan_pyramid[1][i]);
-		aligned_free(phvenc->scan_pyramid[2][i]);
-		aligned_free(phvenc->scan_pyramid[3][i]);
+		hmr_aligned_free(phvenc->scan_pyramid[0][i]);
+		hmr_aligned_free(phvenc->scan_pyramid[1][i]);
+		hmr_aligned_free(phvenc->scan_pyramid[2][i]);
+		hmr_aligned_free(phvenc->scan_pyramid[3][i]);
 	}
 
 	for ( size_index=0; size_index<NUM_SCALING_MODES; size_index++ )//size_index (4x4,8x8,16x16,32x32)
@@ -335,9 +335,9 @@ void HOMER_enc_close(void* h)
 			int qp;
 			for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
 			{
-				aligned_free(phvenc->quant_pyramid[size_index][list_index][qp]);
-				aligned_free(phvenc->dequant_pyramid[size_index][list_index][qp]);
-				aligned_free(phvenc->scaling_error_pyramid[size_index][list_index][qp]);
+				hmr_aligned_free(phvenc->quant_pyramid[size_index][list_index][qp]);
+				hmr_aligned_free(phvenc->dequant_pyramid[size_index][list_index][qp]);
+				hmr_aligned_free(phvenc->scaling_error_pyramid[size_index][list_index][qp]);
 			}  
 		}
 	}
@@ -386,19 +386,20 @@ void HOMER_enc_close(void* h)
 }
 
 
-void put_frame_to_encode(hvenc_t *ed, unsigned char *picture[])
+void put_frame_to_encode(hvenc_t *ed, encoder_in_out_t* input_frame)
 {
 	video_frame_t	*p;
-
 	uint8_t *src, *dst;
 	int stride_dst, stride_src;
 	int comp, j;
 
 	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
 
+	p->temp_info.pts = input_frame->pts;
+	p->img_type = input_frame->image_type;
 	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
-		src = picture[comp];
+		src = input_frame->stream.streams[comp];
 		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
 		stride_src = ed->pict_width[comp];
 		stride_dst = WND_STRIDE_2D(p->img, comp);
@@ -479,6 +480,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			while(phvenc->max_cu_size>(1<<phvenc->max_cu_size_shift))phvenc->max_cu_size_shift++;
 
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
+			phvenc->motion_estimation_precision = cfg->motion_estimation_precision;
 
 			if(cfg->width%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)) || cfg->height%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)))
 			{
@@ -828,6 +830,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->max_intra_tr_depth = phvenc->max_intra_tr_depth;
 				henc_th->max_inter_tr_depth = phvenc->max_inter_tr_depth;
 				henc_th->max_pred_partition_depth = phvenc->max_pred_partition_depth;//max depth for prediction
+				henc_th->motion_estimation_precision = phvenc->motion_estimation_precision;
 //				henc_th->max_inter_pred_depth = phvenc->max_inter_pred_depth;//max depth for prediction
 
 				henc_th->num_partitions_in_cu = phvenc->num_partitions_in_cu;
@@ -857,24 +860,24 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//----------------------------current thread processing buffers allocation	-----
 				//alloc processing windows and buffers
 				henc_th->adi_size = 2*henc_th->ctu_height[0]+2*henc_th->ctu_width[0]+1;//vecinos de la columna izq y fila superior + la esquina
-				henc_th->adi_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
-				henc_th->adi_filtered_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
-				henc_th->top_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
-				henc_th->left_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
-				henc_th->bottom_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
-				henc_th->right_pred_buff = (short*)aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->adi_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->adi_filtered_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->top_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->left_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->bottom_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
+				henc_th->right_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
 
 
 				wnd_realloc(&henc_th->curr_mbs_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
 
 				henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//tama�o del buffer auxiliar
-				henc_th->pred_aux_buff = (short*) aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
+				henc_th->pred_aux_buff = (short*) hmr_aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
 				wnd_realloc(&henc_th->prediction_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 				wnd_realloc(&henc_th->residual_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 				wnd_realloc(&henc_th->residual_dec_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
-				henc_th->aux_buff = (short*) aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
+				henc_th->aux_buff = (short*) hmr_aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
 				for(i=0;i<NUM_QUANT_WNDS;i++)
 					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));		
@@ -898,39 +901,39 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 
 				henc_th->cabac_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//MAX_TU_SIZE_SHIFT*MAX_TU_SIZE_SHIFT;//tama�o del buffer auxiliar
-				henc_th->cabac_aux_buff = (unsigned char*) aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));
+				henc_th->cabac_aux_buff = (unsigned char*) hmr_aligned_alloc (henc_th->cabac_aux_buff_size, sizeof(unsigned char));
 
 				//alloc buffers to gather and consolidate information
 				for(i=0;i<NUM_CBF_BUFFS;i++)
 				{
-					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->tr_idx_buffs[i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[Y_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[U_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->cbf_buffs[V_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[Y_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[U_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->intra_mode_buffs[V_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->tr_idx_buffs[i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 					//inter
-/*					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+/*					henc_th->mv_ref0[Y_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[U_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref0[V_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 
-					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
-					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[Y_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[U_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
+					henc_th->mv_ref1[V_COMP][i] = (motion_vector_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 
-					henc_th->ref_idx0[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->ref_idx0[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->ref_idx0[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[Y_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[V_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx0[U_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
-					henc_th->ref_idx1[Y_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->ref_idx1[V_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-					henc_th->ref_idx1[U_COMP][i] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[Y_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[V_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+					henc_th->ref_idx1[U_COMP][i] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 */				}
 
-				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[U_COMP] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->cbf_buffs_chroma[V_COMP] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				henc_th->ctu_rd = (ctu_info_t*)calloc (1, sizeof(ctu_info_t));
 				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
@@ -1241,6 +1244,7 @@ void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
 
 void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 {
+	int img_type = currpict->img2encode->img_type;
 	currslice->qp =  ed->pict_qp;
 	currslice->poc = ed->last_poc;
 	currslice->sps = &ed->sps;
@@ -1259,9 +1263,10 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->max_num_merge_candidates = 5;
 
 //	if((currslice->poc%ed->intra_period)==0)
-	if(currslice->poc==(ed->last_intra + ed->intra_period))
+	if((currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || img_type == IMAGE_I)
 	{
 		ed->last_intra = currslice->poc;
+		currpict->img2encode->img_type = IMAGE_I;
 		currslice->slice_type = I_SLICE;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
@@ -1270,9 +1275,10 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		currslice->depth = 0;
 		currslice->qp = ed->pict_qp;
 	}
-	else if(ed->num_b==0)
+	else if((ed->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P)
 	{
 		currslice->slice_type = P_SLICE;
+		currpict->img2encode->img_type = IMAGE_P;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(ed, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
@@ -1615,7 +1621,7 @@ THREAD_RETURN_TYPE deblocking_filter_thread(void *h)
 int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame)
 {
 	hvenc_t* ed = (hvenc_t*)handle;
-	put_frame_to_encode(ed, input_frame->stream.streams);
+	put_frame_to_encode(ed, input_frame);
 
 	return 0;
 }
@@ -1635,7 +1641,9 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
 //		memcpy(nalu_out, ouput_set->nalu_list, ouput_set->num_nalus*sizeof(ouput_set->nalu_list[0]));
 		*nalu_list_size = ouput_set->num_nalus;
-		if(output_frame!=NULL)
+		output_frame->pts = ouput_set->pts;
+		output_frame->image_type = ouput_set->image_type;
+		if(output_frame->stream.streams[0]!=NULL && output_frame->stream.streams[1]!=NULL && output_frame->stream.streams[2]!=NULL)
 		{
 			for(comp=Y_COMP;comp<=V_COMP;comp++)
 			{
@@ -1894,7 +1902,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
 		ed->last_poc++;
 
-
+		ouput_sets->pts = ed->current_pict.img2encode->temp_info.pts;
+		ouput_sets->image_type = ed->current_pict.img2encode->img_type;
 		put_avaliable_frame(ed, ed->current_pict.img2encode);
 
 		ouput_sets->num_nalus = output_nalu_cnt;

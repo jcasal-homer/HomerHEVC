@@ -137,8 +137,8 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice);
 void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed);
 
 //hmr_mem_transfer.c
-void *aligned_alloc(int num, int size);
-void aligned_free(void *p);
+void *hmr_aligned_alloc(int num, int size);
+void hmr_aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);

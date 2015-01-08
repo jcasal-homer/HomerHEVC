@@ -38,19 +38,19 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
-#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
+#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"//bin"//"output_32_.265"
-#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"//"output_32_.265"
+#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"
+#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"
 
 
-#define HOR_SIZE	720//1280//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	576//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			25//25//50
+#define HOR_SIZE	1280//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	720//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define FPS			50//25//50
 
 
 #ifdef _MSC_VER
@@ -90,6 +90,7 @@ void print_help()
 	printf("-gop_size: \t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t qp[0-51], default = 32\r\n");
+	printf("-motion_estimation_precision: 0=pel, 1=half_pel, 2=quarter_pel, default = 2\r\n");
 	printf("-chroma_qp_offset: \t chroma_qp_offset[-12,12], default = 2\r\n");	
 	printf("-n_wpp_threads: \t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
 	printf("-max_pred_depth: \t [0-4], default = 4\r\n");
@@ -120,12 +121,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for extended help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -192,11 +193,16 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->num_ref_frames);
-		}		
+		}
 		else if(strcmp(argv[args_parsed], "-qp")==0 && args_parsed+1<argc)//quant
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->qp );
+		}
+		else if(strcmp(argv[args_parsed], "-motion_estimation_precision")==0 && args_parsed+1<argc)//Number of reference frames to used as reference for inter prediction
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->motion_estimation_precision);
 		}
 		else if(strcmp(argv[args_parsed], "-chroma_qp_offset")==0 && args_parsed+1<argc)//qp offset to apply for chroma
 		{
@@ -259,6 +265,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		}
 		else	//arg not recognized. Continue to next
 		{
+			printf("\r\nunrecognized argument: %s\r\n",argv[args_parsed]);
 			args_parsed++;
 		}
 	}
@@ -273,8 +280,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;
-	int num_frames = 15;//1500;//500;//2200;//100;//700;
+	int skipped_frames = 25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int num_frames = 1500;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -289,15 +296,15 @@ int main (int argc, char **argv)
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-#ifdef FILE_REF
 //	strcpy(file_ref_name, FILE_REF);
-#endif
+
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
 	HmrCfg.intra_period = 20;//1;
 	HmrCfg.gop_size = 1;//0;
+	HmrCfg.motion_estimation_precision = HALF_PEL;//PEL;//QUARTER_PEL;//
 	HmrCfg.qp = 32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
@@ -306,7 +313,7 @@ int main (int argc, char **argv)
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 1;
+	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -314,6 +321,7 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
+	HmrCfg.reinit_gop_on_scene_change = 1;
 	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
@@ -330,13 +338,11 @@ int main (int argc, char **argv)
 		exit(0);
 	}
 
-#ifdef FILE_REF
-	if(!(reffile = fopen(file_ref_name, "wb")))
+	if((strlen(file_ref_name)>0) && !(reffile = fopen(file_ref_name, "wb")))
 	{
-//		printf("Error opening raw output file: %s\r\n", file_ref_name);
+		printf("Error opening raw output file: %s\r\n", file_ref_name);
 //		exit(0);
 	}
-#endif // FILE_REF
 
 	memset(&input_frame, 0, sizeof(input_frame));
 	memset(&output_stream, 0, sizeof(output_stream));
@@ -348,10 +354,16 @@ int main (int argc, char **argv)
 	stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	output_stream.stream.streams[0] = (unsigned char *)calloc(0x8000000,1);
 
-	output_frame.stream.streams[0] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height, 1);
-	output_frame.stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
-	output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
-	
+	output_frame.stream.streams[0] = NULL;
+	output_frame.stream.streams[1] = NULL;
+	output_frame.stream.streams[2] = NULL;
+
+	if(strlen(file_ref_name)>0)//if this is not allocated, the internal copy is not done
+	{
+		output_frame.stream.streams[0] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height, 1);
+		output_frame.stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
+		output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
+	}
 
 	pEncoder = HOMER_enc_init();
 
@@ -380,21 +392,20 @@ int main (int argc, char **argv)
 		}
 
 		input_frame.stream = stream;
+		input_frame.pts = encoded_frames;
+		input_frame.image_type = IMAGE_AUTO;
 
 		if(bCoding)
 		{
 			num_nalus = 8;
 			HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
 //			printf("\r\ninput_frame %d: calling HOMER_enc_encode", encoded_frames);
-			fflush(stdout);
+//			fflush(stdout);
 			input_frames++;
 
 //			encoder_thread(pEncoder);
 
-			if(reffile!=NULL)//ouput yuv decoded frames (makes internal copy of data) - recomended for debug purposes
-				HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
-			else
-				HOMER_enc_get_coded_frame(pEncoder, NULL, nalu_out, &num_nalus);
+			HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
 
 			if(num_nalus>0)
 			{

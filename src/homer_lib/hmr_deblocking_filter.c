@@ -378,7 +378,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	int curr_part_global_y = ctu->y[Y_COMP]+curr_cu_info->y_position;
 	int partition_p_no_filter = 0;
 	int partition_q_no_filter = 0; 
-	int num_peels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
+	int num_pels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
 	int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
 	int16_t *aux_decoded_buff = decoded_buff;
 //	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
@@ -396,19 +396,19 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	{
 		offset = 1;
 		src_increment = decoded_buff_stride;
-		aux_decoded_buff += edge*num_peels_in_partition;
+		aux_decoded_buff += edge*num_pels_in_partition;
 	}
 	else  // (iDir == EDGE_HOR)
 	{
 		offset = decoded_buff_stride;
 		src_increment = 1;
-		aux_decoded_buff += edge*num_peels_in_partition*decoded_buff_stride;
+		aux_decoded_buff += edge*num_pels_in_partition*decoded_buff_stride;
 	}
 
 //	num_partitions = ed->max_cu_size >> curr_cu_info->depth;
-//	num_partitions /= num_peels_in_partition;
+//	num_partitions /= num_pels_in_partition;
 
-	num_partitions = curr_cu_info->size/num_peels_in_partition;
+	num_partitions = curr_cu_info->size/num_pels_in_partition;
 
 	for ( idx = 0; idx < num_partitions; idx++ )
 	{
@@ -427,7 +427,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 			int  beta_offset_div2 = currslice->slice_beta_offset_div2;
 			int  tc_offset_div2 = currslice->slice_tc_offset_div2;
 			int tc, beta, side_threshold, threshold_cut;
-			int blocks_in_partition;// = max(num_peels_in_partition>>2, 1);
+			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
 			int pcm_filter = (ed->sps.pcm_enabled_flag && ed->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
 			cu_partition_info_t *sub_cu_info = &ctu->partition_list[ed->partition_depth_start[ed->max_cu_depth]];//4x4 blocks
 
@@ -461,14 +461,14 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 			side_threshold = (beta+(beta>>1))>>3;
 			threshold_cut = tc*10;
 
-			blocks_in_partition = max(num_peels_in_partition>>2, 1);
+			blocks_in_partition = max(num_pels_in_partition>>2, 1);
 //			UInt  uiBlocksInPart = uiPelsInPart / 4 ? uiPelsInPart / 4 : 1;
 			for (block_idx = 0; block_idx<blocks_in_partition; block_idx++)//This is always [0,1]
 			{
-				int dp0 = calc_dp( aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+0), offset);
-				int dq0 = calc_dq( aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+0), offset);
-				int dp3 = calc_dp( aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+3), offset);
-				int dq3 = calc_dq( aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+3), offset);
+				int dp0 = calc_dp( aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+0), offset);
+				int dq0 = calc_dq( aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+0), offset);
+				int dp3 = calc_dp( aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+3), offset);
+				int dq3 = calc_dq( aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+3), offset);
 				int d0 = dp0 + dq0;
 				int d3 = dp3 + dq3;
 				int d =  d0 + d3;
@@ -492,12 +492,12 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 					int filter_p = (dp < side_threshold);
 					int filter_q = (dq < side_threshold);
 
-					int sw = use_strong_filter( offset, 2*d0, beta, tc, aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+0)) && 
-						use_strong_filter( offset, 2*d3, beta, tc, aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+3));
+					int sw = use_strong_filter( offset, 2*d0, beta, tc, aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+0)) && 
+						use_strong_filter( offset, 2*d3, beta, tc, aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+3));
 
 					for ( i = 0; i < DEBLOCK_SMALLEST_BLOCK/2; i++)
 					{
-						filter_luma(aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+i), offset, tc, sw, partition_p_no_filter, partition_q_no_filter, threshold_cut, filter_p, filter_q);
+						filter_luma(aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+i), offset, tc, sw, partition_p_no_filter, partition_q_no_filter, threshold_cut, filter_p, filter_q);
 					}
 				}
 			}
@@ -541,7 +541,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 	int curr_part_global_y = ctu->y[CHR_COMP]+curr_cu_info->y_position_chroma;
 	int partition_p_no_filter = 0;
 	int partition_q_no_filter = 0; 
-	int num_peels_in_partition = (ed->max_cu_size>>(ed->max_cu_depth+1));
+	int num_pels_in_partition = (ed->max_cu_size>>(ed->max_cu_depth+1));
 //	uint8_t *decoded_buff[3]  = {0,WND_POSITION_2D(uint8_t *, *decoded_wnd, U_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width), WND_POSITION_2D(uint8_t *, *decoded_wnd, V_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width)};
 	int16_t *aux_decoded_buff;
 //	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
@@ -554,9 +554,9 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 	int uiEdgeNumInLCUHor = raster_index / max_cu_width_units + edge;
 
 
-	num_partitions = curr_cu_info->size_chroma/num_peels_in_partition;//ed->max_cu_size >> curr_cu_info->depth;
+	num_partitions = curr_cu_info->size_chroma/num_pels_in_partition;//ed->max_cu_size >> curr_cu_info->depth;
 
-	if ( (num_peels_in_partition < DEBLOCK_SMALLEST_BLOCK) && (( (uiEdgeNumInLCUVert%(DEBLOCK_SMALLEST_BLOCK/num_peels_in_partition))&&(dir==EDGE_VER) ) || ( (uiEdgeNumInLCUHor%(DEBLOCK_SMALLEST_BLOCK/num_peels_in_partition))&& dir==EDGE_HOR ) ))
+	if ( (num_pels_in_partition < DEBLOCK_SMALLEST_BLOCK) && (( (uiEdgeNumInLCUVert%(DEBLOCK_SMALLEST_BLOCK/num_pels_in_partition))&&(dir==EDGE_VER) ) || ( (uiEdgeNumInLCUHor%(DEBLOCK_SMALLEST_BLOCK/num_pels_in_partition))&& dir==EDGE_HOR ) ))
 	{
 		return;
 	}
@@ -566,13 +566,13 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 	{
 		offset = 1;
 		src_increment = decoded_buff_stride;
-//		aux_decoded_buff += edge*num_peels_in_partition;
+//		aux_decoded_buff += edge*num_pels_in_partition;
 	}
 	else  // (iDir == EDGE_HOR)
 	{
 		offset = decoded_buff_stride;
 		src_increment = 1;
-//		aux_decoded_buff += edge*num_peels_in_partition*decoded_buff_stride;
+//		aux_decoded_buff += edge*num_pels_in_partition*decoded_buff_stride;
 	}
 
 	for ( idx = 0; idx < num_partitions; idx++ )
@@ -592,7 +592,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 			int  beta_offset_div2 = currslice->slice_beta_offset_div2;
 			int  tc_offset_div2 = currslice->slice_tc_offset_div2;
 			int tc;//, beta, side_threshold, threshold_cut;
-//			int blocks_in_partition;// = max(num_peels_in_partition>>2, 1);
+//			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
 			int pcm_filter = (ed->sps.pcm_enabled_flag && ed->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
 			cu_partition_info_t *sub_cu_info = &ctu->partition_list[ed->partition_depth_start[ed->max_cu_depth]];//4x4 blocks
 
@@ -625,7 +625,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 				int chr_qp_offset = (ch_component == U_COMP)?ed->pps.cb_qp_offset:ed->pps.cr_qp_offset;
 				int chr_qp;
 				aux_decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
-				aux_decoded_buff += edge*num_peels_in_partition*offset;
+				aux_decoded_buff += edge*num_pels_in_partition*offset;
 
 //				qp = ((ctu_aux->qp+ctu->qp+1)>>1)+chr_qp_offset;
 //				qp = (ctu_aux->qp[aux_abs_idx] + sub_cu_info->qp)>>1;
@@ -643,12 +643,12 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 //				side_threshold = (beta+(beta>>1))>>3;
 //				threshold_cut = tc*10;
 
-//				blocks_in_partition = max(num_peels_in_partition>>2, 1);
+//				blocks_in_partition = max(num_pels_in_partition>>2, 1);
 	//			UInt  uiBlocksInPart = uiPelsInPart / 4 ? uiPelsInPart / 4 : 1;
-				for (block_idx = 0; block_idx<num_peels_in_partition; block_idx++)//This is always [0,1]
+				for (block_idx = 0; block_idx<num_pels_in_partition; block_idx++)//This is always [0,1]
 				{
-					filter_chroma(aux_decoded_buff+src_increment*(block_idx+idx*num_peels_in_partition), offset, tc , partition_p_no_filter, partition_q_no_filter);
-//					filter_luma(aux_decoded_buff+src_increment*(idx*num_peels_in_partition+block_idx*4+i), offset, tc, sw, partition_p_no_filter, partition_q_no_filter, threshold_cut, filter_p, filter_q);
+					filter_chroma(aux_decoded_buff+src_increment*(block_idx+idx*num_pels_in_partition), offset, tc , partition_p_no_filter, partition_q_no_filter);
+//					filter_luma(aux_decoded_buff+src_increment*(idx*num_pels_in_partition+block_idx*4+i), offset, tc, sw, partition_p_no_filter, partition_q_no_filter, threshold_cut, filter_p, filter_q);
 				}
 			}//for (chr_component..
 		}
@@ -665,9 +665,9 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 	int abs_y = ctu->y[Y_COMP]+curr_cu_info->y_position;
 //	int left_edge = (!(abs_x==0 || deblocking_filter_disable));//left_edge indica si hay que filtrar la columna izq del PU o no
 //	int top_edge = (!(abs_y==0 || deblocking_filter_disable));//top_edge indica si hay que filtrar la fila top del PU o no
-	int num_peels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
-	int deblock_partition_idx_incr = max((DEBLOCK_SMALLEST_BLOCK / num_peels_in_partition), 1);
-	int pu_size_in_deblock_units = curr_cu_info->size/num_peels_in_partition;
+	int num_pels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
+	int deblock_partition_idx_incr = max((DEBLOCK_SMALLEST_BLOCK / num_pels_in_partition), 1);
+	int pu_size_in_deblock_units = curr_cu_info->size/num_pels_in_partition;
 					
 	cu_partition_info_t *sub_cu_info;
 
@@ -680,7 +680,7 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 	{
 		uint bs_check;
 						
-		if(num_peels_in_partition==4)//if( (g_uiMaxCUWidth >> g_uiMaxCUDepth) == 4 ) // I think this is always true. At least in homerHEVC
+		if(num_pels_in_partition==4)//if( (g_uiMaxCUWidth >> g_uiMaxCUDepth) == 4 ) // I think this is always true. At least in homerHEVC
 		{
 			bs_check = ((dir==EDGE_VER && ((part_idx&0x1) == 0)) || (dir==EDGE_HOR && ((part_idx&0x2) == 0)));//bs_check signals whether the partition unit contains the right column or the bottom line
 		}
@@ -704,7 +704,7 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 	for(part_idx = 0; part_idx < pu_size_in_deblock_units; part_idx+=deblock_partition_idx_incr)
 	{
 		deblock_filter_luma(ed, ctu, curr_cu_info, &ed->curr_reference_frame->img, currslice, dir, part_idx);
-		if ( (num_peels_in_partition>DEBLOCK_SMALLEST_BLOCK) || (part_idx % ( (DEBLOCK_SMALLEST_BLOCK<<1)/num_peels_in_partition ) ) == 0 )
+		if ( (num_pels_in_partition>DEBLOCK_SMALLEST_BLOCK) || (part_idx % ( (DEBLOCK_SMALLEST_BLOCK<<1)/num_pels_in_partition ) ) == 0 )
 		{
 			deblock_filter_chroma(ed, ctu, curr_cu_info, &ed->curr_reference_frame->img, currslice, dir, part_idx);
 //		  xEdgeFilterChroma   ( pcCU, uiAbsZorderIdx, uiDepth, iDir, iEdge );
@@ -722,7 +722,7 @@ void set_edge_filter_pu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_par
 	int deblocking_filter_disable = currslice->deblocking_filter_disabled_flag;
 	int left_edge = (!(abs_x==0 || deblocking_filter_disable));//left_edge indica si hay que filtrar la columna izq del PU o no
 	int top_edge = (!(abs_y==0 || deblocking_filter_disable));//top_edge indica si hay que filtrar la fila top del PU o no
-	int num_peels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
+	int num_pels_in_partition = (ed->max_cu_size>>ed->max_cu_depth);
 //	cu_partition_info_t *sub_cu_info;
 	int curr_depth = curr_cu_info->size;
 	int curr_cu_size = curr_cu_info->size;
