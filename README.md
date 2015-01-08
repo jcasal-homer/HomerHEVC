@@ -16,8 +16,9 @@ Code style of the development is C'99 and recursive functions have been implemen
 
 HomerHEVC is still under development and will improve in quality and performance during the development.
 
-Current Features (latest version is HomerHEVC_v1.0_Beta)
+Current Features (latest version is HomerHEVC_v1.1)
 --------------------------------------------------------
+- Multiplatform (Linux,Windows)
 - 8 bit-depth.
 - Intra and Baseline profile (I and P images with 1 reference image).
 - All intra prediction modes.
