@@ -90,7 +90,7 @@ void print_help()
 	printf("-gop_size: \t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t qp[0-51], default = 32\r\n");
-	printf("-motion_estimation_precision: 0=pel, 1=half_pel, 2=quarter_pel, default = 2\r\n");
+	printf("-motion_estimation_precision: 0=pel, 1=half_pel, 2=quarter_pel, default = 1\r\n");
 	printf("-chroma_qp_offset: \t chroma_qp_offset[-12,12], default = 2\r\n");	
 	printf("-n_wpp_threads: \t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
 	printf("-max_pred_depth: \t [0-4], default = 4\r\n");
