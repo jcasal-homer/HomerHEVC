@@ -79,32 +79,32 @@ void print_help()
 	printf("\r\nhomer_app [-option] [value]...\r\n");
 
 	printf("options:\r\n");
-	printf("-h: \t\t\t help\r\n");
-	printf("-i: \t\t\t input yuv file\r\n");
-	printf("-o: \t\t\t output 265 file\r\n");
-	printf("-o-raw: \t\t output raw frames in yuv format\r\n");
-	printf("-widthxheight: \t\t default = 1280x720\r\n");
-	printf("-frame_rate: \t\t default = 50 fps\r\n");	
-	printf("-cu_size: \t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_preriod: \t default = 20 \r\n");
-	printf("-gop_size: \t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
-	printf("-num_ref_frame: \t default = 1 (only 1 reference currently supported) \r\n");	
-	printf("-qp: \t\t\t qp[0-51], default = 32\r\n");
-	printf("-motion_estimation_precision: 0=pel, 1=half_pel, 2=quarter_pel, default = 1\r\n");
-	printf("-chroma_qp_offset: \t chroma_qp_offset[-12,12], default = 2\r\n");	
-	printf("-n_wpp_threads: \t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
-	printf("-max_pred_depth: \t [0-4], default = 4\r\n");
-	printf("-max_intra_tr_depth: \t [0-4], default = 2\r\n");
-	printf("-max_inter_tr_depth: \t [0-4], default = 1\r\n");
-	printf("-sign_hiding: \t\t 0=off, 1=on, default = 1\r\n");
-	printf("-bitrate_mode: \t\t 0=fixed qp, 1=CBR (Constant bitrate), default = CBR\r\n");
-	printf("-bitrate: \t\t in kbps when bitrate_mode=CBR, default = 5000\r\n");
-	printf("-vbv_size: \t\t in kbps when bitrate_mode=CBR, default = .5*bitrate\r\n");
-	printf("-vbv_init: \t\t in kbps when bitrate_mode=CBR, default = .1*bitrate\r\n");
-	printf("-performance_mode: \t 0=full computation, 1=fast , 2= ultra fast, default = fast\r\n");
-	printf("-rd: \t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd, default = fast\r\n");
-	printf("-n_frames: \t\t default = 40\r\n");
-	printf("-skipped_frames: \t default = 0\r\n");
+	printf("-h: \t\t\t\t\t help\r\n");
+	printf("-i: \t\t\t\t\t input yuv file\r\n");
+	printf("-o: \t\t\t\t\t output 265 file\r\n");
+	printf("-o-raw: \t\t\t\t output raw frames in yuv format\r\n");
+	printf("-widthxheight: \t\t\t\t default = 1280x720\r\n");
+	printf("-frame_rate: \t\t\t\t default = 50 fps\r\n");	
+	printf("-cu_size: \t\t\t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
+	printf("-intra_preriod: \t\t\t default = 20 \r\n");
+	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
+	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
+	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
+	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel, default = 1\r\n");
+	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12], default = 2\r\n");	
+	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
+	printf("-max_pred_depth: \t\t\t [0-4], default = 4\r\n");
+	printf("-max_intra_tr_depth: \t\t\t [0-4], default = 2\r\n");
+	printf("-max_inter_tr_depth: \t\t\t [0-4], default = 1\r\n");
+	printf("-sign_hiding: \t\t\t\t 0=off, 1=on, default = 1\r\n");
+	printf("-bitrate_mode: \t\t\t\t 0=fixed qp, 1=CBR (Constant bitrate), default = CBR\r\n");
+	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR, default = 5000\r\n");
+	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = .5*bitrate\r\n");
+	printf("-vbv_init: \t\t\t\t in kbps when bitrate_mode=CBR, default = .1*bitrate\r\n");
+	printf("-performance_mode: \t\t\t 0=full computation, 1=fast , 2= ultra fast, default = fast\r\n");
+	printf("-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd, default = fast\r\n");
+	printf("-n_frames: \t\t\t\t default = 15\r\n");
+	printf("-skipped_frames: \t\t\t default = 0\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
 	printf("intra:\r\n");
@@ -280,8 +280,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 1500;//1500;//500;//2200;//100;//700;//15;
+	int skipped_frames = 0;//25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int num_frames = 15;//1500;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -293,6 +293,8 @@ int main (int argc, char **argv)
 	unsigned int num_nalus = 8;
 
 	HVENC_Cfg	HmrCfg;
+
+	int reinit_cnt;
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
@@ -365,6 +367,14 @@ int main (int argc, char **argv)
 		output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	}
 
+
+	for(reinit_cnt=0;reinit_cnt<100;reinit_cnt++)
+	{
+		pEncoder = HOMER_enc_init();
+		if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
+			return -1;
+		HOMER_enc_close(pEncoder);
+	}
 	pEncoder = HOMER_enc_init();
 
 	if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
