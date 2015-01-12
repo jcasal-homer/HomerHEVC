@@ -119,8 +119,8 @@ void sync_cont_init(void** h)
 void sync_cont_delete(void* h)
 {
 	sync_hmr_container_t * cont = (sync_hmr_container_t *)h;
-	SEM_DESTROY(&cont->buffs_clean.semaphore);
-	SEM_DESTROY(&cont->buffs_filled.semaphore);
+	SEM_DESTROY(cont->buffs_clean.sem);
+	SEM_DESTROY(cont->buffs_filled.sem);
 
 	free(h);
 }

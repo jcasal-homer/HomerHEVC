@@ -86,6 +86,7 @@ void wnd_delete(wnd_t *wnd)
 	{
 		if(wnd->pwnd[i] != NULL)
 			hmr_aligned_free(wnd->palloc[i]);
+		wnd->pwnd[i] = NULL;
 	}
 }
 

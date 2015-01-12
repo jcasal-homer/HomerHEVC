@@ -142,7 +142,7 @@ void *HOMER_enc_init()
 	memcpy(phvenc->ang_table, ang_table, sizeof(ang_table));
 	memcpy(phvenc->inv_ang_table, inv_ang_table, sizeof(inv_ang_table));
 
-	sync_cont_init(&phvenc->input_hmr_container);
+	sync_cont_init(&phvenc->input_hmr_container);	
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
@@ -185,11 +185,13 @@ void *HOMER_enc_init()
 	return phvenc;
 }
 
+#define HMR_FREE(a) if(a!=NULL)free(a);(a)=NULL;
+#define HMR_ALIGNED_FREE(a) if(a!=NULL)hmr_aligned_free(a);(a)=NULL;
 
 void HOMER_enc_close(void* h)
 {
 	hvenc_t* phvenc = (hvenc_t*)h;
-	int i;
+	int i,j;
 	int ithreads;
 	int size_index;
 	if(phvenc->run==1)
@@ -200,189 +202,178 @@ void HOMER_enc_close(void* h)
 			JOINT_THREAD(phvenc->encoder_thread);		
 	}
 
-	SEM_DESTROY(phvenc->deblock_filter_sem);
-	for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)//hasta ahora solo hemos alojado 1
+	free(phvenc->ref_pic_set_list);phvenc->ref_pic_set_list=NULL;
+	free(phvenc->deblock_partition_info);phvenc->deblock_partition_info=NULL;
+
+	for(ithreads=0;ithreads<phvenc->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = phvenc->thread[ithreads];
 		if(henc_th==NULL)
 			break;
 
-		SEM_DESTROY(henc_th->synchro_signal);
-		free(henc_th->partition_info);				
+		HMR_FREE(henc_th->ctu_rd->skipped)
+		HMR_FREE(henc_th->ctu_rd->pred_mode)
+		HMR_FREE(henc_th->ctu_rd->part_size_type)
+		HMR_FREE(henc_th->ctu_rd)
+	
+		HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[V_COMP])
+		HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[U_COMP])
 
-		//----------------------------current thread processing buffers deallocation	-----
-		wnd_delete(&henc_th->curr_mbs_wnd);
-		
-		//alloc processing windows and buffers
-		hmr_aligned_free(henc_th->adi_pred_buff);
-		hmr_aligned_free(henc_th->adi_filtered_pred_buff);
-		hmr_aligned_free(henc_th->top_pred_buff);
-		hmr_aligned_free(henc_th->left_pred_buff);
-		hmr_aligned_free(henc_th->bottom_pred_buff);
-		hmr_aligned_free(henc_th->right_pred_buff);
+		for(i=0;i<NUM_CBF_BUFFS;i++)
+		{
+			HMR_ALIGNED_FREE(henc_th->tr_idx_buffs[i])
+			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[V_COMP][i])
+			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[U_COMP][i])
+			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[Y_COMP][i])
+			HMR_ALIGNED_FREE(henc_th->cbf_buffs[V_COMP][i])
+			HMR_ALIGNED_FREE(henc_th->cbf_buffs[U_COMP][i])
+			HMR_ALIGNED_FREE(henc_th->cbf_buffs[Y_COMP][i])			
+		}
 
-		wnd_delete(&henc_th->prediction_wnd);
-		wnd_delete(&henc_th->residual_wnd);
-		wnd_delete(&henc_th->residual_dec_wnd);
-
-		for(i=0;i<NUM_QUANT_WNDS;i++)
-			wnd_delete(&henc_th->transform_quant_wnd[i]);
-		wnd_delete(&henc_th->itransform_iquant_wnd);
+		HMR_ALIGNED_FREE(henc_th->cabac_aux_buff)
+		for(j=0;j<4;j++)
+		{
+			wnd_delete(&henc_th->filtered_block_temp_wnd[j]);
+			for(i=0;i<4;i++)
+			{
+				wnd_delete(&henc_th->filtered_block_wnd[j][i]);
+			}
+		}		
 
 		for(i=0;i<NUM_DECODED_WNDS;i++)
 			wnd_delete(&henc_th->decoded_mbs_wnd[i]);
 
-		hmr_aligned_free(henc_th->pred_aux_buff);
-		hmr_aligned_free(henc_th->aux_buff);
-		hmr_aligned_free(henc_th->cabac_aux_buff);
+		wnd_delete(&henc_th->itransform_iquant_wnd);
 
-		//alloc buffers to gather and consolidate information
-		for(i=0;i<NUM_CBF_BUFFS;i++)
-		{
-			hmr_aligned_free(henc_th->cbf_buffs[Y_COMP][i]);
-			hmr_aligned_free(henc_th->cbf_buffs[U_COMP][i]);
-			hmr_aligned_free(henc_th->cbf_buffs[V_COMP][i]);
-			hmr_aligned_free(henc_th->intra_mode_buffs[Y_COMP][i]);
-			hmr_aligned_free(henc_th->intra_mode_buffs[U_COMP][i]);
-			hmr_aligned_free(henc_th->intra_mode_buffs[V_COMP][i]);
-			hmr_aligned_free(henc_th->tr_idx_buffs[i]);
+		for(i=0;i<NUM_QUANT_WNDS;i++)
+			wnd_delete(&henc_th->transform_quant_wnd[i]);
 
-/*			hmr_aligned_free(henc_th->mv_ref0[Y_COMP][i]);
-			hmr_aligned_free(henc_th->mv_ref0[U_COMP][i]);
-			hmr_aligned_free(henc_th->mv_ref0[V_COMP][i]);
+		HMR_ALIGNED_FREE(henc_th->aux_buff)
 
-			hmr_aligned_free(henc_th->mv_ref1[Y_COMP][i]);
-			hmr_aligned_free(henc_th->mv_ref1[U_COMP][i]);
-			hmr_aligned_free(henc_th->mv_ref1[V_COMP][i]);
+		wnd_delete(&henc_th->residual_dec_wnd);
+		wnd_delete(&henc_th->residual_wnd);
+		wnd_delete(&henc_th->prediction_wnd);
 
-			hmr_aligned_free(henc_th->ref_idx0[Y_COMP][i]);
-			hmr_aligned_free(henc_th->ref_idx0[V_COMP][i]);
-			hmr_aligned_free(henc_th->ref_idx0[U_COMP][i]);
+		HMR_ALIGNED_FREE(henc_th->pred_aux_buff)
 
-			hmr_aligned_free(henc_th->ref_idx1[Y_COMP][i]);
-			hmr_aligned_free(henc_th->ref_idx1[V_COMP][i]);
-			hmr_aligned_free(henc_th->ref_idx1[U_COMP][i]);
-*/		}
+		wnd_delete(&henc_th->curr_mbs_wnd);
 
-		hmr_aligned_free(henc_th->cbf_buffs_chroma[U_COMP]);
-		hmr_aligned_free(henc_th->cbf_buffs_chroma[V_COMP]);
+		HMR_ALIGNED_FREE(henc_th->adi_pred_buff)
+		HMR_ALIGNED_FREE(henc_th->adi_filtered_pred_buff)
+		HMR_ALIGNED_FREE(henc_th->top_pred_buff)
+		HMR_ALIGNED_FREE(henc_th->left_pred_buff)
+		HMR_ALIGNED_FREE(henc_th->bottom_pred_buff)
+		HMR_ALIGNED_FREE(henc_th->right_pred_buff)
 
-		free(henc_th->ctu_rd->part_size_type);
-		free(henc_th->ctu_rd->pred_mode);
-		free(henc_th->ctu_rd->skipped);
-		free(henc_th->ctu_rd);
+		HMR_FREE(henc_th->partition_info)
+
+		SEM_DESTROY(henc_th->synchro_signal);
 
 		free(henc_th);
 	}
+	SEM_DESTROY(phvenc->deblock_filter_sem);
 
-	//-------------------------------------------------------------------------------------------------------
-	
-	for(i=0;i<NUM_INPUT_FRAMES;i++)
+	for(i=0;i<phvenc->pict_total_ctu;i++)
 	{
-		wnd_delete(&phvenc->input_frames[i].img);
+		HMR_FREE(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0])
+		HMR_FREE(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0])
+		HMR_FREE(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0])
+		HMR_FREE(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0])
+		HMR_FREE(phvenc->ctu_info[i].qp)
+		HMR_FREE(phvenc->ctu_info[i].skipped)
+		HMR_FREE(phvenc->ctu_info[i].pred_mode)
+		HMR_FREE(phvenc->ctu_info[i].part_size_type)
+		HMR_FREE(phvenc->ctu_info[i].pred_depth)
+		HMR_FREE(phvenc->ctu_info[i].tr_idx)
+		HMR_FREE(phvenc->ctu_info[i].inter_mode)
+		HMR_FREE(phvenc->ctu_info[i].intra_mode[Y_COMP])
+		HMR_FREE(phvenc->ctu_info[i].cbf[Y_COMP])
 	}
 
+	HMR_FREE(phvenc->ctu_info)
+
+	for(i=0;i<phvenc->num_ec;i++)
+	{
+		HMR_FREE(phvenc->ec_list[i].b_ctx)
+		HMR_FREE(phvenc->ec_list[i].contexts)
+		HMR_FREE(phvenc->ec_list[i].e_ctx)
+	}
+	HMR_FREE(phvenc->ec_list)
+
+	for(i=0;i<phvenc->num_ee;i++)
+	{
+		HMR_FREE(phvenc->ee_list[i]->b_ctx)
+		HMR_FREE(phvenc->ee_list[i]->contexts)
+		HMR_FREE(phvenc->ee_list[i]->e_ctx)
+		HMR_FREE(phvenc->ee_list[i]);
+	}
+	HMR_FREE(phvenc->ee_list)
+
+	for(i=0;i<phvenc->num_sub_streams;i++)
+		hmr_bitstream_free(&phvenc->aux_bs[i]);
+	HMR_FREE(phvenc->aux_bs)
+
+	HMR_FREE(phvenc->sub_streams_entry_point_list)
 
 	for(i=0;i<2*MAX_NUM_REF;i++)
 	{
 		wnd_delete(&phvenc->ref_wnds[i].img);
 	}
 
-	//delete previous streams
-	for(i=0;i<phvenc->num_sub_streams;i++)
-		hmr_bitstream_free(&phvenc->aux_bs[i]);
-
-	free(phvenc->aux_bs);
-	free(phvenc->sub_streams_entry_point_list);
-
-	//delete enviroments
-	for(i=0;i<phvenc->num_ee;i++)
+	for(i=0;i<NUM_INPUT_FRAMES;i++)
 	{
-		free(phvenc->ee_list[i]->e_ctx);
-		free(phvenc->ee_list[i]->contexts);
-		free(phvenc->ee_list[i]->b_ctx);
-		phvenc->ee_list[i]->type = EE_INVALID;
-	}
-	free(phvenc->ee_list);
-
-	//delete previous rd counters
-	for(i=0;i<phvenc->num_ec;i++)
-	{
-		free(phvenc->ec_list[i].e_ctx);phvenc->ec_list[i].e_ctx=NULL;
-		free(phvenc->ec_list[i].contexts);phvenc->ec_list[i].contexts=NULL;
-		free(phvenc->ec_list[i].b_ctx);phvenc->ec_list[i].b_ctx=NULL;
-		phvenc->ec_list[i].type = EE_INVALID;
-	}
-	free(phvenc->ec_list);
-
-	//---------------------------------------------------------del init -----------------------------------
-	free(phvenc->abs2raster_table);
-	free(phvenc->raster2abs_table);
-
-	for ( i=0; i<MAX_CU_DEPTHS; i++ ) //scan block size (2x2, ....., 128x128)
-	{
-		hmr_aligned_free(phvenc->scan_pyramid[0][i]);
-		hmr_aligned_free(phvenc->scan_pyramid[1][i]);
-		hmr_aligned_free(phvenc->scan_pyramid[2][i]);
-		hmr_aligned_free(phvenc->scan_pyramid[3][i]);
+		wnd_delete(&phvenc->input_frames[i].img);
 	}
 
-	for ( size_index=0; size_index<NUM_SCALING_MODES; size_index++ )//size_index (4x4,8x8,16x16,32x32)
+	//--------------------------------------------------------HOMER_enc_init-----------------------------------------------------------------------------
+
+	for(i=0;i<NUM_OUTPUT_NALUS;i++)
+		hmr_bitstream_free(&phvenc->slice_nalu_list[i].bs);
+
+	hmr_bitstream_free(&phvenc->pps_nalu.bs);
+	hmr_bitstream_free(&phvenc->sps_nalu.bs);
+	hmr_bitstream_free(&phvenc->vps_nalu.bs);
+	hmr_bitstream_free(&phvenc->slice_bs);
+
+	sync_cont_delete(phvenc->input_hmr_container);
+	cont_delete(phvenc->output_hmr_container);
+	cont_delete(phvenc->cont_empty_reference_wnds);
+
+	HMR_FREE(phvenc->ang_table)
+	HMR_FREE(phvenc->inv_ang_table)
+
+	HMR_ALIGNED_FREE(phvenc->deblock_edge_filter[EDGE_HOR])
+	HMR_ALIGNED_FREE(phvenc->deblock_edge_filter[EDGE_VER])
+	HMR_ALIGNED_FREE(phvenc->deblock_filter_strength_bs[EDGE_HOR])
+	HMR_ALIGNED_FREE(phvenc->deblock_filter_strength_bs[EDGE_VER])
+
+	for ( size_index=0; size_index<NUM_SCALING_MODES; size_index++ )
 	{
 		int list_index;
 		for ( list_index=0; list_index<num_scaling_list[size_index]; list_index++ )//list_index
 		{
 			int qp;
+			short *quant_def_table = get_default_qtable(size_index, list_index);
 			for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
 			{
-				hmr_aligned_free(phvenc->quant_pyramid[size_index][list_index][qp]);
-				hmr_aligned_free(phvenc->dequant_pyramid[size_index][list_index][qp]);
-				hmr_aligned_free(phvenc->scaling_error_pyramid[size_index][list_index][qp]);
+				HMR_ALIGNED_FREE(phvenc->scaling_error_pyramid[size_index][list_index][qp])
+				HMR_ALIGNED_FREE(phvenc->dequant_pyramid[size_index][list_index][qp])
+				HMR_ALIGNED_FREE(phvenc->quant_pyramid[size_index][list_index][qp])
 			}  
 		}
 	}
-	
-	//angular intra table
-	free(phvenc->ang_table);
-	free(phvenc->inv_ang_table);
 
-	if(phvenc->ctu_info!=NULL)
+	for ( i=0; i<MAX_CU_DEPTHS; i++ ) 
 	{
-		for(i=0;i<phvenc->pict_total_ctu;i++)
-		{
-			free(phvenc->ctu_info[i].cbf[Y_COMP]);
-			//intra mode
-			free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
-			free(phvenc->ctu_info[i].inter_mode);
-			//tr_idx, pred_depth, part_size_type, pred_mode
-			free(phvenc->ctu_info[i].tr_idx);
-			free(phvenc->ctu_info[i].pred_depth);
-			free(phvenc->ctu_info[i].part_size_type);
-			free(phvenc->ctu_info[i].pred_mode);
-			free(phvenc->ctu_info[i].skipped);
-			//inter
-			free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
-			free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
-			free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
-			free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
-//			free(phvenc->ctu_info[i].mv_ref1);
-			
-//			free(phvenc->ctu_info[i].ref_idx1);
-			free(phvenc->ctu_info[i].qp);
-		}
+		HMR_ALIGNED_FREE(phvenc->scan_pyramid[3][i])
+		HMR_ALIGNED_FREE(phvenc->scan_pyramid[2][i])
+		HMR_ALIGNED_FREE(phvenc->scan_pyramid[1][i])
+		HMR_ALIGNED_FREE(phvenc->scan_pyramid[0][i])
+	}  
 
-		free(phvenc->ctu_info);
-		phvenc->ctu_info = NULL;
-	}
-	hmr_bitstream_free(&phvenc->slice_bs);
-	hmr_bitstream_free(&phvenc->vps_nalu.bs);
-	hmr_bitstream_free(&phvenc->sps_nalu.bs);
-	hmr_bitstream_free(&phvenc->pps_nalu.bs);
-
-	for(i=0;i<NUM_OUTPUT_NALUS;i++)
-		hmr_bitstream_free(&phvenc->slice_nalu_list[i].bs);
-
-	free(phvenc);
+	HMR_FREE(phvenc->raster2abs_table)
+	HMR_FREE(phvenc->abs2raster_table)
+	HMR_FREE(phvenc)
 }
 
 
@@ -646,7 +637,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc->ec_list[i].type = EE_COUNTER;
 					ee_init_contexts(&phvenc->ec_list[i]);
 					bm_map_funcs(&phvenc->ec_list[i]);
-
 				}
 			}
 
@@ -720,7 +710,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_1] = phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
-
 			}
 
 
