@@ -86,7 +86,7 @@ void print_help()
 	printf("-widthxheight: \t\t\t\t default = 1280x720\r\n");
 	printf("-frame_rate: \t\t\t\t default = 50 fps\r\n");	
 	printf("-cu_size: \t\t\t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_preriod: \t\t\t default = 20 \r\n");
+	printf("-intra_preriod: \t\t\t 0=infinite, default = 30 \r\n");
 	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
@@ -102,6 +102,7 @@ void print_help()
 	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = .5*bitrate\r\n");
 	printf("-vbv_init: \t\t\t\t in kbps when bitrate_mode=CBR, default = .1*bitrate\r\n");
 	printf("-performance_mode: \t\t\t 0=full computation, 1=fast , 2= ultra fast, default = fast\r\n");
+	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change, default = 1\r\n");
 	printf("-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd, default = fast\r\n");
 	printf("-n_frames: \t\t\t\t default = 15\r\n");
 	printf("-skipped_frames: \t\t\t default = 0\r\n");
@@ -123,7 +124,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 
 	if(argc==1)
 	{
-		printf ("\r\nno args passed!\r\ntype -h for extended help\r\n");
+		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
 
@@ -248,6 +249,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->performance_mode);
 		}
+		else if(strcmp(argv[args_parsed], "-scene_change")==0 && args_parsed+1<argc)//-scene_change: //0:do not reinit gop on scene change, 1:reinit gop on scene change
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->reinit_gop_on_scene_change);
+		}
 		else if(strcmp(argv[args_parsed], "-rd_mode")==0 && args_parsed+1<argc)//rd_mode: 0=OFF(DISTORTION_ONLY), 1=FULL_RD, 2=FAST_RD
 		{
 			args_parsed++;
@@ -304,7 +310,7 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 20;//1;
+	HmrCfg.intra_period = 30;//1;
 	HmrCfg.gop_size = 1;//0;
 	HmrCfg.motion_estimation_precision = HALF_PEL;//PEL;//QUARTER_PEL;//
 	HmrCfg.qp = 32;

@@ -35,25 +35,13 @@ void hmr_rc_init(hvenc_t* ed)
 	ed->rc.average_bits_per_ctu = ed->rc.average_pict_size/ed->pict_total_ctu;
 }
 
-void hmr_rc_init_seq(hvenc_t* ed)//seq goes from intra to intra
+void hmr_rc_init_seq(hvenc_t* ed)
 {
-/*	ed->r = (int)floor(2.0*ed->bit_rate/ed->frame_rate + 0.5);//floor function returns a floating-point value representing the largest integer that is less than or equal to x
-
-	// average activity 
-	ed->avg_act = 1000;//pq el bitrate se mide en unidades de 400 bps
-	ed->lastIntraFrame = -20;
-
-	ed->d=(ed->vbv_buffer_size*512);//*1024 = vbv_buff
-	ed->dAcc = 0;//(ed->vbv_buffer_size*256);
-	ed->dAccRestar = 0;//ed->dAcc>>4;
-*/
 }
 
 
-void hmr_rc_gop(hvenc_t* ed)//, int np, int nb)
+void hmr_rc_gop(hvenc_t* ed)
 {
-//	ed->Np = ed->fieldpic ? 2*np+1 : np;
-//	ed->Nb = ed->fieldpic ? 2*nb : nb;
 }
 
 
@@ -61,14 +49,19 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
 	int ithreads;
 	hvenc_t* ed = et->ed;
+	int clipped_intra_period = (ed->intra_period==0)?20:ed->intra_period;
 	if(ed->is_scene_change)
 	{
 		double pic_size_new;
 		if(et->ed->gop_reinit_on_scene_change && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
-			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
+		{
+			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
+		}
 		else
-			pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
-		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)ed->intra_period);	
+		{
+			pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
+		}
+		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 
 		ed->rc.target_bits_per_ctu = ed->rc.target_pict_size/ed->pict_total_ctu;
 
@@ -84,19 +77,20 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 {
 	int ithreads;
+	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
 	switch(currslice->slice_type)
 	{
 		case  I_SLICE:
 		{
 			currslice->qp = ed->pict_qp;
-			ed->rc.target_pict_size = (2.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)ed->intra_period);
+			ed->rc.target_pict_size = (2.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
 		case  P_SLICE:
 		{
-			double intra_avg_size = (2.3)*ed->rc.average_pict_size*sqrt((double)ed->intra_period);
+			double intra_avg_size = (2.3)*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			currslice->qp = ed->pict_qp;
-			ed->rc.target_pict_size = (ed->rc.average_pict_size*ed->intra_period-intra_avg_size)/(ed->intra_period-1);//.5*ed->rc.average_pict_size;
+			ed->rc.target_pict_size = (ed->rc.average_pict_size*clipped_intra_period-intra_avg_size)/(clipped_intra_period-1);//.5*ed->rc.average_pict_size;
 			break;	
 		}
 		case  B_SLICE:

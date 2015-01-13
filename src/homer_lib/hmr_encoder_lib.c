@@ -1252,7 +1252,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->max_num_merge_candidates = 5;
 
 //	if((currslice->poc%ed->intra_period)==0)
-	if((currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || img_type == IMAGE_I)
+	if((ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
 	{
 		ed->last_intra = currslice->poc;
 		currpict->img2encode->img_type = IMAGE_I;
@@ -1264,7 +1264,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 		currslice->depth = 0;
 		currslice->qp = ed->pict_qp;
 	}
-	else if((ed->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P)
+	else if((ed->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || ed->intra_period==0)
 	{
 		currslice->slice_type = P_SLICE;
 		currpict->img2encode->img_type = IMAGE_P;
