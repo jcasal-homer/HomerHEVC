@@ -367,14 +367,6 @@ int main (int argc, char **argv)
 		output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	}
 
-
-	for(reinit_cnt=0;reinit_cnt<100;reinit_cnt++)
-	{
-		pEncoder = HOMER_enc_init();
-		if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
-			return -1;
-		HOMER_enc_close(pEncoder);
-	}
 	pEncoder = HOMER_enc_init();
 
 	if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
