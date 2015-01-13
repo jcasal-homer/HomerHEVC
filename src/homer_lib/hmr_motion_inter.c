@@ -3014,10 +3014,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
 
-		if(curr_cu_info->abs_index==24)
-		{
-			int iiiii=0;
-		}
 #define DEPHT_COST	40
 		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
@@ -3027,10 +3023,6 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			if(part_size_type == SIZE_2Nx2N)
 			{
 				uint sad;
-				if(et->ed->num_encoded_frames == 2 && ctu->ctu_number == 1 && abs_index == 64)
-				{
-					int iiiii=0;
-				}
 				//encode inter
 				sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N, 	2.*curr_cu_info->size*curr_cu_info->size);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 #ifdef COMPUTE_AS_HM
@@ -3249,6 +3241,10 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				depth_state[curr_depth] = 3;
 			}
 		}
+		else
+		{
+			curr_cu_info->cost = MAX_COST;
+		}
 		cost_sum[curr_depth] += curr_cu_info->cost;
 
 		depth_state[curr_depth]++;
@@ -3262,13 +3258,13 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		{
 			int max_processing_depth;
 
-
 			while(depth_state[curr_depth]==4 && curr_depth>0)//>0 pq consolidamos sobre el padre, 
 			{
 				int is_max_depth = (curr_depth==et->max_pred_partition_depth);
 				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
 
 				depth_state[curr_depth] = 0;
+
 				best_cost = parent_part_info->cost;
 
 				consolidate_prediction_info(et, ctu, ctu_rd, parent_part_info, best_cost, cost, is_max_depth, cost_sum);

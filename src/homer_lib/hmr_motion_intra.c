@@ -666,12 +666,6 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 	int ctu_valid_colums = (ctu->x[Y_COMP]+ctu->size)>et->pict_width[Y_COMP]?(et->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_width)?(et->pict_width-ctu->y[Y_COMP]):ctu->size;
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
-//		if(et->ed->num_encoded_frames == 3 && ctu->ctu_number == 7 && curr_partition_info->abs_index >= 0)// && depth==3)	// if(/*et->ed->num_encoded_frames == 10 && */ctu->ctu_number == 10)// && /*curr_depth==2 && */curr_partition_info->abs_index == 64)
-		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 3 && curr_partition_info->abs_index==88)
-		{
-			int iiiiii=0;
-		}
-
 		curr_depth = curr_partition_info->depth;
 		curr_partition_info->is_tl_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position < et->pict_height[Y_COMP]) && (ctu->x[Y_COMP]+curr_partition_info->x_position < et->pict_width[Y_COMP]);
 		curr_partition_info->is_b_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position+curr_partition_info->size <= et->pict_height[Y_COMP]);

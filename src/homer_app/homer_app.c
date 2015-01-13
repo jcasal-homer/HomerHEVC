@@ -443,6 +443,19 @@ int main (int argc, char **argv)
 //	printf("\r\npulse una tecla\r\n");
 //	getchar();
 
+
+	free(stream.streams[0]);
+	free(stream.streams[1]);
+	free(stream.streams[2]);
+	free(output_stream.stream.streams[0]);
+
+	if(strlen(file_ref_name)>0)//if this is not allocated, the internal copy is not done
+	{
+		free(output_frame.stream.streams[0]);
+		free(output_frame.stream.streams[0]);
+		free(output_frame.stream.streams[0]);
+	}
+
 	fclose(infile);
 	fclose(outfile);
 	if(reffile!=NULL)
