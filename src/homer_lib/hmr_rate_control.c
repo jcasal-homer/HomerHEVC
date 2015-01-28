@@ -55,7 +55,8 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 		double pic_size_new;
 		if(et->ed->gop_reinit_on_scene_change && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
 		{
-			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
+			pic_size_new = (1.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+//			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		else
 		{
@@ -83,7 +84,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 		case  I_SLICE:
 		{
 			currslice->qp = ed->pict_qp;
-			ed->rc.target_pict_size = (2.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			ed->rc.target_pict_size = (3.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
 		case  P_SLICE:
@@ -151,19 +152,29 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	ed->rc.vbv_fullness += ed->rc.average_pict_size;
 	
 
-	if(currslice->slice_type == I_SLICE && ed->intra_period>1)
+	if(currslice->slice_type == I_SLICE && ed->intra_period!=1)
 	{
 		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		consumed_bitrate = ed->rc.average_pict_size;
-		ed->rc.vbv_fullness -= consumed_bitrate;
+		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;
+		ed->rc.acc_rate -= ed->rc.acc_avg;
 	}
-	else if((ed->is_scene_change && ed->gop_reinit_on_scene_change) && ed->intra_period>1 && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+	else if((ed->is_scene_change && ed->gop_reinit_on_scene_change) && ed->intra_period!=1)// && )
 	{
-		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
+		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+		{
+			ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
+			consumed_bitrate = ed->rc.average_pict_size;
+		}
+		else
+		{
+			ed->rc.acc_rate += consumed_bitrate/2;// - 2*ed->rc.average_pict_size;
+			consumed_bitrate /=2;// 2*ed->rc.average_pict_size;			
+		}
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-		consumed_bitrate = ed->rc.average_pict_size;
-		ed->rc.vbv_fullness -= consumed_bitrate;	
+		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;	
+		ed->rc.acc_rate -= ed->rc.acc_avg;
 	}
 /*	else if(consumed_bitrate>3.0*ed->rc.average_pict_size && ed->is_scene_change && ed->rc.vbv_fullness<.75*ed->rc.vbv_size)
 	{
@@ -233,11 +244,6 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	else
 		pic_corrector = 0;
 
-	if(ed->num_encoded_frames == 25)
-	{
-		int iiiii=0;
-	}
-
 	min_vbv_size = clip(ed->rc.vbv_fullness,ed->rc.vbv_fullness,ed->rc.vbv_size*.95);
 
 
@@ -255,7 +261,10 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	if(curr_thread->ed->intra_period>1)
 	{
 		if(currslice->slice_type == I_SLICE || (ed->is_scene_change && ed->gop_reinit_on_scene_change))
+		{
 			qp/=1.4-((double)ed->avg_dist/50000.);
+			//qp -=4;
+		}
 		else if(ed->is_scene_change)
 			qp/=1.15;
 	}
@@ -263,6 +272,11 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	if((/*ctu->ctu_number<2 || */ed->is_scene_change) && qp<=5)
 	{
 		qp=5;
+	}
+
+	if(ed->num_encoded_frames==21)
+	{
+		int iiiii=0;
 	}
 
 	return (int)clip(qp+.5,/*MIN_QP*/1.0,MAX_QP);
@@ -282,7 +296,8 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 	{
 //		if(et->ed->qp_depth==0 )
 //			qp = hmr_rc_calc_cu_qp(et);
-/*		else */if(curr_cu_info->depth <= et->ed->qp_depth)
+//		else 
+		if(curr_cu_info->depth <= et->ed->qp_depth)
 			qp = debug_qp;//hmr_rc_calc_cu_qp(et);
 		else
 			qp = curr_cu_info->parent->qp;

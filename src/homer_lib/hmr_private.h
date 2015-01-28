@@ -706,6 +706,7 @@ struct cu_partition_info_t
 	//intra
 	uint sum;
 //	uint distortion_chroma, cost_chroma;
+	uint sad;
 	uint distortion, cost;
 	uint variance, variance_luma, variance_chroma;
 	uint recursive_split;

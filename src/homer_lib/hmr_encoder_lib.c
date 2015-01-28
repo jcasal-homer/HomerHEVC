@@ -1851,6 +1851,9 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		{
 			char psnr_string[256];
 			int str_length;
+			char frame_type_str[2];
+			frame_type_str[0]=currpict->img2encode->img_type==IMAGE_I?('I'):currpict->img2encode->img_type==IMAGE_P?('P'):('B');
+			frame_type_str[1]=0;
 
 			profiler_accumulate(&frame_metrics);
 
@@ -1858,7 +1861,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->accumulated_psnr[0] += ed->current_psnr[Y_COMP];
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
-			printf("\r\nframe:%d, PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->num_encoded_frames-1, ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
+			printf("\r\nframe:%d, %s, bits:%d, PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->num_encoded_frames-1, frame_type_str, ed->slice_bs.streambytecnt*8, ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
 			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
 			printf("- vbv: %.2f, avg_dist: %.2f", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
 			fflush(stdout);

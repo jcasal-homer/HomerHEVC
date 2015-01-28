@@ -664,8 +664,15 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 	int max_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 	int ctu_valid_lines = (ctu->y[Y_COMP]+ctu->size)>et->pict_height[Y_COMP]?(et->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_height)?(et->pict_height-ctu->y[Y_COMP]):ctu->size;
 	int ctu_valid_colums = (ctu->x[Y_COMP]+ctu->size)>et->pict_width[Y_COMP]?(et->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;//((ctu->y[Y_COMP]+ctu->size)>et->pict_width)?(et->pict_width-ctu->y[Y_COMP]):ctu->size;
+
+
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
+		if(ctu->ctu_number == 220 && curr_partition_info->abs_index>=32)
+		{
+			int iiiii=0;
+		}
+
 		curr_depth = curr_partition_info->depth;
 		curr_partition_info->is_tl_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position < et->pict_height[Y_COMP]) && (ctu->x[Y_COMP]+curr_partition_info->x_position < et->pict_width[Y_COMP]);
 		curr_partition_info->is_b_inside_frame = (ctu->y[Y_COMP]+curr_partition_info->y_position+curr_partition_info->size <= et->pict_height[Y_COMP]);
@@ -1706,6 +1713,7 @@ void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 				for (l=0;l<4;l++)
 				{
+//					uint child_variance = .5+((double)curr_depth/5.5)*sqrt((double)parent_part_info->children[l]->variance);//+3*/*et->performance_mode2**/curr_depth;
 					uint child_variance = .5+((double)curr_depth/4.)*sqrt((double)parent_part_info->children[l]->variance)+3*/*et->performance_mode2**/curr_depth;
 					uint parent_variance = .5+sqrt((double)parent_part_info->variance);
 
@@ -1800,6 +1808,12 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		position = curr_partition_info->list_index - et->partition_depth_start[curr_depth];
 
+		if(ctu->ctu_number == 15 && curr_depth==2 && curr_partition_info->abs_index==0)
+		{
+			int iiiii=0;
+		}
+
+
 		cost_luma = cost_chroma = 0;
 		//rc
 		curr_partition_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_partition_info, currslice);
@@ -1819,11 +1833,6 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 			else
 #endif
 			{
-				if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 4 && curr_partition_info->abs_index==0)//part_size_type==SIZE_NxN
-				{
-					int iiiii=0;
-				}
-
 				if(part_size_type == SIZE_2Nx2N)
 				{
 					int iiiiii;
@@ -1839,6 +1848,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 					curr_partition_info->cost = cost_luma + cost_chroma;
 					cost_sum[curr_depth] += curr_partition_info->cost;
+					curr_partition_info->prediction_mode = INTRA_MODE;
 				}
 				else if(part_size_type == SIZE_NxN)
 				{
@@ -1852,6 +1862,7 @@ uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						curr_partition_info->cost = encode_intra_luma(et, ctu, gcnt, curr_depth, position+n, part_size_type);
 						cost_luma += curr_partition_info->cost;
 						cost_sum[curr_depth]+=curr_partition_info->cost;
+						curr_partition_info->prediction_mode = INTRA_MODE;
 						curr_partition_info++;
 					}
 					curr_partition_info-=4;

@@ -317,6 +317,11 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 
 			partition_cost[depth_state[curr_depth]] = 0;
 
+			if(ctu->ctu_number == 15 && curr_depth==2 && curr_partition_info->abs_index==0)
+			{
+				int iiiii=0;
+			}
+
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);

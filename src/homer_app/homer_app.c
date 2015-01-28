@@ -38,14 +38,14 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//TestEBU720p50.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT  "C:\\Patrones\\output_Homer.bin"
-#define FILE_REF  "C:\\Patrones\\refs_Homer.bin"
+#define FILE_OUT	"C:\\Patrones\\output_Homer_brazilian_zeros0.265"//TestEBU720p50_moreI.265"//output_Homer_synthetic_full_HM_prueba.265"
+#define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 
 #define HOR_SIZE	1280//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
@@ -86,7 +86,7 @@ void print_help()
 	printf("-widthxheight: \t\t\t\t default = 1280x720\r\n");
 	printf("-frame_rate: \t\t\t\t default = 50 fps\r\n");	
 	printf("-cu_size: \t\t\t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_preriod: \t\t\t 0=infinite, default = 30 \r\n");
+	printf("-intra_period: \t\t\t 0=infinite, default = 30 \r\n");
 	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
@@ -122,12 +122,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-	if(argc==1)
+/*	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-
+*/
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -286,8 +286,8 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 15;//1500;//1500;//500;//2200;//100;//700;//15;
+	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -304,16 +304,16 @@ int main (int argc, char **argv)
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-//	strcpy(file_ref_name, FILE_REF);
+	strcpy(file_ref_name, FILE_REF);
 
 	HmrCfg.size = sizeof(HmrCfg);
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 30;//1;
+	HmrCfg.intra_period = 100;//1;
 	HmrCfg.gop_size = 1;//0;
-	HmrCfg.motion_estimation_precision = HALF_PEL;//PEL;//QUARTER_PEL;//
-	HmrCfg.qp = 32;
+	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
+	HmrCfg.qp = 32;//32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
@@ -321,16 +321,16 @@ int main (int argc, char **argv)
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 5000;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*.5;//in kbps
-	HmrCfg.vbv_init = HmrCfg.bitrate*0.1;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
-	HmrCfg.reinit_gop_on_scene_change = 1;
-	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION ;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps
+	HmrCfg.vbv_init = HmrCfg.bitrate*0.25;//in kbps
+	HmrCfg.chroma_qp_offset = 0;
+	HmrCfg.reinit_gop_on_scene_change = 0;
+	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 
@@ -400,7 +400,7 @@ int main (int argc, char **argv)
 		}
 
 		input_frame.stream = stream;
-		input_frame.pts = encoded_frames;
+		input_frame.pts = input_frames-skipped_frames;
 		input_frame.image_type = IMAGE_AUTO;
 
 		if(bCoding)
@@ -458,8 +458,8 @@ int main (int argc, char **argv)
 	if(strlen(file_ref_name)>0)//if this is not allocated, the internal copy is not done
 	{
 		free(output_frame.stream.streams[0]);
-		free(output_frame.stream.streams[0]);
-		free(output_frame.stream.streams[0]);
+		free(output_frame.stream.streams[1]);
+		free(output_frame.stream.streams[2]);
 	}
 
 	fclose(infile);

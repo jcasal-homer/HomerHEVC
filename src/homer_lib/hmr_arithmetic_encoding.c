@@ -1888,10 +1888,6 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
-				if(et->cu_current+1 == et->pict_total_ctu)// && curr_partition_info->abs_index>=192)//if(ctu->ctu_number == et->pict_total_ctu-1 && curr_partition_info->abs_index==12)
-				{
-					int iiiii=0;
-				}
 				encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 			}
 			while(depth_state[curr_depth]==4)
