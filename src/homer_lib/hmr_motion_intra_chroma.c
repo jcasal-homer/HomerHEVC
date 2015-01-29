@@ -431,7 +431,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 		}
 		else if(et->rd_mode != RD_FULL && cost<best_cost)
 		{
-			cost += bit_cost*curr_partition_info->qp/1.5+.5;
+			cost += bit_cost*curr_partition_info->qp/0.35+.5;
 		}
 
 

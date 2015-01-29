@@ -266,7 +266,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 			//qp -=4;
 		}
 		else if(ed->is_scene_change)
-			qp/=1.15;
+			qp/=1.;
 	}
 
 	if((/*ctu->ctu_number<2 || */ed->is_scene_change) && qp<=5)

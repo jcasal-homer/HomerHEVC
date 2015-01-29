@@ -1650,7 +1650,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	}
 
 	if(et->rd_mode != RD_FULL)
-		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/1.5+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/0.35+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
 	else
 		return curr_partition_info->cost;
 }
