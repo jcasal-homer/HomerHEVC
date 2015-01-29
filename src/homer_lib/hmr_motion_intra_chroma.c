@@ -126,6 +126,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 
 	int best_pred_modes[3];
 	double best_pred_cost[3]= {DOUBLE_MAX,DOUBLE_MAX,DOUBLE_MAX};
+	uint best_cu_bitcost[3];
 
 	int curr_part_size, curr_part_size_shift;
 	int curr_adi_size;
@@ -223,7 +224,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 
 			if(et->rd_mode==RD_FULL)			//info for rd
 			{
-				int bit_cost;
+//				int bit_cost;
 				ctu_rd->intra_mode[CHR_COMP] = et->intra_mode_buffs[CHR_COMP][depth];
 
 				memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], mode_list[cu_mode_idx], curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
@@ -231,9 +232,9 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 				bit_cost = (double)rd_estimate_bits_intra_mode(et, ctu_rd, curr_partition_info, depth-(part_size_type==SIZE_NxN), FALSE);
 				cost += bit_cost*et->rd.sqrt_lambda;
 			}
-			else if(et->rd_mode==2)
+			else if(et->rd_mode != RD_FULL)
 			{
-				int bit_cost = 0;
+//				int bit_cost = 0;
 
 				if(mode_list[cu_mode_idx] == DM_CHROMA_IDX)
 					bit_cost = 1;
@@ -241,7 +242,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 					bit_cost = 12;
 				cost += bit_cost*et->rd.sqrt_lambda;
 			}
-			homer_update_cand_list( mode_list[cu_mode_idx], cost, 2, best_pred_modes, best_pred_cost);
+			homer_update_cand_list( mode_list[cu_mode_idx], cost, bit_cost, best_pred_modes, best_pred_cost, best_cu_bitcost);
 	}
 
 	//depth = 0 keeps the best result
@@ -249,7 +250,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 //	for(cu_mode_idx=0;cu_mode_idx<1;cu_mode_idx++)
 	{
 		cu_mode = best_pred_modes[cu_mode_idx];
-
+		bit_cost = best_cu_bitcost[cu_mode_idx];
 #else	//#ifndef COMPUTE_AS_HM
 
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
@@ -316,11 +317,6 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 			curr_adi_size = 2*2*curr_part_size+1;
 
 			partition_cost[depth_state[curr_depth]] = 0;
-
-			if(ctu->ctu_number == 15 && curr_depth==2 && curr_partition_info->abs_index==0)
-			{
-				int iiiii=0;
-			}
 
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
@@ -433,6 +429,12 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 			bit_cost = rd_get_intra_bits_qt(et, ctu_rd, curr_partition_info, depth, FALSE, gcnt);
 			cost += bit_cost*et->rd.lambda+.5;
 		}
+		else if(et->rd_mode != RD_FULL && cost<best_cost)
+		{
+			cost += bit_cost*curr_partition_info->qp/1.5+.5;
+		}
+
+
 
 		if(cost < best_cost)
 		{

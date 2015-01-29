@@ -341,7 +341,7 @@ void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
 		}
 	}
 
-	if(currslice->slice_type==I_SLICE)
+//	if(currslice->slice_type==I_SLICE)
 	{
 		qp_factor=0.57*lambda_scale;
 	}

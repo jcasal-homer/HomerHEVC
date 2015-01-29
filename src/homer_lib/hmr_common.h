@@ -220,7 +220,7 @@ void create_chroma_dir_list(int* list, int luma_mode);
 void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
 void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
 uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
-void homer_update_cand_list( uint uiMode, double Cost, uint uiFastCandNum, int CandModeList[3], double CandCostList[3] );
+void homer_update_cand_list( uint uiMode, double Cost, uint BitCost, int CandModeList[3], double CandCostList[3], uint BitCostList[3]);
 
 
 //hmr_transform.c

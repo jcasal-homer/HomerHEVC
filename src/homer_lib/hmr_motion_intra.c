@@ -911,12 +911,12 @@ void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* cur
 }
 
 
-void homer_update_cand_list( uint uiMode, double Cost, uint uiFastCandNum, int CandModeList[3], double CandCostList[3] )
+void homer_update_cand_list( uint uiMode, double Cost, uint BitCost, int CandModeList[3], double CandCostList[3], uint BitCostList[3])
 {
 	uint i;
 	uint aux_mode;	
 	double aux_cost;
-
+	double aux_bitcost;
 	{
 		for(i=0;i<3;i++)
 		{
@@ -924,10 +924,13 @@ void homer_update_cand_list( uint uiMode, double Cost, uint uiFastCandNum, int C
 			{
 				aux_mode = CandModeList[i] ;
 				aux_cost = CandCostList[i];
+				aux_bitcost = BitCost;
 				CandCostList[i] = Cost;
 				CandModeList[i] = uiMode;
+				BitCostList[i] = BitCost;
 				Cost = aux_cost;
 				uiMode=aux_mode;
+				BitCost=aux_bitcost;
 			}
 		}
 	}
@@ -1646,8 +1649,8 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	
 	}
 
-	if(et->rd_mode == RD_FAST)
-		return (curr_partition_info->cost+(bitcost_cu_mode/2)*et->rd.lambda+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+	if(et->rd_mode != RD_FULL)
+		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/1.5+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
 	else
 		return curr_partition_info->cost;
 }

@@ -274,6 +274,13 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		qp=5;
 	}
 
+	if(ed->num_encoded_frames==0)
+	{
+		qp+=4;
+	}
+
+
+
 	if(ed->num_encoded_frames==21)
 	{
 		int iiiii=0;
