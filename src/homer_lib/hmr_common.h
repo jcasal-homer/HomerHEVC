@@ -45,6 +45,7 @@
 
 #define EXCHANGE_PTR(type,a,b) {type* aux;aux=a; a=b; b=aux;}
 
+#define calc_mv_correction(qp, dist)	(qp*clip(dist/2000.,.15,1.4)) //1.25 flags //.35 Brazil //.15 synthetic, 
 
 //nal_unit_type values
 //Updated to HM-12.0

@@ -1650,7 +1650,11 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	}
 
 	if(et->rd_mode != RD_FULL)
-		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/0.35+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+	{
+		double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
+		return (curr_partition_info->cost+(bitcost_cu_mode)*correction)+.5;//curr_partition_info->qp*correction+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+//		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+	}
 	else
 		return curr_partition_info->cost;
 }

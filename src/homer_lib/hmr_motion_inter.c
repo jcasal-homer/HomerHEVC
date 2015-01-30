@@ -95,7 +95,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 		ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < 1.05*ssd_)
+		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -188,7 +188,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
 		ssd_ = weight*ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < 1.05*ssd_)
+		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -2063,10 +2063,14 @@ int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 
 	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
 	{
+		double correction = calc_mv_correction(curr_cu_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
 //		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
 //		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
-		int cost_mvx = curr_cu_info->qp/.35*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-		int cost_mvy = curr_cu_info->qp/.35*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+//		int cost_mvx = curr_cu_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+//		int cost_mvy = curr_cu_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		int cost_mvx = correction*((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
+		int cost_mvy = correction*((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+
 
 		int cost = 3+cost_mvx+cost_mvy;
 
@@ -3519,13 +3523,16 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 
 	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/15)
+	{
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
+		et->ed->avg_dist = avg_distortion;//update avg_dist as it evolves
+	}
 	else
 		avg_distortion = et->ed->avg_dist;
 
-	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu)
+	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/16)
 	{
-		if(total_intra_partitions > (total_partitions/2.5))
+		if(total_intra_partitions > (total_partitions/1.))
 		{
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)
@@ -3645,7 +3652,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				uint parent_sad = parent_part_info->sad;
 				uint child_sad = parent_part_info->children[0]->sad+parent_part_info->children[1]->sad+parent_part_info->children[2]->sad+parent_part_info->children[3]->sad;
 
-				if(parent_sad<child_sad+parent_part_info->size_chroma && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+				if(parent_sad<child_sad+parent_part_info->size_chroma/2 && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 				{
 					memset(&ctu->pred_depth[abs_index], parent_part_info->depth, parent_part_info->num_part_in_cu*sizeof(ctu->pred_depth[0]));
 				}
@@ -3747,8 +3754,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						intra_cost = intra_dist+5*curr_depth;
 						if(intra_cost < cost)
 #else
-						intra_cost = intra_dist*1.05+DEPHT_ADD*curr_depth;
-						if(intra_cost+2000*curr_cu_info->sum<cost+2000*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+//						intra_cost = intra_dist*1.05+DEPHT_ADD*curr_depth;
+						intra_cost = intra_dist*(1.25-clip(((double)2*total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
+						
+//						if(intra_cost+2000*curr_cu_info->sum<cost+2000*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+						if(intra_cost+clip(avg_distortion,100.,2000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,2000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 //						if(intra_cost<cost)
 #endif
 						{	//we prefer intra and it is already in its buffer

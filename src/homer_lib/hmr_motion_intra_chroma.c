@@ -431,10 +431,10 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 		}
 		else if(et->rd_mode != RD_FULL && cost<best_cost)
 		{
-			cost += bit_cost*curr_partition_info->qp/0.35+.5;
+			double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
+			//cost += bit_cost*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5;
+			cost += bit_cost*correction+.5;
 		}
-
-
 
 		if(cost < best_cost)
 		{
