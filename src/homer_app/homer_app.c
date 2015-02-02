@@ -30,8 +30,11 @@
 
 #ifdef _MSC_VER
 #include <Windows.h>
+#include <io.h>
+#define fseek_64 _fseeki64
 #else
 #include <sys/time.h>
+#define fseek_64 fseek64
 #endif
 
 //#define FILE_IN  "//home//jcasal//Desktop//Compartida_Ubuntu//720p5994_parkrun_ter.yuv"
@@ -286,7 +289,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int skipped_frames = 1850+25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
 	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
@@ -379,8 +382,19 @@ int main (int argc, char **argv)
 		return -1;
 
 	msInit = get_ms();
+	fseek_64(infile, 0, SEEK_SET);
 	while(bCoding)
 	{
+		int frame_size = (HmrCfg.width*HmrCfg.height)*1.5;
+//		fpos_t pos = frame_size*skipped_frames;
+//		long long frame_size = ;
+		if(input_frames<skipped_frames)
+		{
+			fseek_64(infile, frame_size, SEEK_CUR); // move to first frame
+			input_frames++;
+			msInit = get_ms();
+			continue;
+		}
 		frame[0] = (unsigned char*)stream.streams[0];
 		frame[1] = (unsigned char*)stream.streams[1];
 		frame[2] = (unsigned char*)stream.streams[2];
@@ -392,12 +406,6 @@ int main (int argc, char **argv)
 		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
 			bCoding = 0;
 
-		if(input_frames<skipped_frames)
-		{
-			input_frames++;
-			msInit = get_ms();
-			continue;
-		}
 
 		input_frame.stream = stream;
 		input_frame.pts = input_frames-skipped_frames;
