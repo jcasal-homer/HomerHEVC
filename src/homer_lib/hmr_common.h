@@ -47,6 +47,10 @@
 
 #define calc_mv_correction(qp, dist)	(qp*clip(dist/2000.,.15,1.4)) //1.25 flags //.35 Brazil //.15 synthetic, 
 
+#define MOTION_PEL_MASK					0x1
+#define MOTION_HALF_PEL_MASK			0x2
+#define MOTION_QUARTER_PEL_MASK			0x4
+
 //nal_unit_type values
 //Updated to HM-12.0
 typedef enum {

@@ -47,7 +47,7 @@
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros0.265"//TestEBU720p50_moreI.265"//output_Homer_synthetic_full_HM_prueba.265"
+#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_2.265"//TestEBU720p50_moreI.265"//output_Homer_synthetic_full_HM_prueba.265"
 #define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 
@@ -289,7 +289,7 @@ int main (int argc, char **argv)
 	int bCoding = 1;
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 25;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
 	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];

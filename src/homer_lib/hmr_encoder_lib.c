@@ -731,7 +731,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
-			if(cpu_info[2] & 0x100000)//if(0)//
+			if(cpu_info[2] & 0x100000)////
 			{
 				printf("SSE42 avaliable!!");
 
@@ -1845,15 +1845,19 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 #ifdef WRITE_REF_FRAMES
 		wnd_write2file(&ed->curr_reference_frame->img);
 #endif
-		
+
 		ed->num_encoded_frames++;
-#ifdef COMPUTE_METRICS
+
 		{
-			char psnr_string[256];
+			char stringI[] = "I";
+			char stringP[] = "P";
+			char stringB[] = "B";
 			int str_length;
-			char frame_type_str[2];
-			frame_type_str[0]=currpict->img2encode->img_type==IMAGE_I?('I'):currpict->img2encode->img_type==IMAGE_P?('P'):('B');
-			frame_type_str[1]=0;
+			char *frame_type_str;
+			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
+
+			printf("\r\nframe:%d, %s, bits:%d,",ed->num_encoded_frames-1, frame_type_str, ed->slice_bs.streambytecnt*8);
+#ifdef COMPUTE_METRICS
 
 			profiler_accumulate(&frame_metrics);
 
@@ -1861,10 +1865,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			ed->accumulated_psnr[0] += ed->current_psnr[Y_COMP];
 			ed->accumulated_psnr[1] += ed->current_psnr[U_COMP];
 			ed->accumulated_psnr[2] += ed->current_psnr[V_COMP];
-			printf("\r\nframe:%d, %s, bits:%d, PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->num_encoded_frames-1, frame_type_str, ed->slice_bs.streambytecnt*8, ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
-			printf("- Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
-			printf("- vbv: %.2f, avg_dist: %.2f", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
-			fflush(stdout);
+
+			printf("PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
+			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
+//			fflush(stdout);
 /*			if(ed->f_psnr)
 			{
 				int bytes = 0;
@@ -1882,8 +1886,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 				fflush(ed->f_psnr);
 			}
 */
-		}
 #endif
+			printf("vbv: %.2f, avg_dist: %.2f, ", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
+			fflush(stdout);
+		}
 		//prunning of references must be done in a selective way
 		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
 			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
