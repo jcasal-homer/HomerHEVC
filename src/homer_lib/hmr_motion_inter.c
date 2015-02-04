@@ -2893,7 +2893,7 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
 
 #define DEPHT_ADD	40
-#define DEPHT_MULT	1.1
+#define DEPHT_SCALE	1.1
 		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
@@ -2928,7 +2928,7 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				cost+=5*curr_depth;
 #else
 				cost += 2*mv_cost;
-				cost=cost*DEPHT_MULT+DEPHT_ADD*curr_depth;
+				cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 #endif
 				curr_cu_info->cost = cost;
 				curr_cu_info->prediction_mode = INTER_MODE;
@@ -2979,7 +2979,7 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					intra_cost = intra_dist+5*curr_depth;
 					if(intra_cost < cost)
 #else
-					intra_cost = intra_dist*DEPHT_MULT+DEPHT_ADD*curr_depth;
+					intra_cost = intra_dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 					if(intra_cost+90*curr_cu_info->sum<cost+90*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 #endif
 					{	//we prefer intra and it is already in its buffer
@@ -3058,7 +3058,7 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 #ifdef COMPUTE_AS_HM
 					cost=dist+5*curr_depth;
 #else
-					cost=dist*DEPHT_MULT+DEPHT_ADD*curr_depth;
+					cost=dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 					cost += mv_cost;
 #endif
 					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
@@ -3088,7 +3088,7 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						put_consolidated_info(et, ctu, curr_cu_info->parent, curr_depth);
 						intra_cost = 0;
 						intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
-						intra_cost = intra_dist*DEPHT_MULT+DEPHT_ADD*curr_depth;
+						intra_cost = intra_dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 						intra_sum = curr_cu_info[0].sum + curr_cu_info[1].sum + curr_cu_info[2].sum + curr_cu_info[3].sum;
 
 						curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
@@ -3318,7 +3318,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
 
 #define DEPHT_ADD	40
-#define DEPHT_MULT	1.1
+#define DEPHT_SCALE	1.1
 		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 		if(curr_cu_info->is_tl_inside_frame)//is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
@@ -3435,7 +3435,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				int iiiii=0;
 			}
 #define DEPHT_ADD	40
-#define DEPHT_MULT	1.1
+#define DEPHT_SCALE	1.1
 			//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 			if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 			{
@@ -3448,11 +3448,11 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 					//cost = curr_cu_info->distortion + mv_cost;
 					cost = curr_cu_info->distortion + 2*mv_cost;
-					cost=cost*DEPHT_MULT+DEPHT_ADD*curr_depth;
+					cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 					curr_cu_info->cost = cost;
 					curr_cu_info->prediction_mode = INTER_MODE;
 					consolidate_prediction_info(et, ctu, ctu_rd, curr_cu_info, curr_cu_info->cost, MAX_COST, FALSE, NULL);
-					if(curr_cu_info->size < 64)
+//					if(curr_cu_info->size < 64)
 					{
 						//encode intra
 						uint inter_sum = curr_cu_info->sum;
