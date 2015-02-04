@@ -1430,7 +1430,7 @@ ctu_info_t* init_ctu(henc_thread_t* et)
 	return ctu;
 }
 
-THREAD_RETURN_TYPE intra_encode_thread(void *h)
+THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 {
 	henc_thread_t* et = (henc_thread_t*)h;
 	int gcnt=0;
@@ -1438,7 +1438,7 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu;
 
-	//printf("		+intra_encode_thread %d\r\n", et->index);
+	//printf("		+ctu_encoder_thread %d\r\n", et->index);
 
 	et->acc_dist = 0;
 	et->cu_current = 0;
@@ -1493,10 +1493,6 @@ THREAD_RETURN_TYPE intra_encode_thread(void *h)
 			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&ed->ee);
 		}
 
-
-//		for(et->cu_current;et->cu_current<et->cu_next;et->cu_current++)
-//		{
-		//init ctu
 		ctu = init_ctu(et);
 
 		//Prepare Memory
@@ -1762,13 +1758,13 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		SEM_RESET(ed->deblock_filter_sem)
 
 #ifdef COMPUTE_AS_HM
-		CREATE_THREADS((&ed->hthreads[0]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		CREATE_THREADS((&ed->hthreads[0]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
 		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
 #else
 		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
 
 		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
-		CREATE_THREADS((&ed->hthreads[1]), intra_encode_thread, ed->thread, ed->wfpp_num_threads)
+		CREATE_THREADS((&ed->hthreads[1]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
 
 		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
 #endif
