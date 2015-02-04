@@ -743,8 +743,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.create_intra_planar_prediction = sse_create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = sse_create_intra_angular_prediction;
 				
-				phvenc->funcs.interpolate_luma = sse_interpolate_luma;
-				phvenc->funcs.interpolate_chroma = sse_interpolate_chroma;
+				phvenc->funcs.interpolate_luma_m_compensation = sse_interpolate_luma;
+				phvenc->funcs.interpolate_chroma_m_compensation = sse_interpolate_chroma;
+				phvenc->funcs.interpolate_luma_m_estimation = sse_interpolate_luma;//hmr_fake_interpolate_luma;//
 
 				phvenc->funcs.quant = sse_aligned_quant;
 				phvenc->funcs.inv_quant = sse_aligned_inv_quant;
@@ -762,8 +763,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->funcs.create_intra_planar_prediction = create_intra_planar_prediction;
 				phvenc->funcs.create_intra_angular_prediction = create_intra_angular_prediction;
 
-				phvenc->funcs.interpolate_luma = hmr_interpolate_luma;
-				phvenc->funcs.interpolate_chroma = hmr_interpolate_chroma;
+				phvenc->funcs.interpolate_luma_m_compensation = hmr_interpolate_luma;
+				phvenc->funcs.interpolate_chroma_m_compensation = hmr_interpolate_chroma;
+				phvenc->funcs.interpolate_luma_m_estimation = hmr_interpolate_luma;
 
 				phvenc->funcs.quant = quant;
 				phvenc->funcs.inv_quant = iquant;
@@ -1255,6 +1257,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	if((ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
 	{
 		ed->last_intra = currslice->poc;
+		ed->last_gop_reinit = currslice->poc;
 		currpict->img2encode->img_type = IMAGE_I;
 		currslice->slice_type = I_SLICE;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
