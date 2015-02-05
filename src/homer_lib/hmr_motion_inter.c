@@ -95,7 +95,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 		ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
+		if(ssd_zero < 100**curr_sum)//if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)//
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -188,7 +188,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
 		ssd_ = weight*ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
+		if(ssd_zero < 100**curr_sum)//if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)//
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -3522,13 +3522,14 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	}
 	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 
-	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/15)
+	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/32)
 	{
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
 		et->ed->avg_dist = avg_distortion;//update avg_dist as it evolves
 	}
 	else
 		avg_distortion = et->ed->avg_dist;
+
 
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && 20>et->ed->last_gop_reinit-currslice->poc && consumed_ctus>et->ed->pict_total_ctu/8)
 	{
@@ -3755,9 +3756,19 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						intra_cost = intra_dist+5*curr_depth;
 						if(intra_cost < cost)
 #else
-//						intra_cost = intra_dist*1.05+DEPHT_ADD*curr_depth;
-						intra_cost = intra_dist*(1.25-clip(((double)total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
 						
+//						if(consumed_ctus>et->ed->pict_total_ctu/32)
+							intra_cost = intra_dist*(1.125-clip(((double)2*total_intra_partitions/(double)total_partitions)-0.125, -0.125, 0.125))+DEPHT_ADD*curr_depth;
+//						else
+//							intra_cost = intra_dist*1.125+DEPHT_ADD*curr_depth;
+
+//						if(consumed_ctus>et->ed->pict_total_ctu/32)
+//							intra_cost = intra_dist*(1.15-clip(((double)1.5*total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
+//						else
+//							intra_cost = intra_dist*1.125+DEPHT_ADD*curr_depth;
+						//intra_cost = intra_dist*(1.15-clip(((double)total_intra_partitions/(double)total_partitions), .0, .35))+DEPHT_ADD*curr_depth;
+						//intra_cost = intra_dist*1.25+DEPHT_ADD*curr_depth;
+
 //						if(intra_cost+2000*curr_cu_info->sum<cost+2000*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 						if(intra_cost+clip(avg_distortion,100.,2000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,2000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 //						if(intra_cost<cost)
