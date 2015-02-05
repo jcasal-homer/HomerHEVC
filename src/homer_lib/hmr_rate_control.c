@@ -55,13 +55,13 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 		double pic_size_new;
 		if(et->ed->gop_reinit_on_scene_change && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
 		{
-			ed->rc.target_pict_size = 1.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			ed->rc.target_pict_size = ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			pic_size_new = (1.5-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			pic_size_new = 1.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		else
 		{
-			pic_size_new = .75*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
+			pic_size_new = .5*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		ed->rc.target_pict_size = pic_size_new;//.75*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 
@@ -82,7 +82,6 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
 	switch(currslice->slice_type)
 	{
-		double intra_avg_size = 2*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 		case  I_SLICE:
 		{
 			currslice->qp = ed->pict_qp;
@@ -92,6 +91,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 		}
 		case  P_SLICE:
 		{
+			double intra_avg_size = (2.3)*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			currslice->qp = ed->pict_qp;
 			ed->rc.target_pict_size = (ed->rc.average_pict_size*clipped_intra_period-intra_avg_size)/(clipped_intra_period-1);//.5*ed->rc.average_pict_size;
 			break;	
@@ -156,29 +156,15 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(currslice->slice_type == I_SLICE && ed->intra_period!=1)
 	{
-		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
-		{
-			ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
-			consumed_bitrate = ed->rc.average_pict_size;
-		}
-		else
-		{
-			ed->rc.acc_rate += consumed_bitrate/2;// - 2*ed->rc.average_pict_size;
-			consumed_bitrate /=2;// 2*ed->rc.average_pict_size;			
-		}
+		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;	
+		consumed_bitrate = ed->rc.average_pict_size;
+		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;
 		ed->rc.acc_rate -= ed->rc.acc_avg;
-
-//		ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
-//		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
-//		consumed_bitrate = ed->rc.average_pict_size;
-//		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;
-//		ed->rc.acc_rate -= ed->rc.acc_avg;
 	}
-	else if((ed->is_scene_change) && ed->intra_period!=1)// && )
+	else if((ed->is_scene_change && ed->gop_reinit_on_scene_change) && ed->intra_period!=1)// && )
 	{
-		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)// && ed->gop_reinit_on_scene_change)
+		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
 		{
 			ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 			consumed_bitrate = ed->rc.average_pict_size;
