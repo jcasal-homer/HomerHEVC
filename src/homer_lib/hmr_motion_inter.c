@@ -95,7 +95,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 		ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < 100**curr_sum)//if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)//
+		if(ssd_zero < clip((200./((double)ssd_/curr_cu_info->num_part_in_cu)),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -188,7 +188,8 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
 		ssd_ = weight*ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
-		if(ssd_zero < 100**curr_sum)//if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)//
+		//if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
+		if(ssd_zero < clip((200./((double)ssd_/curr_cu_info->num_part_in_cu)),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
 			*curr_sum = 0;
@@ -3522,7 +3523,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 	}
 	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 
-	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/32)
+	if(consumed_ctus>10 || consumed_ctus>et->ed->pict_total_ctu/15)
 	{
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
 		et->ed->avg_dist = avg_distortion;//update avg_dist as it evolves
@@ -3654,7 +3655,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				uint parent_sad = parent_part_info->sad;
 				uint child_sad = parent_part_info->children[0]->sad+parent_part_info->children[1]->sad+parent_part_info->children[2]->sad+parent_part_info->children[3]->sad;
 
-				if(parent_sad<child_sad+parent_part_info->size_chroma && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+				if(parent_sad<child_sad+parent_part_info->size_chroma/2 && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 				{
 					memset(&ctu->pred_depth[abs_index], parent_part_info->depth, parent_part_info->num_part_in_cu*sizeof(ctu->pred_depth[0]));
 				}
@@ -3756,19 +3757,9 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						intra_cost = intra_dist+5*curr_depth;
 						if(intra_cost < cost)
 #else
+//						intra_cost = intra_dist*1.05+DEPHT_ADD*curr_depth;
+						intra_cost = intra_dist*(1.25-clip(((double)2*total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
 						
-//						if(consumed_ctus>et->ed->pict_total_ctu/32)
-							intra_cost = intra_dist*(1.125-clip(((double)2*total_intra_partitions/(double)total_partitions)-0.125, -0.125, 0.125))+DEPHT_ADD*curr_depth;
-//						else
-//							intra_cost = intra_dist*1.125+DEPHT_ADD*curr_depth;
-
-//						if(consumed_ctus>et->ed->pict_total_ctu/32)
-//							intra_cost = intra_dist*(1.15-clip(((double)1.5*total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
-//						else
-//							intra_cost = intra_dist*1.125+DEPHT_ADD*curr_depth;
-						//intra_cost = intra_dist*(1.15-clip(((double)total_intra_partitions/(double)total_partitions), .0, .35))+DEPHT_ADD*curr_depth;
-						//intra_cost = intra_dist*1.25+DEPHT_ADD*curr_depth;
-
 //						if(intra_cost+2000*curr_cu_info->sum<cost+2000*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 						if(intra_cost+clip(avg_distortion,100.,2000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,2000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 //						if(intra_cost<cost)

@@ -330,6 +330,11 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 */	}
 
 
+	if(qp<10)
+	{
+		qp<15;
+	}
+
 	if(ed->num_encoded_frames==21)
 	{
 		int iiiii=0;
