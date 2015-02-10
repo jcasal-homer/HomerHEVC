@@ -1462,7 +1462,7 @@ uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, 
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 #else
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
-	if(et->performance_mode == 2)
+	if(et->performance_mode == PERF_UFAST_COMPUTATION)
 		max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
 #endif
 
@@ -1880,7 +1880,7 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 	}
 */
 #ifndef COMPUTE_AS_HM
-	if(et->performance_mode != 0 && ((currslice->slice_type == I_SLICE && curr_depth==0) || (currslice->slice_type != I_SLICE)))
+	if(et->performance_mode != PERF_FULL_COMPUTATION && ((currslice->slice_type == I_SLICE && curr_depth==0) || (currslice->slice_type != I_SLICE)))
 		analyse_recursive_info_cu(et, curr_partition_info);
 #endif
 	if(curr_partition_info->parent==NULL)
@@ -1914,9 +1914,9 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 		{
 #ifndef COMPUTE_AS_HM
 
-//			if((et->performance_mode == 1 && curr_partition_info->recursive_split && curr_partition_info->children[0] && curr_partition_info->children[0]->recursive_split && curr_partition_info->children[1]->recursive_split && curr_partition_info->children[2]->recursive_split && curr_partition_info->children[3]->recursive_split) ||
-//				(et->performance_mode == 2 && curr_partition_info->recursive_split))
-			if(et->performance_mode != 0 && curr_partition_info->recursive_split)
+//			if((et->performance_mode == PERF_FAST_COMPUTATION && curr_partition_info->recursive_split && curr_partition_info->children[0] && curr_partition_info->children[0]->recursive_split && curr_partition_info->children[1]->recursive_split && curr_partition_info->children[2]->recursive_split && curr_partition_info->children[3]->recursive_split) ||
+//				(et->performance_mode == PERF_UFAST_COMPUTATION && curr_partition_info->recursive_split))
+			if(et->performance_mode != PERF_FULL_COMPUTATION && curr_partition_info->recursive_split)
 			{
 				cost_luma = MAX_COST;
 				cost_chroma = 0;//MAX_COST;
@@ -1978,13 +1978,13 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 #ifndef COMPUTE_AS_HM
 		//This doesn't make sense any more when calculating the 4 NxN cus at one time
 		//if this matches, it is useless to continue the recursion. the case where part_size_type != SIZE_NxN is checked at the end of the consolidation loop)
-//		if(/*et->performance_mode == 0 && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
+//		if(/*et->performance_mode == PERF_FULL_COMPUTATION && */part_size_type == SIZE_NxN && depth_state[curr_depth]!=4 && cost_sum[curr_depth] > parent_part_info->cost && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)//parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 /*		{
 			depth_state[curr_depth]=4;
 		}
 */
 		//stop recursion
-		if(et->performance_mode>0 && (curr_partition_info->recursive_split==0 || curr_partition_info->cost == 0) && /*curr_depth && */part_size_type != SIZE_NxN && curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)
+		if(et->performance_mode>PERF_FULL_COMPUTATION && (curr_partition_info->recursive_split==0 || curr_partition_info->cost == 0) && /*curr_depth && */part_size_type != SIZE_NxN && curr_partition_info->is_b_inside_frame && curr_partition_info->is_r_inside_frame)
 		{
 			int max_processing_depth;// = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
@@ -2039,7 +2039,7 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 				curr_depth--;
 				parent_part_info = parent_part_info->parent;
 
-				if(et->performance_mode == 0 && curr_depth>0 && curr_depth<et->max_pred_partition_depth && depth_state[curr_depth]<4 && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)
+				if(et->performance_mode == PERF_FULL_COMPUTATION && curr_depth>0 && curr_depth<et->max_pred_partition_depth && depth_state[curr_depth]<4 && ctu->partition_list[0].is_b_inside_frame && ctu->partition_list[0].is_r_inside_frame)
 				{
 					double totalcost = 0;
 					int h;

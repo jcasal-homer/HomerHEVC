@@ -32,7 +32,7 @@
 
 #define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1	//to debug against HM
-#define COMPUTE_METRICS			1
+//#define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		This is the herarchy to follow

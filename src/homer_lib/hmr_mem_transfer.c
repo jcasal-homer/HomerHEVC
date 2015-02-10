@@ -43,7 +43,7 @@ void hmr_aligned_free(void *ptr)
 }
 
 
-
+#define WND_PADDING	
 //Alignes by increasing offset_x and size_x to match the boundary. 
 void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, int pix_size)
 {

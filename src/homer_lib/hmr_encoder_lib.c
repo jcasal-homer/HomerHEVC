@@ -392,7 +392,7 @@ void put_frame_to_encode(hvenc_t *ed, encoder_in_out_t* input_frame)
 	{
 		src = input_frame->stream.streams[comp];
 		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
-		stride_src = ed->pict_width[comp];
+		stride_src = input_frame->stream.data_stride[comp];//,  ed->pict_width[comp];
 		stride_dst = WND_STRIDE_2D(p->img, comp);
 
 		for(j=0;j<ed->pict_height[comp];j++)
@@ -1254,7 +1254,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->max_num_merge_candidates = 5;
 
 //	if((currslice->poc%ed->intra_period)==0)
-	if((ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
+	if(currslice->poc==0 || (ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
 	{
 		ed->last_intra = currslice->poc;
 		ed->last_gop_reinit = currslice->poc;

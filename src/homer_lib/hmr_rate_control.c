@@ -239,8 +239,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		consumed_ctus += henc_th->num_encoded_ctus;
 	}
 
-	entropy = 3;
-//	entropy = sqrt(((double)ed->avg_dist/3000.)*(curr_cu_info->variance))/40;//25.0;
+	entropy = 3;//sqrt(((double)ed->avg_dist/3000.)*(curr_cu_info->variance))/40;//25.0;
 //	entropy = sqrt((curr_cu_info->variance+.5*curr_cu_info->variance_chroma))/40;//25.0;
 	if(consumed_ctus>0)
 	{
@@ -330,11 +329,11 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 */	}
 
 
-	if(qp<10)
+/*	if(qp<15)
 	{
-		qp<15;
+		qp=15;
 	}
-
+*/
 	if(ed->num_encoded_frames==21)
 	{
 		int iiiii=0;

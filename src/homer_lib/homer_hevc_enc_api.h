@@ -72,10 +72,10 @@ enum HOMER_PERFORMANCE_MODES {
 };
 
 enum HOMER_IMG_TYPES {
+  IMAGE_AUTO,
   IMAGE_B,
   IMAGE_P,
-  IMAGE_I,
-  IMAGE_AUTO
+  IMAGE_I
 };
 
 enum HOMER_MOTION_ESTIMATION_PRECISSION {
@@ -92,6 +92,7 @@ struct  stream_t
 	unsigned char	*streams[MAX_STREAMS];
 	int				stream_size[MAX_STREAMS];
 	int				data_size[MAX_STREAMS];
+	int				data_stride[MAX_STREAMS];
 };
 
 
