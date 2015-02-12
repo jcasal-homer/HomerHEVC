@@ -1697,19 +1697,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->num_pictures++;
 
 #ifdef COMPUTE_METRICS
-		if(ed->num_encoded_frames == 0)
-		{
-			static char psnr_string[256];
-			int str_length;
-			ed->accumulated_psnr[0] = ed->accumulated_psnr[1] = ed->accumulated_psnr[2] = 0;
-/*			ed->f_psnr = metricsfile;//fopen("homer_metrics.txt","a");
-			if(ed->f_psnr)
-			{
-				str_length = sprintf(psnr_string, "\r\nhomerPSNRY	homerPSNRU	homerPSNRV	homerAPSNRY	homerAPSNRU	homerAPSNRV	homerTOTALBITS	homerAVGBITS	homerTIME(ms)\r\n");
-				fwrite(psnr_string, 1, str_length, ed->f_psnr);
-				fflush(ed->f_psnr);
-			}
-*/		}
 		profiler_start(&frame_metrics);
 #endif
 		hmr_slice_init(ed, &ed->current_pict, &currpict->slice);
@@ -1846,7 +1833,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 #endif
 
 		ed->num_encoded_frames++;
-
+#ifdef TRACE_FRAMES_DEBUG
 		{
 			char stringI[] = "I";
 			char stringP[] = "P";
@@ -1867,28 +1854,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 			printf("PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP]);
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
-//			fflush(stdout);
-/*			if(ed->f_psnr)
-			{
-				int bytes = 0;
-				static int totalbytes = 0;
-				for(i=0;i<output_nalu_cnt;i++)
-					bytes += ouput_nalus->nalu_list[i]->bs.streambytecnt;
-				totalbytes+=bytes;
-
-				str_length = sprintf(psnr_string, "\r\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%d\t%d\t%.3f", ed->current_psnr[Y_COMP], ed->current_psnr[U_COMP], ed->current_psnr[V_COMP],
-																							ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames,
-																							bytes*8, totalbytes*8/ed->num_encoded_frames, profiler_get_result(&frame_metrics));
-
-
-				fwrite(psnr_string, 1, str_length, ed->f_psnr);
-				fflush(ed->f_psnr);
-			}
-*/
 #endif
 			printf("vbv: %.2f, avg_dist: %.2f, ", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
 			fflush(stdout);
 		}
+#endif
 		//prunning of references must be done in a selective way
 		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
 			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);

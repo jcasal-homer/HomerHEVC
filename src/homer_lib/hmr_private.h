@@ -32,7 +32,8 @@
 
 #define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1	//to debug against HM
-//#define COMPUTE_METRICS			1
+#define TRACE_FRAMES_DEBUG		1
+#define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		This is the herarchy to follow
@@ -378,34 +379,6 @@ static const uint8_t scan_interlaced[16][2] =
 };
 
 
-/*static const uint8_t ZZ_SCAN[16]  =
-{  0,  1,  4,  8,  5,  2,  3,  6,  9, 12, 13, 10,  7, 11, 14, 15
-};
-
-static const uint8_t ZZ_SCAN8[64] =
-{  0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
-   12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13,  6,  7, 14, 21, 28,
-   35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
-   58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63
-};
-*/
-static __inline short I16Offset (int cbp, short i16mode)
-{
-  return (short) ((cbp & 15 ? 13 : 1) + i16mode + ((cbp & 0x30) >> 2));
-}
-
-static __inline short clip_byte(short x)
-{
-//	return x&(~255) ? (-x)>>31 : x;
-	return ( (x < 0) ? 0 : (x > 255) ? 255 : x );
-}
-
-static __inline int is_FREXT_profile(unsigned int profile_idc) 
-{
-  return ( profile_idc>=FREXT_HP || profile_idc == FREXT_CAVLC444 );
-}
-
-
 
 #define MAX_TLAYER                  8           // max number of sublayers (temporal layers en el HM)
 typedef struct profile_tier_t   profile_tier_t;
@@ -617,7 +590,7 @@ struct output_set_t
 	nalu_t			*nalu_list[NALU_SET_SIZE];
 	int				num_nalus;
 	int				image_type;
-	uint32_t		pts;
+	uint64_t		pts;
 };
 
 

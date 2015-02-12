@@ -20,9 +20,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
 
-#ifndef __HOMER_HEVC_ENCODER_H__
-#define __HOMER_HEVC_ENCODER_H__
+#ifndef __HOMER_HEVC_ENCODER_API_H__
+#define __HOMER_HEVC_ENCODER_API_H__
 
+#ifdef _MSC_VER
+#include "stdint.h"
+#else
+#include <stdint.h>
+#endif
 
 #define CHROMA420 1
 #define CHROMA422 2
@@ -89,84 +94,84 @@ enum HOMER_MOTION_ESTIMATION_PRECISSION {
 typedef struct stream_t stream_t;
 struct  stream_t
 {
-	unsigned char	*streams[MAX_STREAMS];
-	int				stream_size[MAX_STREAMS];
-	int				data_size[MAX_STREAMS];
-	int				data_stride[MAX_STREAMS];
+	uint8_t		*streams[MAX_STREAMS];
+	int32_t 	stream_size[MAX_STREAMS];
+	int32_t 	data_size[MAX_STREAMS];
+	int32_t 	data_stride[MAX_STREAMS];
 };
 
 
 typedef struct encoder_in_out_t encoder_in_out_t;
 struct encoder_in_out_t
 {
-	stream_t stream;
-	unsigned int pts;
-	unsigned int image_type;//HOMER_IMG_TYPES - this field allows to force the type of an image whenever is needed. otherwise use IMAGE_AUTO
-	char *user_data;
-	unsigned int user_data_size;
+	stream_t	stream;
+	uint64_t	pts;
+	uint32_t	image_type;//HOMER_IMG_TYPES - this field allows to force the type of an image whenever is needed. otherwise use IMAGE_AUTO
+	int8_t		user_data;
+	uint32_t	user_data_size;
 };
 
 
 typedef struct bitstream_t bitstream_t;
 struct bitstream_t 
 {
-	unsigned char *bitstream;
-	int streamsize;
-	int streambytecnt;
-	int streambitcnt;
-//	int total_bytes_written;
+	uint8_t *bitstream;
+	int32_t  streamsize;
+	int32_t  streambytecnt;
+	int32_t  streambitcnt;
+//	int32_t  total_bytes_written;
 };
 
 typedef struct nalu_t nalu_t;
 struct nalu_t
 {
 //  nalu_types	nal_unit_type;	// nal_unit_type
-  unsigned int	nal_unit_type;	// nal_unit_type
-  unsigned int	temporal_id;	// temporal_id
-  unsigned int	rsvd_zero_bits; // reserved_zero_6bits
-  bitstream_t	bs;
+	uint32_t  	nal_unit_type;	// nal_unit_type
+	uint32_t  	temporal_id;	// temporal_id
+	uint32_t  	rsvd_zero_bits; // reserved_zero_6bits
+	bitstream_t	bs;
 };
 
 typedef struct HVENC_Cfg HVENC_Cfg;
 struct HVENC_Cfg{
-	int size;
-	int profile;
-	int width, height; // frame size (pixels) 
+	int32_t  size;
+	int32_t  profile;
+	int32_t  width, height; // frame size (pixels) 
 	float frame_rate;
-	int cu_size;
-	int max_pred_partition_depth;
-	int max_intra_tr_depth;
-	int max_inter_tr_depth;
-	int intra_period;
-	int gop_size; 
-	int num_ref_frames;
-	int motion_estimation_precision;
-	int qp;//for fixed qp mode, or initial qp if cbr or vbr
-	int chroma_qp_offset;
-	int wfpp_enable;
-	int wfpp_num_threads;
-	int sign_hiding;
-	int bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
-	int bitrate;//in kbps
-	int vbv_size;//in kbps
-	int vbv_init;//in kbps
-	int reinit_gop_on_scene_change;//
-	int	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
-	int performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
+	int32_t  cu_size;
+	int32_t  max_pred_partition_depth;
+	int32_t  max_intra_tr_depth;
+	int32_t  max_inter_tr_depth;
+	int32_t  intra_period;
+	int32_t  gop_size; 
+	int32_t  num_ref_frames;
+	int32_t  motion_estimation_precision;
+	int32_t  qp;//for fixed qp mode, or initial qp if cbr or vbr
+	int32_t  chroma_qp_offset;
+	int32_t  wfpp_enable;
+	int32_t  wfpp_num_threads;
+	int32_t  sign_hiding;
+	int32_t  bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
+	int32_t  bitrate;//in kbps
+	int32_t  vbv_size;//in kbps
+	int32_t  vbv_init;//in kbps
+	int32_t  reinit_gop_on_scene_change;//
+	int32_t 	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
+	int32_t  performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
 };
 
 void *HOMER_enc_init();
-void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-//int HOMER_enc_encode(void* handle, unsigned char *picture[], nalu_t *nalu_out[], unsigned int *nalu_list_size);
-int HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame);//unsigned char *picture[]);//, nalu_t *nalu_out[], unsigned int *nalu_list_size)
-int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], unsigned int *nalu_list_size);
+void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], uint32_t   *nalu_list_size)
+//int32_t  HOMER_enc_encode(void* handle, uint8_t *picture[], nalu_t *nalu_out[], uint32_t   *nalu_list_size);
+int32_t  HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame);//uint8_t *picture[]);//, nalu_t *nalu_out[], uint32_t   *nalu_list_size)
+int32_t  HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], uint32_t   *nalu_list_size);
 //void encoder_thread(void* ed);//void *encoder_thread(void *h);//
-int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout);
-int HOMER_enc_control(void *h, int cmd, void *in);
+int32_t  HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], uint32_t   num_nalus, encoder_in_out_t *vout);
+int32_t  HOMER_enc_control(void *h, int32_t  cmd, void *in);
 
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif  /* __HOMER_HEVC_ENCODER_H__ */
+#endif  /* __HOMER_HEVC_ENCODER_API_H__ */
