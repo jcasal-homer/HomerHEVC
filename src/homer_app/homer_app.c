@@ -47,7 +47,7 @@
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_5.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"
+#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_8.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"
 #define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 

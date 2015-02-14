@@ -41,16 +41,30 @@
 #define iswap(a,b) { int aux=a; a=b;b=aux;}
 #define ptrswap(type, a,b) { void *_aux_ = (void *)a; a=b;b=(type)_aux_;}
 
-#define clip(value,min,max)	( (value < min) ? min : (value > max) ? max : value )
+#define clip(value,min,max)	( ((value) < (min)) ? (min) : ((value) > (max)) ? (max) : (value) )
 
-#define EXCHANGE_PTR(type,a,b) {type* aux;aux=a; a=b; b=aux;}
 
 #define calc_mv_correction(qp, dist)	(qp*clip(dist/2000.,.15,1.4)) //1.25 flags //.35 Brazil //.15 synthetic, 
 
-#define DEPHT_ADD	40
+#define DEPHT_ADD	40//2500 //
 #define DEPHT_SCALE	1.1
-#define calc_cost(dist, depth)	(dist*DEPHT_SCALE+DEPHT_ADD*depth)
+#define calc_cost(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+DEPHT_ADD*(depth))
+//#define calc_cost(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+(clip(avg_dist-400,40,avg_dist)/1.75)*(depth))//DEPHT_ADD*(depth))
 //#define calc_cost(dist, depth)	(dist*DEPHT_SCALE+DEPHT_ADD*3)
+
+
+//to access cu_partition list
+#define WND_POSITION_1D(type, w, comp, gcnt, ctu_width, offset) ((type)(w).pwnd[comp]+gcnt*ctu_width[comp]+(offset))//((type)(w).pwnd[comp]+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+(offset))
+#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[comp]+part_y*(w).window_size_x[comp]+gcnt*ctu_width[comp]+part_x)//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
+
+//random access
+#define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
+#define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
+
+#define CBF(ctu, abs_index, comp, tr_depth) ((ctu->cbf[comp][abs_index]>>(tr_depth))&1)
+#define EXCHANGE_PTR(type,a,b) {type* aux;aux=a; a=b; b=aux;}
+
+
 
 #define MOTION_PEL_MASK					0x1
 #define MOTION_HALF_PEL_MASK			0x2
@@ -160,16 +174,6 @@ void mem_transfer_1d1d(unsigned char *src, unsigned char *dst, unsigned int widt
 void mem_transfer_1d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int dst_stride);
 void mem_transfer_2d1d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride);
 void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride, unsigned int dst_stride);
-
-//to access partition list
-#define WND_POSITION_1D(type, w, comp, gcnt, ctu_width, offset) ((type)(w).pwnd[comp]+gcnt*ctu_width[comp]+(offset))//((type)(w).pwnd[comp]+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+(offset))
-#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[comp]+part_y*(w).window_size_x[comp]+gcnt*ctu_width[comp]+part_x)//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
-
-//random access
-#define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
-#define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
-
-#define CBF(ctu, abs_index, comp, tr_depth) ((ctu->cbf[comp][abs_index]>>(tr_depth))&1)
 
 
 //init_tables.c

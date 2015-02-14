@@ -102,6 +102,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 		//if(ssd_zero < ssd_+curr_part_size**curr_sum)// clip((1000./et->ed->avg_dist),1.01,1.5)**curr_sum)
+//		if(ssd_zero <= ssd_+clip(et->ed->avg_dist/1.75-20,1.,20000.)*(*curr_sum))
 		if(ssd_zero < clip((200./((double)ssd_/curr_cu_info->num_part_in_cu)),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
@@ -198,6 +199,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 //		if(ssd_zero < ssd_+clip((1000./et->ed->avg_dist),1.01,1.5)**curr_sum)
 //		if(ssd_zero < ssd_+curr_part_size**curr_sum)
+//		if(ssd_zero <= ssd_+clip(et->ed->avg_dist/1.75-20,1.,20000.)*(*curr_sum))
 		if(ssd_zero < clip((200./((double)ssd_/curr_cu_info->num_part_in_cu)),1.01,1.25)*ssd_)
 		{
 			memset(quant_buff, 0, curr_part_size*curr_part_size*sizeof(quant_buff[0]));
@@ -2523,7 +2525,7 @@ void put_consolidated_info(henc_thread_t *et, ctu_info_t *ctu, cu_partition_info
 }
 
 
-uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
+uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -2558,6 +2560,8 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);		
 	else
 		avg_distortion = et->ed->avg_dist;
+
+	et->ed->avg_dist = avg_distortion;
 
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
@@ -2640,7 +2644,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				}
 				else
 				{
-//					printf("64x64 inter skipped");
+//					printf("64x64 inter computation skipped");
 					dist = MAX_COST;
 					curr_cu_info->sum = MAX_COST;
 					curr_cu_info->inter_mv[REF_PIC_LIST_0].hor_vector = curr_cu_info->inter_mv[REF_PIC_LIST_0].hor_vector = 0;
@@ -2654,7 +2658,8 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 #else
 				cost += 2*mv_cost;
 				//cost=calc_cost(cost, curr_depth);
-				cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
+				cost=calc_cost(cost, curr_depth, avg_distortion);
+//				cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 #endif
 				curr_cu_info->cost = cost;
 				curr_cu_info->prediction_mode = INTER_MODE;
@@ -2705,11 +2710,12 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					intra_cost = intra_dist+5*curr_depth;
 					if(intra_cost < cost)
 #else
-					intra_cost = intra_dist*(1.25-clip(((double)total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
-//					intra_cost = calc_cost(intra_dist, curr_depth);
+					intra_cost = intra_dist*(1.275-clip(((double)total_intra_partitions/(double)total_partitions), .0, .15))+clip(avg_distortion-400,40,avg_distortion)/1.75*curr_depth;
+//					intra_cost = calc_cost(intra_dist, curr_depth, avg_distortion);
 //					intra_cost = intra_dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 //					if(intra_cost+90*curr_cu_info->sum<cost+90*inter_sum)// && intra_cost<64*curr_cu_info->variance)
-					if(intra_cost+clip(avg_distortion,100.,2000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,2000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+//					if(intra_cost+clip(avg_distortion,100.,20000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,20000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+					if(intra_cost+clip(avg_distortion/1.75,5.,20000.)*curr_cu_info->sum<cost+clip(avg_distortion/1.75,5.,20000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
 #endif
 					{	//we prefer intra and it is already in its buffer
 						curr_cu_info->cost = intra_cost;
@@ -2788,7 +2794,8 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					cost=dist+5*curr_depth;
 #else
 //					cost = calc_cost(dist, curr_depth);
-					cost=dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
+					cost=calc_cost(dist, curr_depth, avg_distortion);
+//					cost=dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 					cost += mv_cost;
 #endif
 					curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
@@ -2819,7 +2826,8 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						intra_cost = 0;
 						intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
 //						intra_cost = calc_cost(intra_dist, curr_depth);
-						intra_cost = intra_dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
+						intra_cost = calc_cost(intra_dist, curr_depth, avg_distortion);
+//						intra_cost = intra_dist*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 						intra_sum = curr_cu_info[0].sum + curr_cu_info[1].sum + curr_cu_info[2].sum + curr_cu_info[3].sum;
 
 						curr_cu_info[0].cost = curr_cu_info[1].cost = curr_cu_info[2].cost = curr_cu_info[3].cost = 0;
@@ -2943,7 +2951,7 @@ uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 
 
 
-uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
+uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 {
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -3219,7 +3227,8 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					}
 
 					cost = curr_cu_info->distortion + 2*mv_cost;
-					cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
+					cost=calc_cost(cost, curr_depth, avg_distortion);
+//					cost=cost*DEPHT_SCALE+DEPHT_ADD*curr_depth;
 					curr_cu_info->cost = cost;
 					curr_cu_info->prediction_mode = INTER_MODE;
 					if(part_size_type==SIZE_2Nx2N)
@@ -3236,6 +3245,10 @@ uint motion_inter_(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						uint32_t intra_dist;
 
 						intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, part_size_type);
+
+//						intra_cost = intra_dist*(1.275-clip(((double)total_intra_partitions/(double)total_partitions), .0, .15))+clip(avg_distortion-400,40,avg_distortion)/1.75*curr_depth;
+//						if(intra_cost+clip(avg_distortion/1.75,5.,20000.)*curr_cu_info->sum<cost+clip(avg_distortion/1.75,5.,20000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)
+
 						intra_cost = intra_dist*(1.25-clip(((double)total_intra_partitions/(double)total_partitions), .0, .25))+DEPHT_ADD*curr_depth;
 
 						if(intra_cost+clip(avg_distortion,100.,2000.)*curr_cu_info->sum<cost+clip(avg_distortion,100.,2000.)*inter_sum)// && intra_cost<64*curr_cu_info->variance)

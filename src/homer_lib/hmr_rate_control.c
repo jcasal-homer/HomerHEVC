@@ -82,12 +82,14 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
 	switch(currslice->slice_type)
 	{
-		double intra_avg_size = 2*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+//		double intra_avg_size = 2.25*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+		double intra_avg_size = 2.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 		case  I_SLICE:
 		{
 			currslice->qp = ed->pict_qp;
 //			ed->rc.target_pict_size = (2.25-((double)ed->avg_dist/15000.))*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
-			ed->rc.target_pict_size = /*(2.25-((double)ed->avg_dist/15000.))**/2*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+//			ed->rc.target_pict_size = /*(2.25-((double)ed->avg_dist/15000.))**/2.25*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			ed->rc.target_pict_size = /*(2.25-((double)ed->avg_dist/15000.))**/2.*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
 		case  P_SLICE:
@@ -163,8 +165,9 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 		}
 		else
 		{
-			ed->rc.acc_rate += consumed_bitrate/2;// - 2*ed->rc.average_pict_size;
-			consumed_bitrate /=2;// 2*ed->rc.average_pict_size;			
+			double bits_to_apply = consumed_bitrate/2;//ed->rc.average_pict_size + (consumed_bitrate-ed->rc.average_pict_size)*(ed->rc.vbv_fullness/ed->rc.vbv_size-.5);
+			ed->rc.acc_rate += consumed_bitrate-bits_to_apply;// - 2*ed->rc.average_pict_size;
+			consumed_bitrate =bits_to_apply;///=2;// 2*ed->rc.average_pict_size;			
 		}
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;	
@@ -282,6 +285,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	{
 		if(currslice->slice_type == I_SLICE || (ed->is_scene_change && ed->gop_reinit_on_scene_change))
 		{
+//			qp/=1.5-((double)ed->avg_dist/15000.);
 			qp/=1.4-((double)ed->avg_dist/50000.);
 			//qp -=4;
 		}
