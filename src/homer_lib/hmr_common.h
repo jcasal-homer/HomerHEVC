@@ -48,8 +48,8 @@
 
 #define DEPHT_ADD	40//2500 //
 #define DEPHT_SCALE	1.1
-#define calc_cost(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+DEPHT_ADD*(depth))
-//#define calc_cost(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+(clip(avg_dist-400,40,avg_dist)/1.75)*(depth))//DEPHT_ADD*(depth))
+#define calc_cost_fast(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+DEPHT_ADD*(depth))
+#define calc_cost_full(dist, depth, avg_dist)	((dist)*DEPHT_SCALE+(clip(avg_dist-400,40,avg_dist)/1.75)*(depth))//DEPHT_ADD*(depth))
 //#define calc_cost(dist, depth)	(dist*DEPHT_SCALE+DEPHT_ADD*3)
 
 

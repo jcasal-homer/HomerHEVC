@@ -41,13 +41,13 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//Flags.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_8.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"
+#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_9.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"
 #define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 
