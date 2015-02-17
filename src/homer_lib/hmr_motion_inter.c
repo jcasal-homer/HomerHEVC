@@ -101,6 +101,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 
 		ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
+#ifndef COMPUTE_AS_HM
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 		//if(ssd_zero < ssd_+curr_part_size**curr_sum)// clip((1000./et->ed->avg_dist),1.01,1.5)**curr_sum)
 		if(ssd_zero <= ssd_+clip(et->ed->avg_dist/div-offset,1.,20000.)*(*curr_sum))
@@ -112,6 +113,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 			et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 		}
 		else
+#endif
 			et->funcs->reconst(pred_buff, pred_buff_stride, residual_dec_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
 	}
 	else
@@ -199,6 +201,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
 		ssd_ = weight*ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
+#ifndef COMPUTE_AS_HM
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
 //		if(ssd_zero < ssd_+clip((1000./et->ed->avg_dist),1.01,1.5)**curr_sum)
 //		if(ssd_zero < ssd_+curr_part_size**curr_sum)
@@ -212,6 +215,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 			et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 		}
 		else
+#endif
 			et->funcs->reconst(pred_buff, pred_buff_stride, residual_dec_buff, residual_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
 	}
 	else
