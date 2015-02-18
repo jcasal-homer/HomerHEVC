@@ -41,7 +41,7 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
@@ -313,8 +313,8 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 1;//100;//1;
-	HmrCfg.gop_size = 0;//1;//0;
+	HmrCfg.intra_period = 20;//100;//1;
+	HmrCfg.gop_size = 1;//1;//0;
 	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
 	HmrCfg.frame_rate = FPS;
@@ -324,14 +324,14 @@ int main (int argc, char **argv)
 	HmrCfg.max_intra_tr_depth = 1;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_FIXED_QP;//BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 5000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
+	HmrCfg.chroma_qp_offset = 0;//2;
 	HmrCfg.reinit_gop_on_scene_change = 0;
 	HmrCfg.performance_mode = PERF_FULL_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
@@ -406,7 +406,7 @@ int main (int argc, char **argv)
 		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
 			bCoding = 0;
 
-		stream.data_stride[0] = HOR_SIZE;
+		stream.data_stride[0] = HmrCfg.width;
 		stream.data_stride[1] = stream.data_stride[2]  = stream.data_stride[0]/2;
 
 		input_frame.stream = stream;

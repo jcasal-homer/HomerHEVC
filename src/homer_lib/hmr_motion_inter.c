@@ -989,11 +989,13 @@ static const int s_acMvRefineQ[9][2] =
 	{  1,  1 }  // 8
 };
 
-
+#ifdef COMPUTE_AS_HM
+static const int diamond_small[][2] = {{0,-1},{-1,0},{1,0},{0,1}};
+static const int diamond_big[][2] = {{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{1,1},{0,2}};
+#else
 static const int diamond_small[][2] = {{-1,0},{0,-1},{1,0},{0,1}};
 static const int diamond_big[][2] = {{-2,0},{-1,-1},{0,-2},{1,-1},{2,0},{1,1},{0,2},{-1,1}};//{{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{1,1},{0,2}};
-//static const int diamond_small[][2] = {{0,-1},{-1,0},{1,0},{0,1}};
-//static const int diamond_big[][2] = {{0,-2},{-1,-1},{1,-1},{-2,0},{2,0},{-1,1},{1,1},{0,2}};
+#endif
 static const int square[][2] = {{-1,-1},{0,-1},{1,-1},{1,0},{1,1},{0,1},{-1,1},{-1,0}};
 
 uint32_t hmr_motion_estimation_HM(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, uint8_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
@@ -2593,17 +2595,6 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		copy_ctu(ctu, ctu_rd);
 	}
 
-	if(ctu->y[Y_COMP] != 0)
-	{
-		int iiii=0;
-	}
-
-
-	if(et->ed->num_encoded_frames == 70 && ctu->ctu_number == 123)
-	{
-		int iiii=0;
-	}
-
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
 		double cost = 0, intra_cost = 0;
@@ -2635,6 +2626,11 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
 			int mv_cost;
+
+			if(et->ed->num_encoded_frames == 2)//ctu->ctu_number == 3 && curr_cu_info->abs_index==208)
+			{
+				int iiii=0;
+			}
 
 			if(part_size_type == SIZE_2Nx2N)
 			{
@@ -2672,7 +2668,7 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 				curr_cu_info->cost = cost;
 				curr_cu_info->prediction_mode = INTER_MODE;
 
-//#ifndef COMPUTE_AS_HM
+#ifndef COMPUTE_AS_HM
 //				if((dist<.25*avg_distortion*curr_cu_info->num_part_in_cu ||/* (dist<1.5*avg_distortion*curr_cu_info->num_part_in_cu && curr_cu_info->sum <= curr_cu_info->size*.2) || */curr_cu_info->sum <= curr_cu_info->size*.05  ||
 				//if((dist<.25*avg_distortion*curr_cu_info->num_part_in_cu || (dist<=1.5*avg_distortion*curr_cu_info->num_part_in_cu && curr_cu_info->sum <= (curr_cu_info->size*((float)MAX_QP-curr_cu_info->qp)*.025)) || curr_cu_info->sum <= (curr_cu_info->size*((float)MAX_QP-curr_cu_info->qp)*.005) ||
 //				if((dist<.25*avg_distortion*curr_cu_info->num_part_in_cu || (dist<1.5*avg_distortion*curr_cu_info->num_part_in_cu && curr_cu_info->sum <= curr_cu_info->size*10./(double)curr_cu_info->qp) || curr_cu_info->sum <= curr_cu_info->size*2./(double)curr_cu_info->qp  ||
@@ -2707,7 +2703,7 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 */
 //				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*(curr_cu_info->num_part_in_cu+curr_depth)/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
 				if(!stop_recursion && curr_cu_info->size<64)// && curr_cu_info->variance<2*dist)// && dist>(1*avg_distortion*(curr_cu_info->num_part_in_cu)/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
-//#endif
+#endif
 				{
 					//encode intra
 					uint inter_sum = curr_cu_info->sum;
@@ -2740,7 +2736,7 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 						curr_cu_info->prediction_mode = INTER_MODE;
 					}
 				}
-//#ifndef COMPUTE_AS_HM
+#ifndef COMPUTE_AS_HM
 
 				dist = curr_cu_info->distortion;
 
@@ -2776,7 +2772,7 @@ uint motion_inter_full(henc_thread_t* et, ctu_info_t* ctu, int gcnt)
 					depth_state[curr_depth] = 3;
 				}
 */
-//#endif
+#endif
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
 			{

@@ -429,13 +429,14 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 			bit_cost = rd_get_intra_bits_qt(et, ctu_rd, curr_partition_info, depth, FALSE, gcnt);
 			cost += bit_cost*et->rd.lambda+.5;
 		}
+#ifndef COMPUTE_AS_HM
 		else if(et->rd_mode != RD_FULL && cost<best_cost)
 		{
 			double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
 			//cost += bit_cost*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5;
 			cost += bit_cost*correction+.5;
 		}
-
+#endif
 		if(cost < best_cost)
 		{
 			best_distortion = distortion;
