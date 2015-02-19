@@ -56,11 +56,13 @@ Current Version improvements - homerHEVC_V1.0 (November 2014)
 - Rate control
 - Further SSE/AVX optimizations & quality improvements.
 
-homerHEVC_V2.0 (March 2014)
+homerHEVC_V2.0 (March 2015)
 - SAO.
-- B images
+- Half pixel and quarter pixel precission motion estimation.
 - Further SSE/AVX optimizations & quality improvements.
 
+homerHEVC_V3.0 (July 2015)
+- B frames.
 
 Donwnload
 ---------
