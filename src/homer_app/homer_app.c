@@ -93,7 +93,7 @@ void print_help()
 	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
-	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel, default = 1\r\n");
+	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel, default = 2\r\n");
 	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12], default = 2\r\n");	
 	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
 	printf("-max_pred_depth: \t\t\t [0-4], default = 4\r\n");
@@ -125,12 +125,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -193,7 +193,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->gop_size);
 		}
-		else if(strcmp(argv[args_parsed], "-num_ref_frames")==0 && args_parsed+1<argc)//Number of reference frames to used as reference for inter prediction
+		else if(strcmp(argv[args_parsed], "-num_ref_frames")==0 && args_parsed+1<argc)//Number of reference frames to be used as reference for inter prediction
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->num_ref_frames);
@@ -203,7 +203,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->qp );
 		}
-		else if(strcmp(argv[args_parsed], "-motion_estimation_precision")==0 && args_parsed+1<argc)//Number of reference frames to used as reference for inter prediction
+		else if(strcmp(argv[args_parsed], "-motion_estimation_precision")==0 && args_parsed+1<argc)//Number of reference frames to be used as reference for inter prediction
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->motion_estimation_precision);
@@ -290,7 +290,7 @@ int main (int argc, char **argv)
 	int input_frames = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 15;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
