@@ -85,7 +85,7 @@ void sse_create_intra_planar_prediction_4(uint16_t *ref_wnd, int ref_wnd_stride_
 
 void sse_create_intra_planar_prediction_8(uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size)
 {
-	int i, j, jj;
+	int j;
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 
 	__m128_u16 shuffle_mask_reorder16 = sse_128_load_vector_u(shuffle_mask_prediction_16_0);
@@ -292,7 +292,7 @@ ALIGN(16) static const int8_t shuffle_mask_predict_16_0[16] ={ 14, 15, 12, 13, 1
 //for cu_size >= 8
 void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu, uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
-	int i, j, jj;
+	int i, j;
 	int is_DC_mode = cu_mode < 2;
 	int16_t *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
 
@@ -349,7 +349,6 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 		int bit_depth = 8;//et->bit_depth;
 		int16_t* refMain;
 		int16_t* refSide;
-		int16_t	 top_pred_buff[64*4+1], left_pred_buff[64*4+1];
 		int16_t  *refAbove = et->top_pred_buff;
 		int16_t  *refLeft = et->left_pred_buff;
 		int invAngleSum;
@@ -438,7 +437,6 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 			int pos_delta=0;
 			int aux_delta;
-			int fract_delta;
 			int ref_main_idx;
 
 			if(pred_angle==32)
@@ -473,7 +471,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 					for (i=0;i<cu_size;i+=8)//for (i=0;i<cu_size;i+=8)//for (i=0;i<cu_size;i+=16)
 					{
-						__m128_i16 aux, aux1;
+						__m128_i16 aux;
 						ref_main_idx = i+aux_delta+1;
 						aux = sse_128_shift_r_i16(sse_128_add_i16(sse_128_add_i16(sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx), _128_32_minus_frac_delta), sse_128_mul_i16(sse_128_load_vector_u(refMain+ref_main_idx+1), _128_frac_delta)),_128_round),5);
 						sse_128_store_vector_u(ref_wnd+j*ref_wnd_stride_2D+i, sse_128_convert_u8_i16(sse128_packs_i16_u8(aux,aux)));
@@ -713,7 +711,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 
 void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu, uint16_t *ref_wnd, int ref_wnd_stride_2D, int16_t  *adi_pred_buff, int adi_size, int cu_mode, int is_luma)//creamos el array de prediccion angular
 {
-	int i, j, jj;
+	int i, j;
 	int is_DC_mode = cu_mode < 2;
 	int is_Hor_mode = !is_DC_mode && (cu_mode < 18);
 	int is_Ver_mode = !is_DC_mode && !is_Hor_mode;
@@ -850,7 +848,6 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 			int aux_stride2 = is_Hor_mode?ref_wnd_stride_2D:1;
 			int pos_delta=0;
 			int aux_delta;
-			int fract_delta;
 			int ref_main_idx;
 			__m128_i16 _128_pos_delta=sse_128_zero_vector();
 			__m128_i16 _128_pred_angle=sse_128_vector_i16(pred_angle);
@@ -989,7 +986,7 @@ void sse_adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size
 	else
 	{
 		//filter [1,2,1]
-		int aux2, aux = ptr_filter[0] = ptr[0];
+		int aux = ptr_filter[0] = ptr[0];
 		__m128_i16 _128_two = sse_128_vector_i16(2);
 
 		for(i=1;i<adi_size-1;i+=8)	//column + square + row

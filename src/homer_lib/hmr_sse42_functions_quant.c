@@ -34,8 +34,6 @@
 void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
 {
 	int16_t *psrc = src, *pdst = dst;
-	int iLevel, auxLevel;
-	int  iSign;
 	picture_t *currpict = &et->ed->current_pict;	//esto y
 	slice_t *currslice = &currpict->slice;		//esto deberia pasarse como parametro
 	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//ed->max_cu_size_shift
@@ -136,7 +134,6 @@ void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_m
 
 void sse_aligned_inv_quant(henc_thread_t* et, short *src, short *dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
 {
-	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));//ed->max_cu_size_shift
 	int scan_type = is_intra?0:3 + comp;
 	int32_t *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][rem];
@@ -146,7 +143,6 @@ void sse_aligned_inv_quant(henc_thread_t* et, short *src, short *dst, int depth,
 	int iq_add = (iq_shift>per)? 1 << (iq_shift - per - 1): 0;
 	int n;
 
-	__m128i _128one = sse_128_vector_i16(1);
 //	__m128i _128zero = sse_128_vector_i16(0);
 
 	if(iq_shift>per)

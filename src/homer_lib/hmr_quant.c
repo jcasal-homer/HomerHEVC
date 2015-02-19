@@ -169,7 +169,7 @@ void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU
 }
 
 
-void quant(henc_thread_t* et, short * __restrict src, short * __restrict dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
+void quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
 {
 	int iLevel, auxLevel;
 	int  iSign;
@@ -221,7 +221,7 @@ void quant(henc_thread_t* et, short * __restrict src, short * __restrict dst, in
 
 
 
-void iquant(henc_thread_t* et, short * __restrict src, short * __restrict dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
+void iquant(henc_thread_t* et, int16_t* src, int16_t* dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
 {
 	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));

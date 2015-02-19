@@ -31,8 +31,8 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-#define COMPUTE_AS_HM			1	//to debug against HM
-#define TRACE_FRAMES_DEBUG		1
+//#define COMPUTE_AS_HM			1	//to debug against HM
+#define DBG_TRACE_FRAMES		1
 #define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -568,7 +568,7 @@ struct wnd_t
 typedef union temporal_info_t temporal_info_t;
 union temporal_info_t
 {
-	uint32_t	pts;
+	uint64_t	pts;
 	uint32_t	poc;
 };
 
@@ -673,15 +673,15 @@ struct cu_partition_info_t
 	cu_partition_info_t	*parent;//pointer to parent partition
 	cu_partition_info_t	*children[4];//pointers to child partitions
 	
-	uint qp;
+	uint32_t qp;
 //	uint16_t mode;
 //	uint16_t mode_chroma;
 	//intra
-	uint sum;
+	uint32_t sum;
 //	uint distortion_chroma, cost_chroma;
-	uint sad;
-	uint distortion, cost;
-	uint variance, variance_luma, variance_chroma;
+	uint32_t sad;
+	uint32_t distortion, cost;
+	uint32_t variance, variance_luma, variance_chroma;
 	uint recursive_split;
 
 	//inter prediction. Trying to avoid buffer consolidation
@@ -892,31 +892,31 @@ struct ref_pic_set_t
 typedef struct slice_t slice_t;
 struct slice_t
 {
-	unsigned int slice_index; //indice en la lista de slices
-	unsigned int slice_type;
-	unsigned int nalu_type;
-	unsigned int first_cu_address;//address of first coding tree block in the slice
-	unsigned int curr_cu_address;//address of current coding tree block in the slice
-	unsigned int last_cu_address;//m_uiDependentSliceCurEndCUAddr - address of current coding tree block in the slice partition units (256 per CU)
-	unsigned int is_dependent_slice;//
-	unsigned int slice_temporal_layer_non_reference_flag;//
-	unsigned int slice_temporal_mvp_enable_flag;
-	unsigned int deblocking_filter_disabled_flag;
-	unsigned int slice_loop_filter_across_slices_enabled_flag;
-	unsigned int slice_beta_offset_div2;
-	unsigned int slice_tc_offset_div2;
-	unsigned int max_num_merge_candidates;
+	uint32_t slice_index; //indice en la lista de slices
+	uint32_t slice_type;
+	uint32_t nalu_type;
+	uint32_t first_cu_address;//address of first coding tree block in the slice
+	uint32_t curr_cu_address;//address of current coding tree block in the slice
+	uint32_t last_cu_address;//m_uiDependentSliceCurEndCUAddr - address of current coding tree block in the slice partition units (256 per CU)
+	uint32_t is_dependent_slice;//
+	uint32_t slice_temporal_layer_non_reference_flag;//
+	uint32_t slice_temporal_mvp_enable_flag;
+	uint32_t deblocking_filter_disabled_flag;
+	uint32_t slice_loop_filter_across_slices_enabled_flag;
+	uint32_t slice_beta_offset_div2;
+	uint32_t slice_tc_offset_div2;
+	uint32_t max_num_merge_candidates;
 
 	sps_t		*sps;
 	pps_t		*pps;
 	
 	int qp;
-	unsigned int poc;
-	unsigned int depth;
-	unsigned int sublayer;//TLayer
-	unsigned int referenced;
-	unsigned int num_ref_idx[2];
-	unsigned int ref_pic_set_index;
+	uint32_t poc;
+	uint32_t depth;
+	uint32_t sublayer;//TLayer
+	uint32_t referenced;
+	uint32_t num_ref_idx[2];
+	uint32_t ref_pic_set_index;
 	ref_pic_set_t	*ref_pic_set;
 	video_frame_t	*ref_pic_list[2][MAX_NUM_REF];
 	int				ref_pic_list_cnt[2];
@@ -1035,16 +1035,16 @@ struct henc_thread_t
 	wnd_t			filtered_block_wnd[4][4];
 	wnd_t			filtered_block_temp_wnd[4];
 	//intra predicition
-	short				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
-	short				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
-	short				(*top_pred_buff);//intermediate buffer to calculate intra prediction samples
-	short				(*left_pred_buff);//intermediate buffer to calculate intra prediction samples
-	short				(*bottom_pred_buff);//intermediate buffer to calculate intra prediction samples
-	short				(*right_pred_buff);//intermediate buffer to calculate intra prediction samples
+	int16_t				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
+	int16_t				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
+	int16_t				(*top_pred_buff);//intermediate buffer to calculate intra prediction samples
+	int16_t				(*left_pred_buff);//intermediate buffer to calculate intra prediction samples
+	int16_t				(*bottom_pred_buff);//intermediate buffer to calculate intra prediction samples
+	int16_t				(*right_pred_buff);//intermediate buffer to calculate intra prediction samples
 	int					adi_size;//size of adi buffer 
-	short				(*pred_aux_buff);
+	int16_t				(*pred_aux_buff);
 	int					pred_aux_buff_size;//size of aux buffer
-	short				(*aux_buff);
+	int16_t				(*aux_buff);
 	uint8_t				(*cabac_aux_buff);
 	int					cabac_aux_buff_size;
 //	ctu_info_t			*curr_ctu_group_info;	//this is supposed to be a small window matching the processing grain
@@ -1118,16 +1118,16 @@ struct hvenc_t
 	//Encoder Cfg	
 	//Encoding layer
 	int				intra_period;
-	int				last_intra;
-	int				last_gop_reinit;
+	uint32_t		last_intra;
+	uint32_t		last_gop_reinit;
 	int				gop_size;
 	int				gop_reinit_on_scene_change;
 	int				num_b;
 //	img_pool_t		img_list;
 //	int				pic_interlaced, mb_interlaced;
-	unsigned int	conformance_mode;
-	unsigned int	pad_left, pad_right;
-	unsigned int	pad_top, pad_bottom;
+	uint			conformance_mode;
+	uint			pad_left, pad_right;
+	uint			pad_top, pad_bottom;
 	int				pict_width[3], pict_height[3];
 	int				pict_width_in_ctu, pict_height_in_ctu;
 	int				pict_total_ctu;
@@ -1146,7 +1146,7 @@ struct hvenc_t
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 	int				motion_estimation_precision;
 	int				wfpp_enable;
-	uint			wfpp_num_threads;
+	int				wfpp_num_threads;
 
 	//
 	int				num_partitions_in_cu;
@@ -1204,9 +1204,9 @@ struct hvenc_t
 	//--------------------------------------------------------------
 	uint16_t			*ang_table;//for angular intra prediction    
 	uint16_t			*inv_ang_table;//for angular intra prediction
-	uint				*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
-	int					*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-	int					*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	uint32_t				*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
+	int32_t					*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	int32_t					*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	//reference pictures
@@ -1216,9 +1216,9 @@ struct hvenc_t
 	int					num_long_term_ref_pic_sets;
 
 	//arithmetic coding
-	uint				num_ee;
+	int					num_ee;
 	enc_env_t			**ee_list;//encoding enviroment list hmr_container 
-	uint				num_ec;
+	int					num_ec;
 	enc_env_t			*ec_list;//encoding enviroment list
 
 	//rate distortion

@@ -107,10 +107,10 @@ void create_chroma_dir_list(int* list, int luma_mode)
 
 extern const uint8_t chroma_scale_conversion_table[];
 
-uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
+uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
 	int cu_mode, cu_mode_idx;
-	uint distortion = 0, best_distortion=0, bit_cost, cost, best_cost = INT_MAX, best_mode, best_mode_idx;
+	uint32_t distortion = 0, best_distortion=0, bit_cost, cost, best_cost = MAX_COST, best_mode, best_mode_idx;
 	uint sum = 0, best_sum;
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -143,7 +143,6 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 	int  mode_list[NUM_CHROMA_MODE];
 	int ch_component;
 	double weight;
-	int initial_state, end_state;
 	int luma_mode;
 	int qp_chroma, per, rem;// = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
 	int chr_qp_offset = et->ed->chroma_qp_offset;
@@ -217,7 +216,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 				else
 					et->funcs->create_intra_angular_prediction(et, ctu, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, cu_mode, FALSE);//creamos el array de prediccion angular
 
-				distortion += (double)et->funcs->sad(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride,curr_part_size);//R-D
+				distortion += et->funcs->sad(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride,curr_part_size);//R-D
 
 				cost += distortion;
 			}
@@ -229,8 +228,8 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 
 				memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], mode_list[cu_mode_idx], curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
 
-				bit_cost = (double)rd_estimate_bits_intra_mode(et, ctu_rd, curr_partition_info, depth-(part_size_type==SIZE_NxN), FALSE);
-				cost += bit_cost*et->rd.sqrt_lambda;
+				bit_cost = rd_estimate_bits_intra_mode(et, ctu_rd, curr_partition_info, depth-(part_size_type==SIZE_NxN), FALSE);
+				cost += (uint32_t) (bit_cost*et->rd.sqrt_lambda+.5);
 			}
 			else if(et->rd_mode != RD_FULL)
 			{
@@ -240,7 +239,7 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 					bit_cost = 1;
 				else
 					bit_cost = 12;
-				cost += bit_cost*et->rd.sqrt_lambda;
+				cost += (uint32_t) (bit_cost*et->rd.sqrt_lambda+.5);
 			}
 			homer_update_cand_list( mode_list[cu_mode_idx], cost, bit_cost, best_pred_modes, best_pred_cost, best_cu_bitcost);
 	}
@@ -427,14 +426,14 @@ uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth
 			memset(&et->intra_mode_buffs[CHR_COMP][depth][curr_partition_info->abs_index], mode_list[cu_mode_idx], curr_partition_info->num_part_in_cu*sizeof(et->intra_mode_buffs[CHR_COMP][depth][0]));
 #endif
 			bit_cost = rd_get_intra_bits_qt(et, ctu_rd, curr_partition_info, depth, FALSE, gcnt);
-			cost += bit_cost*et->rd.lambda+.5;
+			cost += (uint32_t)(bit_cost*et->rd.lambda+.5);
 		}
 #ifndef COMPUTE_AS_HM
 		else if(et->rd_mode != RD_FULL && cost<best_cost)
 		{
 			double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
 			//cost += bit_cost*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5;
-			cost += bit_cost*correction+.5;
+			cost += (uint32_t) (bit_cost*correction+.5);
 		}
 #endif
 		if(cost < best_cost)

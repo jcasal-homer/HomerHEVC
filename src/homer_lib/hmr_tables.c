@@ -61,7 +61,7 @@ extern uint g_sigLastScanCG32x32[];
 //scanning buffers: zigzag, horizontal, vertical y diagonal - zigzag is not used anymore
 void init_scan_pyramid(hvenc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth)
 {
-	const uint  uiNumScanPos  = (uint) iWidth * iWidth;
+	const uint  uiNumScanPos  = (uint32_t) iWidth * iWidth;
 	uint        uiNextScanPos = 0;
 
 	if( iWidth < 16 )
@@ -355,8 +355,8 @@ void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
 
 	ed->rd.lambda = lambda;
 	ed->rd.sqrt_lambda = sqrt(lambda);
-	ed->rd.lambda_SAD = (uint)floor(65536.0 * ed->rd.sqrt_lambda);
-	ed->rd.lambda_SSE = (uint)floor(65536.0 * ed->rd.sqrt_lambda);
+	ed->rd.lambda_SAD = (uint32_t)floor(65536.0 * ed->rd.sqrt_lambda);
+	ed->rd.lambda_SSE = (uint32_t)floor(65536.0 * ed->rd.sqrt_lambda);
 }
 
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode)//up_left_luma_dir_mode solo vale para la chroma

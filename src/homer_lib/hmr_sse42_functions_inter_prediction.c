@@ -31,8 +31,6 @@
 #include "hmr_sse42_functions.h"
 
 
-#define clip(value,min,max)	( (value < min) ? min : (value > max) ? max : value )
-
 #define NTAPS_LUMA        8 ///< Number of taps for luma
 #define NTAPS_CHROMA      4 ///< Number of taps for chroma
 #define IF_INTERNAL_PREC 14 ///< Number of bits for internal precision
@@ -154,13 +152,10 @@ void sse_hmr_interpolation_filter_luma_8xn(int16_t *src, int src_stride, int16_t
 {
 	int bit_depth = 8;
 	int num_taps = NTAPS_LUMA;//argument
-	int y, x;
+	int y;
 	int offset;
-	short maxVal;
 	int headRoom = IF_INTERNAL_PREC - bit_depth;
 	int shift = IF_FILTER_PREC;
-	int row, col;
-	int16_t c[8];
 	__m128_i16 max_limit;
 	__m128_i16 min_limit;
 
@@ -307,11 +302,8 @@ void sse_hmr_interpolation_filter_luma_8nxm(int16_t *src, int src_stride, int16_
 	int num_taps = NTAPS_LUMA;//argument
 	int y, x;
 	int offset;
-	short maxVal;
 	int headRoom = IF_INTERNAL_PREC - bit_depth;
 	int shift = IF_FILTER_PREC;
-	int row, col;
-	int16_t c[8];
 	__m128_i16 max_limit;
 	__m128_i16 min_limit;
 
@@ -591,7 +583,7 @@ void sse_hmr_interpolate_chroma_8xn(int16_t *reference_buff, int reference_buff_
 	int offset = 0;
 	int headRoom = IF_INTERNAL_PREC - bit_depth;
 	int shift = IF_FILTER_PREC;
-	int y, x;
+	int y;
 	__m128_i16 max_limit;
 	__m128_i16 min_limit;
 

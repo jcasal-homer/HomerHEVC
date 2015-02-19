@@ -243,7 +243,7 @@ uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uin
 
 uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, uint32_t size)
 {
-	int i,j,n;
+	uint32_t i,j,n;
 	uint32_t ssd = 0;
 	__m128_u8	_128_aux;
 	__m128_		_128_zero = sse_128_zero_vector();
@@ -889,7 +889,7 @@ uint32_t sse_variance_2x2(uint8_t *__restrict p, int stride, int modif)
 
 
 
-uint32_t sse_modified_variance(uint8_t *__restrict p, int size, int stride, int modif)
+uint32_t sse_modified_variance(uint8_t *p, int size, int stride, int modif)
 {
 	if(size==2)
 		return sse_variance_2x2(p, stride, modif);

@@ -396,7 +396,7 @@
 	}																									\
 	else																								\
 	{																									\
-		int i, j, blocks;																				\
+		int i, j;																				\
 		for(i=0;i<matrix_size;i+=8)																	\
 		{																							\
 			__m128_i16 block8x8a[8];																\

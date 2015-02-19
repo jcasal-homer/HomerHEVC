@@ -91,10 +91,10 @@ void *HOMER_enc_init()
 	size=2;
 	for ( i=0; i<MAX_CU_DEPTHS; i++ ) //scan block size (2x2, ....., 128x128)
 	{
-		phvenc->scan_pyramid[0][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[1][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[2][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
-		phvenc->scan_pyramid[3][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint));
+		phvenc->scan_pyramid[0][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
+		phvenc->scan_pyramid[1][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
+		phvenc->scan_pyramid[2][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
+		phvenc->scan_pyramid[3][i] = (uint*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
 		init_scan_pyramid( phvenc, phvenc->scan_pyramid[0][i], phvenc->scan_pyramid[1][i], phvenc->scan_pyramid[2][i], phvenc->scan_pyramid[3][i], size, size, i);
 
 		size <<= 1;
@@ -109,8 +109,8 @@ void *HOMER_enc_init()
 			short *quant_def_table = get_default_qtable(size_index, list_index);
 			for ( qp=0; qp<NUM_SCALING_REM_LISTS; qp++ )//qp
 			{
-				phvenc->quant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint));
-				phvenc->dequant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint));
+				phvenc->quant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
+				phvenc->dequant_pyramid[size_index][list_index][qp] = (int*) hmr_aligned_alloc (size*size, sizeof(uint32_t));
 				phvenc->scaling_error_pyramid[size_index][list_index][qp] = (double*) hmr_aligned_alloc (size*size, sizeof(double));
 				init_quant_pyramids( phvenc, phvenc->quant_pyramid[size_index][list_index][qp], phvenc->dequant_pyramid[size_index][list_index][qp], phvenc->scaling_error_pyramid[size_index][list_index][qp],
 									quant_def_table, size, size, ratio, min(NUM_MAX_MATRIX_SIZE, size), QUANT_DEFAULT_DC, size_index+2, qp);
@@ -439,10 +439,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 #ifdef COMPUTE_AS_HM
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
-//			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 			cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
 			cfg->reinit_gop_on_scene_change = 0;
-			//cfg->chroma_qp_offset = 0;
+			cfg->chroma_qp_offset = 0;
+			cfg->wfpp_num_threads = 1;
+			cfg->intra_period = 20;
 #endif
 			if(phvenc->run==1)
 			{
@@ -572,7 +574,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				if(phvenc->sub_streams_entry_point_list)
 					free(phvenc->sub_streams_entry_point_list);
 
-				phvenc->sub_streams_entry_point_list = (uint*)calloc (phvenc->num_sub_streams, sizeof(uint));
+				phvenc->sub_streams_entry_point_list = (uint*)calloc (phvenc->num_sub_streams, sizeof(uint32_t));
 				//create new streams
 				phvenc->aux_bs = (bitstream_t	*)calloc (phvenc->num_sub_streams, sizeof(bitstream_t));
 				for(i=0;i<phvenc->num_sub_streams;i++)
@@ -1342,7 +1344,7 @@ void CuGetNeighbors(henc_thread_t* et, ctu_info_t* ctu)
 
 int HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], unsigned int num_nalus, encoder_in_out_t *vout)
 {
-	int nalu_idx, bytes_written=0;
+	uint nalu_idx, bytes_written=0;
 	uint8_t code[4] = {0x0,0x0,0x0,0x1};
 
 	for (nalu_idx=0;nalu_idx<num_nalus;nalu_idx++)
@@ -1513,7 +1515,7 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 		if(currslice->slice_type != I_SLICE && !et->ed->is_scene_change)// && (ctu->ctu_number & 0x1) == 0)
 		{
 			int ll;
-			motion_inter(et, ctu, gcnt);
+			motion_inter(et, ctu);
 			for(ll = 0; ll<et->num_partitions_in_cu;ll++)
 			{
 				if(ctu->pred_mode[ll]==INTRA_MODE)
@@ -1537,11 +1539,6 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 		//cabac - encode ctu
 		PROFILER_RESET(cabac)
 		ctu->coeff_wnd = &et->transform_quant_wnd[0];
-
-		if(et->ed->num_encoded_frames == 5)//if(ctu->ctu_number==2)//et->cu_current+1 == et->pict_total_ctu)//
-		{
-			int iiiii=0;
-		}
 
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		PROFILER_ACCUMULATE(cabac)
@@ -1621,7 +1618,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 
 	if(get_num_elements(ed->output_hmr_container))
 	{
-		int comp, j, i, stride_src, stride_dst;
+		int comp, j, i, stride_src;
 		uint16_t *src;
 		uint8_t *dst;
 		output_set_t* ouput_set;
@@ -1643,7 +1640,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 				{
 					for(i=0;i<ed->pict_width[comp];i++)
 					{
-						*dst++ = src[i];						
+						*dst++ = (uint8_t)src[i];						
 					}
 					src += stride_src;
 				}
@@ -1792,11 +1789,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
 		output_nalu_list[output_nalu_cnt++] = ed->slice_nalu;
 
-		if(ed->num_encoded_frames == 5)
-		{
-			int iiiii = 0;
-		}
-
 		hmr_put_slice_header(ed, currslice);//slice header
 		if(ed->wfpp_enable)
 			hmr_slice_header_code_wfpp_entry_points(ed);
@@ -1833,12 +1825,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 #endif
 
 		ed->num_encoded_frames++;
-#ifdef TRACE_FRAMES_DEBUG
+#ifdef DBG_TRACE_FRAMES
 		{
 			char stringI[] = "I";
 			char stringP[] = "P";
 			char stringB[] = "B";
-			int str_length;
 			char *frame_type_str;
 			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
 

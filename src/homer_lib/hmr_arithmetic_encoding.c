@@ -52,8 +52,8 @@
 #include "hmr_cabac_tables.h"
 
 
-const uint g_uiMinInGroup[ 10 ] = {0,1,2,3,4,6,8,12,16,24};
-const uint g_uiGroupIdx[ 32 ]   = {0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9};
+const int g_uiMinInGroup[ 10 ] = {0,1,2,3,4,6,8,12,16,24};
+const int g_uiGroupIdx[ 32 ]   = {0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9};
 
 const uint g_sigLastScan8x8[ 4 ][ 4 ] =
 {
@@ -657,7 +657,7 @@ void write_ep_ex_golomb(enc_env_t* ee, uint symbol, uint count)
 	uint bins = 0;
 	int num_bins = 0;
 
-	while( symbol >= (uint)(1<<count) )
+	while( symbol >= (uint32_t)(1<<count) )
 	{
 		bins = 2 * bins + 1;
 		num_bins++;
@@ -735,9 +735,9 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 	}
 	*/ 
 	int abs_index = curr_partition_info->abs_index;
-	uint num_pu = ( partition_size_type == SIZE_2Nx2N ? 1 : ( partition_size_type == SIZE_NxN ? 4 : 2 ) );
+	int num_pu = ( partition_size_type == SIZE_2Nx2N ? 1 : ( partition_size_type == SIZE_NxN ? 4 : 2 ) );
 	uint pred_depth = ctu->pred_depth[abs_index];
-	uint pu_offset = ( g_auiPUOffset[(uint)partition_size_type] << ( ( et->max_cu_depth - pred_depth ) << 1 ) ) >> 4;
+	uint pu_offset = ( g_auiPUOffset[(uint32_t)partition_size_type] << ( ( et->max_cu_depth - pred_depth ) << 1 ) ) >> 4;
 
 	for (part_idx = 0, sub_part_idx = abs_index; part_idx < num_pu; part_idx++, sub_part_idx += pu_offset)
 	{
@@ -795,7 +795,7 @@ void encode_intra_dir_luma_ang(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info
 
 	for (j=0;j<partNum;j++)
 	{
-		uint i;
+		int i;
 		if(is_multiple)
 		{
 			dir[j] = ctu->intra_mode[Y_COMP][curr_partition_info->children[j]->abs_index];
@@ -1056,7 +1056,7 @@ void encode_residual(henc_thread_t* et, enc_env_t *ee, ctu_info_t *ctu, cu_parti
 	uint go_rice_param;
 	int  scan_position_sig;
 	int sub_pos;
-	short *abs_coeff = et->aux_buff;
+	int16_t *abs_coeff = et->aux_buff;
 	uint coeff_signs = 0;
 	int last_nz_pos_in_cg, first_nz_pos_in_cg;
 	context_model_t *base_coeff_group_ctx = GET_CONTEXT_YZ(ee->e_ctx->cu_sig_coeff_group_model, 0, !is_luma);
@@ -1272,7 +1272,7 @@ void encode_residual(henc_thread_t* et, enc_env_t *ee, ctu_info_t *ctu, cu_parti
 				int idx;
 				for (idx = 0; idx < num_non_zero; idx++ )
 				{
-					uint baseLevel  = (idx < C1FLAG_NUMBER)? (2 + iFirstCoeff2 ) : 1;
+					int baseLevel  = (idx < C1FLAG_NUMBER)? (2 + iFirstCoeff2 ) : 1;
 
 					if( abs_coeff[ idx ] >= baseLevel)
 					{
@@ -1453,8 +1453,6 @@ void encode_delta_qp(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_parti
 	int qp  = ctu->qp[abs_index];//pcCU->getQP( uiAbsPartIdx ) - pcCU->getRefQP( uiAbsPartIdx );
 	int diff_qp, ref_qp;
 	uint abs_diff_qp, tu_value;
-	ctu_info_t *ctu_left, *ctu_top;
-	uint abs_index_left, abs_index_top;
 
 	ref_qp = get_ref_qp(et, ctu, curr_partition_info);
 
@@ -1463,7 +1461,7 @@ void encode_delta_qp(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_parti
 //	Int qpBdOffsetY =  pcCU->getSlice()->getSPS()->getQpBDOffsetY();
 	diff_qp = (diff_qp + 78) % 52  - 26;//(iDQp + 78 + qpBdOffsetY + (qpBdOffsetY/2)) % (52 + qpBdOffsetY) - 26 - (qpBdOffsetY/2);
 
-	abs_diff_qp = (uint)abs(diff_qp);//((iDQp > 0)? iDQp  : (-iDQp));
+	abs_diff_qp = (uint32_t)abs(diff_qp);//((iDQp > 0)? iDQp  : (-iDQp));
 	tu_value = min((int)abs_diff_qp, CU_DQP_TU_CMAX);
 
 	write_unary_max_simbol(ee, cm, tu_value, 1, CU_DQP_TU_CMAX);
@@ -1542,7 +1540,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 
 	while(curr_depth!=depth || depth_state[curr_depth]!=1)//tenemos que iterar un cu de la profundidad inicial
 	{
-		unsigned int intra_split_flag, inter_split_flag;
+		int intra_split_flag, inter_split_flag;
 		curr_depth = curr_partition_info->depth;
 		abs_index = curr_partition_info->abs_index;
 		curr_part_size_shift = et->max_cu_size_shift-curr_depth;
@@ -1558,12 +1556,6 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 		intra_split_flag = (is_intra && part_size_type==SIZE_NxN);
 		inter_split_flag = (!is_intra && et->max_inter_tr_depth==1 && part_size_type!=SIZE_2Nx2N);
 
-
-		if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_partition_info->abs_index == 92)
-		{
-			int iiiiii=0;
-		}
-
 		if(log2_cu_size < tu_log_min_size + (is_intra?et->max_intra_tr_depth:et->max_inter_tr_depth) - 1 + inter_split_flag + intra_split_flag)
 			tu_log_min_size_in_cu = et->min_tu_size_shift;
 		else
@@ -1572,13 +1564,6 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			if (tu_log_min_size_in_cu > tu_log_max_size)
 				tu_log_min_size_in_cu = tu_log_max_size;
 		}
-
-
-		if(ctu->ctu_number==2 && et->ed->current_pict.slice.slice_type == P_SLICE && curr_partition_info->abs_index == 92)
-		{
-			int iiiiii=0;
-		}
-
 
 		if(!(is_intra && part_size_type == SIZE_NxN && curr_depth == pred_depth) && 
 			!(!is_intra && part_size_type != SIZE_2Nx2N && curr_depth == pred_depth && et->max_inter_tr_depth == 1) && 
@@ -1616,13 +1601,6 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 			if( ctu->pred_mode[abs_index]==INTRA_MODE || tr_depth != 0 || cbf_u || cbf_v)//CBF(ctu, abs_index, U_COMP, tr_depth) || CBF(ctu, abs_index, V_COMP, tr_depth) ) 
 			{
 				encode_qt_cbf(ee, curr_partition_info, Y_COMP, tr_depth, cbf_y);//CBF(ctu, abs_index, Y_COMP, tr_depth));
-			}
-
-
-//			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
-			if(ctu->ctu_number==3 && et->ed->current_pict.slice.slice_type == I_SLICE)// && curr_partition_info->abs_index == 92)
-			{
-				int iiiiii=0;
 			}
 
 			if ( cbf_y || cbf_u || cbf_v )
@@ -1694,11 +1672,6 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	int is_skipped = ctu->skipped[abs_index];
 	PartSize part_size_type = (PartSize)ctu->part_size_type[abs_index];
 
-	if(et->ed->num_encoded_frames == 1)
-	{
-		int iiiii=0;
-	}
-
 	if( !isIntra(currslice->slice_type))
 	{
 		encode_skip_flag(ee, ctu, curr_partition_info);
@@ -1725,11 +1698,6 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	else
 	{
 		encode_inter_motion_info(et, ee, currslice, ctu, curr_partition_info, part_size_type);
-	}
-
-	if(!is_intra)
-	{
-		int iiiii=0;
 	}
 
 	transform_tree(et, ee, ctu, curr_partition_info, gcnt);
@@ -1807,11 +1775,6 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	int pred_depth;
 	curr_partition_info = ctu->partition_list;
 
-	if(/*et->ed->num_encoded_frames == 9 && */ctu->ctu_number==97)// && currslice->slice_type == P_SLICE)
-	{
-		int iiiiii=0;
-	}
-
 	//encode parent
 	curr_depth = curr_partition_info->depth;
 	memset(depth_state, 0, sizeof(depth_state));
@@ -1820,21 +1783,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->ed->num_encoded_frames == 1 && ctu->ctu_number == 1 && curr_partition_info->abs_index >= 128)
-		{
-			int iiiii=0;
-		}
-
 		if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 		{
 			if(curr_partition_info->depth != (et->max_cu_depth - et->mincu_mintr_shift_diff))
 				encode_split_flag(ee, ctu, curr_partition_info);
 		}
-
-			if(et->ed->num_encoded_frames == 0 && ctu->ctu_number==97)// && curr_partition_info->abs_index == 32)//et->ed->current_pict.slice.slice_type == P_SLICE)// && curr_partition_info->abs_index == 92)
-			{
-				int iiiiii=0;
-			}
 
 		//implement qp modification in this loop - setQPSubCUs in HM
 		if(curr_partition_info->depth==et->ed->pps.diff_cu_qp_delta_depth && et->ed->pps.cu_qp_delta_enabled_flag)

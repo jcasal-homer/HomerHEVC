@@ -318,7 +318,7 @@ void bc_init_next_state_table()
 
 uint bc_bitcnt(bitstream_t *bs, binary_model_t* bm)
 {
-   return (uint)(bm->m_fracBits >> 15 );
+   return (uint32_t)(bm->m_fracBits >> 15 );
 }
 
 void bc_encode_bin_EP( enc_env_t* ee, uint binValue)

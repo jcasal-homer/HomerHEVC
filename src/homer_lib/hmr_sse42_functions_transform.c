@@ -834,7 +834,7 @@ void sse_aligned_inv_dct_16x16(int16_t *src, int16_t *dst, int dst_stride, int16
 	__m128i odd_c[16];
 	__m128i ee_c[8], eo_c[8];
 	__m128i shuff_mask_0 = sse_128_load_vector_a(shuffle_mask_dct_16_0);//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
-	int16_t *pdst, *psrc;
+	int16_t *pdst;
 	int16_t *adst[2] = {aux, dst};
 	int16_t *asrc[2] = {src, aux};
 	int astride[2] = {16,dst_stride}; 
@@ -1146,7 +1146,6 @@ ALIGN(16) const int32_t dct32x32_butterfly_coeffs_7[16][16] =
 void sse_aligned_dct_32x32(int16_t *src, int16_t *dst, int stride, int16_t *aux) 
 {
 	int i, j;
-	__m128_	zero = sse_128_zero_vector();
 	__m128i round[2];
 
 	__m128i O[8][4], E[4];

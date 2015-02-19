@@ -384,7 +384,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 
 	if(!currslice->is_dependent_slice)//if(!dependent_slice_flag )
 	{
-		int i; 
+		uint i; 
 		for (i = 0; i < pps->num_extra_slice_header_bits; i++)
 		{
 			hmr_bitstream_write_bits(bs, 0, 1);//reserved_undetermined_flag
@@ -584,7 +584,7 @@ void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed)
 	bitstream_t	*bs = &ed->slice_bs;//
 	int i;
 	uint max_offset = 0, offset_len_minus_1 = 1;
-	uint num_entry_point_offsets = ed->num_sub_streams-1;
+	int num_entry_point_offsets = ed->num_sub_streams-1;
 
 	for (i=0; i<num_entry_point_offsets; i++)
 	{

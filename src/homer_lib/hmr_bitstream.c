@@ -123,8 +123,8 @@ byte emulation_prevention_three_byte = 3;
 
 void hmr_bitstream_nalu_ebsp(bitstream_t* in_bs, bitstream_t* out_bs)
 {
-	unsigned char* ptr = in_bs->bitstream;
-	unsigned char* out_ptr = &out_bs->bitstream[out_bs->streambytecnt];
+	uint8_t* ptr = in_bs->bitstream;
+	uint8_t* out_ptr = &out_bs->bitstream[out_bs->streambytecnt];
 	int size = in_bs->streambytecnt;
 	int i = 0;
 
@@ -149,7 +149,7 @@ void hmr_bitstream_nalu_ebsp(bitstream_t* in_bs, bitstream_t* out_bs)
 	if(ptr[size-1] == 0)
 		*out_ptr = emulation_prevention_three_byte;
 
-	out_bs->streambytecnt =  out_ptr - out_bs->bitstream;//update byte count value
+	out_bs->streambytecnt =  (uint32_t)(out_ptr - out_bs->bitstream);//update byte count value
 }
 
 
@@ -168,7 +168,7 @@ int hmr_bitstream_bitcount(bitstream_t* bs)
 }
 
 
-void hmr_bitstream_write2file(bitstream_t* bs)
+/*void hmr_bitstream_write2file(bitstream_t* bs)
 {
 	FILE *f_annexb;
 	if (((f_annexb) = fopen ("bitstream.bin", "wb")) == NULL)
@@ -181,3 +181,4 @@ void hmr_bitstream_write2file(bitstream_t* bs)
 	fclose(f_annexb);
 
 }
+*/

@@ -195,7 +195,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h);//void encoder_thread(void* ed);
 #define ADI_POINTER_MIDDLE(ptr_adi_orig, size)  (ptr_adi_orig+(size>>1))	//points to the top left square
 void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list);
 void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info);
-uint motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
+uint32_t motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 //void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size);
 void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size, int ctu_valid_colums, int ctu_valid_lines);
 uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
@@ -203,6 +203,7 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 uint32_t sad_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 uint32_t modified_variance(uint8_t *p, int size, int stride, int modif);
+uint32_t calc_variance_cu(henc_thread_t* et, cu_partition_info_t *curr_cu_info);
 void fill_reference_samples(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, int adi_size, int16_t* decoded_buff, int decoded_buff_stride, int partition_size, int component, int is_filtered);
 void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t* pred, int pred_stride, short  *adi_pred_buff, int adi_size, int cu_size, int cu_mode, int is_luma);
 void create_intra_planar_prediction(henc_thread_t* et, int16_t* pred, int pred_stride, int16_t *adi_pred_buff, int adi_size, int cu_size, int cu_size_shift);
@@ -212,12 +213,11 @@ void predict(uint8_t * orig_auxptr, int orig_buff_stride, int16_t *pred_auxptr, 
 void reconst(int16_t *pred_auxptr, int pred_buff_stride, int16_t *residual_auxptr, int residual_buff_stride, int16_t *decoded_auxptr, int decoded_buff_stride, int curr_part_size);
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
 //void consolidate_intra_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t *ctu_rd, cu_partition_info_t *parent_part_info, int parent_cost, int children_cost, int is_max_depth, uint *cost_sum);
-uint encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type);
+uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type);
 //uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
 void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
-uint encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
-uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
-void analyse_recursive_info(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
+uint32_t encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
+uint32_t motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
 void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
 
@@ -226,12 +226,12 @@ void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t
 void create_chroma_dir_list(int* list, int luma_mode);
 void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
 void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt);
-uint encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
+uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type);
 void homer_update_cand_list( uint uiMode, double Cost, uint BitCost, int CandModeList[3], double CandCostList[3], uint BitCostList[3]);
 
 
 //hmr_motion_inter.c
-uint motion_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
+uint32_t motion_inter(henc_thread_t* et, ctu_info_t* ctu);
 void hmr_motion_inter_uni(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint8_t *orig_buff, int orig_buff_stride, uint8_t *reference_buff, int reference_buff_stride, uint8_t *pred_buff, int pred_buff_stride,  int curr_part_global_x, int curr_part_global_y, int curr_part_size, int curr_part_size_shift, motion_vector_t *mv);
 void hmr_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 void hmr_interpolate_chroma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);

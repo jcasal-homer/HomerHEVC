@@ -158,12 +158,6 @@ void get_boundary_strength_single(hvenc_t* ed, slice_t *currslice, ctu_info_t *c
 	ctu_info_t	*ctu_aux;
 	uint		abs_idx, aux_abs_idx = 0;
 
-	if(currslice->slice_type != I_SLICE)
-	{
-		int iiiii=0;
-	}
-
-
 	abs_idx = sub_cu_info->abs_index;
 	//-- Calculate Block Index
 	if (dir == EDGE_VER)
@@ -385,12 +379,6 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 	int	idx;
 	int num_partitions;
 	int max_cu_width_units = (ed->max_cu_size>>2);		
-
-	if(ed->num_encoded_frames== 6 && ctu->ctu_number == 2)// && curr_part_global_y==96)// && curr_cu_info->abs_index==128)
-	{
-		int iiiii=0;
-	}
-
 
 	if (dir == EDGE_VER)
 	{
@@ -696,11 +684,6 @@ void deblock_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, cu_partition_i
 		}
 	}
 
-
-	if(ctu->ctu_number == 7 && curr_cu_info->abs_index == 12)
-	{
-		int iiiii=0;
-	}
 	for(part_idx = 0; part_idx < pu_size_in_deblock_units; part_idx+=deblock_partition_idx_incr)
 	{
 		deblock_filter_luma(ed, ctu, curr_cu_info, &ed->curr_reference_frame->img, currslice, dir, part_idx);
@@ -797,12 +780,6 @@ void hmr_deblock_filter_cu(hvenc_t* ed, slice_t *currslice, ctu_info_t* ctu, int
 		else//
 		{
 //			int l;
-
-			if(ctu->ctu_number == 7 && curr_cu_info->abs_index == 12)
-			{
-				int iiiii=0;
-			}
-
 			if(curr_cu_info->is_tl_inside_frame)
 			{
 				abs_index = curr_cu_info->abs_index;
@@ -846,7 +823,7 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 {
 	int ctu_num;
 	ctu_info_t* ctu;
-	int dir;
+//	int dir;
 
 //	if(ed->debug_file!=NULL)
 //		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug
@@ -860,10 +837,6 @@ void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
 			ctu = &ed->ctu_info[ctu_num];
 
 			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
-			if(ctu->ctu_number == 2 && dir==EDGE_VER)
-			{
-				int iiiii=0;
-			}
 
 			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
 		}
