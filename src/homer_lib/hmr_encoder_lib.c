@@ -453,6 +453,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				if(phvenc->encoder_thread!=NULL)
 					JOINT_THREAD(phvenc->encoder_thread);
 			}
+			phvenc->avg_dist = 1000;
 			phvenc->ctu_width[0] = phvenc->ctu_height[0] = cfg->cu_size;
 			phvenc->ctu_width[1] = phvenc->ctu_width[2] = cfg->cu_size>>1;
 			phvenc->ctu_height[1] = phvenc->ctu_height[2] = cfg->cu_size>>1;
