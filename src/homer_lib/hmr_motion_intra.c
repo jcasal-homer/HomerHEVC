@@ -859,7 +859,7 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 }
 
 
-void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
+void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd)
 {
 	int gcnt = 0;
 	int j;//, i;
@@ -867,20 +867,38 @@ void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t
 
 	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
-		int src_buff_stride = wnd_src->window_size_x[Y_COMP];
-		int dst_buff_stride = wnd_dst->window_size_x[Y_COMP];
-		int16_t * buff_src = WND_POSITION_1D(int16_t  *, *wnd_src, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
-		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd_dst, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
-
-		for(j=0;j<curr_part->size;j++)
+		int src_buff_stride = 0;//wnd->window_size_x[comp];
+		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		for(j=0;j<size;j++)
 		{
-			memcpy(buff_dst, buff_src, curr_part->size*sizeof(buff_src[0]));
+			memset(buff_dst, 0, size*sizeof(buff_dst[0]));
+			buff_dst += size;
+		}
+	}
+}
+
+void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	{
+		int src_buff_stride = wnd_src->window_size_x[comp];
+		int dst_buff_stride = wnd_dst->window_size_x[comp];
+		int16_t * buff_src = WND_POSITION_1D(int16_t  *, *wnd_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		for(j=0;j<size;j++)
+		{
+			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
 			buff_src += src_buff_stride;
 			buff_dst += dst_buff_stride;
 		}
 	}
 }
-
 
 //this function is used to consolidate buffers from bottom to top
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
@@ -1007,8 +1025,8 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 	int per = curr_partition_info->qp/6;
 	int rem = curr_partition_info->qp%6; 
 
-	quant_wnd = &et->transform_quant_wnd[curr_depth+1];
-	decoded_wnd = &et->decoded_mbs_wnd[curr_depth+1];
+	quant_wnd = et->transform_quant_wnd[curr_depth+1];
+	decoded_wnd = et->decoded_mbs_wnd[curr_depth+1];
 //	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
@@ -1301,7 +1319,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
-	decoded_wnd = &et->decoded_mbs_wnd[depth+1];	
+	decoded_wnd = et->decoded_mbs_wnd[depth+1];	
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
 	decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
@@ -1350,8 +1368,8 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	for(k=0;k<num_mode_candidates;k++)
 //	for(k=num_mode_candidates-1;k>=0;k--)
 	{
-//		wnd_t *quant_wnd = &et->transform_quant_wnd[curr_depth];
-//		decoded_wnd = &et->decoded_mbs_wnd[curr_depth];
+//		wnd_t *quant_wnd = et->transform_quant_wnd[curr_depth];
+//		decoded_wnd = et->decoded_mbs_wnd[curr_depth];
 //		cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
 		cu_mode = best_pred_modes[k];
@@ -1378,7 +1396,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 				ctu_rd->intra_mode[Y_COMP] = et->intra_mode_buffs[Y_COMP][curr_depth];
 				ctu_rd->cbf[Y_COMP] = et->cbf_buffs[Y_COMP][curr_depth];
 				ctu_rd->tr_idx = et->tr_idx_buffs[curr_depth];
-				ctu_rd->coeff_wnd = &et->transform_quant_wnd[curr_depth+1];
+				ctu_rd->coeff_wnd = et->transform_quant_wnd[curr_depth+1];
 				bit_cost = rd_get_intra_bits_qt(et, ctu_rd, curr_partition_info, depth, TRUE, gcnt);
 
 				cost += bit_cost*et->rd.lambda+.5;
@@ -1481,7 +1499,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 			ctu_rd->cbf[Y_COMP] = et->cbf_buffs[Y_COMP][curr_depth];
 			ctu_rd->tr_idx = et->tr_idx_buffs[curr_depth];
 			ctu_rd->intra_mode[Y_COMP] = et->intra_mode_buffs[Y_COMP][curr_depth];
-			ctu_rd->coeff_wnd = &et->transform_quant_wnd[curr_depth+1];
+			ctu_rd->coeff_wnd = et->transform_quant_wnd[curr_depth+1];
 
 			bit_cost = rd_get_intra_bits_qt(et, ctu_rd, curr_partition_info, depth, TRUE, gcnt);
 			curr_partition_info->cost += (uint32_t) (bit_cost*et->rd.lambda+.5);		
@@ -1509,7 +1527,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 					//rd
 					ctu_rd->cbf[Y_COMP] = et->cbf_buffs[Y_COMP][curr_depth];
 					ctu_rd->tr_idx = et->tr_idx_buffs[curr_depth];
-					ctu_rd->coeff_wnd = &et->transform_quant_wnd[curr_depth+1];
+					ctu_rd->coeff_wnd = et->transform_quant_wnd[curr_depth+1];
 					bit_cost = rd_get_intra_bits_qt(et, ctu_rd, parent_part_info, depth, TRUE, gcnt);
 					cost += (uint32_t) (bit_cost*et->rd.lambda+.5);
 				}
@@ -1571,14 +1589,14 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 						}											
 					}
 					//synchronize buffers for next iterations
-					synchronize_motion_buffers_luma(et, parent_part_info, &et->transform_quant_wnd[curr_depth+1], &et->transform_quant_wnd[curr_depth-1+1], &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[curr_depth-1+1], gcnt);
+					synchronize_motion_buffers_luma(et, parent_part_info, et->transform_quant_wnd[curr_depth+1], et->transform_quant_wnd[curr_depth-1+1], et->decoded_mbs_wnd[curr_depth+1], et->decoded_mbs_wnd[curr_depth-1+1], gcnt);
 				}
 				else
 				{
 					memset(&et->cbf_buffs[Y_COMP][depth][parent_part_info->abs_index], parent_part_info->intra_cbf[Y_COMP], parent_part_info->num_part_in_cu*sizeof(et->cbf_buffs[0][0][0]));
 					memset(&et->tr_idx_buffs[depth][parent_part_info->abs_index], parent_part_info->intra_tr_idx, parent_part_info->num_part_in_cu*sizeof(et->tr_idx_buffs[0][0]));
 					memset(&et->intra_mode_buffs[Y_COMP][depth][parent_part_info->abs_index], parent_part_info->intra_mode[Y_COMP], parent_part_info->num_part_in_cu*sizeof(et->intra_mode_buffs[0][0][0]));
-					synchronize_reference_buffs(et, parent_part_info, &et->decoded_mbs_wnd[curr_depth-1+1], &et->decoded_mbs_wnd[curr_depth+1], gcnt);	
+					synchronize_reference_buffs(et, parent_part_info, et->decoded_mbs_wnd[curr_depth-1+1], et->decoded_mbs_wnd[curr_depth+1], gcnt);	
 				}
 
 				acc_cost[curr_depth] = 0;
@@ -1594,7 +1612,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 				aux_num_part_in_cu = aux_partition_info->num_part_in_cu;
 				for(aux_depth=curr_depth+2;aux_depth<=max_tr_processing_depth;aux_depth++)//+1 pq el nivel superior esta ya sincronizado y tenemos que sincronizar los siguientes
 				{
-					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[curr_depth+1], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
+					synchronize_reference_buffs(et, aux_partition_info, et->decoded_mbs_wnd[curr_depth+1], et->decoded_mbs_wnd[aux_depth+1], gcnt);	
 					if(et->rd_mode==RD_FULL)
 					{
 						memcpy(&et->intra_mode_buffs[Y_COMP][aux_depth][aux_abs_index], &et->intra_mode_buffs[Y_COMP][depth][aux_abs_index], aux_num_part_in_cu*sizeof(et->intra_mode_buffs[Y_COMP][0][0]));
@@ -1928,12 +1946,12 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 
 				for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
 				{
-					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
+					synchronize_reference_buffs(et, aux_partition_info, et->decoded_mbs_wnd[0], et->decoded_mbs_wnd[aux_depth+1], gcnt);	
 					//for rd
 					if(et->rd_mode!=RD_DIST_ONLY)
 						consolidate_info_buffers_for_rd(et, ctu, aux_depth, abs_index, num_part_in_cu);						
 				}
-				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
+				synchronize_reference_buffs_chroma(et, aux_partition_info, et->decoded_mbs_wnd[0], et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 			}
 		}
 #endif 
@@ -1990,13 +2008,13 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 
 				for(aux_depth=curr_depth;aux_depth<=max_processing_depth;aux_depth++)
 				{
-					synchronize_reference_buffs(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[aux_depth+1], gcnt);	
+					synchronize_reference_buffs(et, aux_partition_info, et->decoded_mbs_wnd[0], et->decoded_mbs_wnd[aux_depth+1], gcnt);	
 
 					//for rd
 					if(et->rd_mode!=RD_DIST_ONLY)
 						consolidate_info_buffers_for_rd(et, ctu, aux_depth, abs_index, num_part_in_cu);
 				}
-				synchronize_reference_buffs_chroma(et, aux_partition_info, &et->decoded_mbs_wnd[0], &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
+				synchronize_reference_buffs_chroma(et, aux_partition_info, et->decoded_mbs_wnd[0], et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], gcnt);
 			}
 		}
 

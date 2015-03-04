@@ -182,7 +182,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 		parent_part_info = curr_partition_info->parent;
 	}
 
-	decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
+	decoded_wnd = et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];//[curr_depth];
 	for(cu_mode_idx=0;cu_mode_idx<NUM_CHROMA_MODE;cu_mode_idx++)
 	{	
 			distortion = cost = sum = 0;
@@ -281,8 +281,8 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 		depth_state[curr_depth] = part_position&0x3;
 
 		//get buffs
-		quant_wnd = &et->transform_quant_wnd[NUM_QUANT_WNDS-1];//depth =4 buffs are not used to consolidate
-		decoded_wnd = &et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];
+		quant_wnd = et->transform_quant_wnd[NUM_QUANT_WNDS-1];//depth =4 buffs are not used to consolidate
+		decoded_wnd = et->decoded_mbs_wnd[NUM_DECODED_WNDS-1];
 		cbf_buff[U_COMP] = et->cbf_buffs_chroma[U_COMP];//temporal buffer
 		cbf_buff[V_COMP] = et->cbf_buffs_chroma[V_COMP];//temporal buffer
 
@@ -453,7 +453,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 //			curr_partition_info->mode_chroma = cu_mode;
 
 			//synchronize buffers for next iterations esto en verdad no seria necesario, quedaria todo en depth=1
-			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, &et->transform_quant_wnd[depth+1], decoded_wnd, &et->decoded_mbs_wnd[depth+1], gcnt);
+			synchronize_motion_buffers_chroma(et, curr_partition_info, quant_wnd, et->transform_quant_wnd[depth+1], decoded_wnd, et->decoded_mbs_wnd[depth+1], gcnt);
 			memcpy(&et->cbf_buffs[U_COMP][depth][curr_partition_info->abs_index], &cbf_buff[U_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 			memcpy(&et->cbf_buffs[V_COMP][depth][curr_partition_info->abs_index], &cbf_buff[V_COMP][curr_partition_info->abs_index], curr_partition_info->num_part_in_cu*sizeof(et->cbf_buffs[U_COMP][depth][0]));
 		}

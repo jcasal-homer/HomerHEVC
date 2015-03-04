@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE_FRAMES		1
 #define COMPUTE_METRICS			1
 
@@ -629,6 +629,7 @@ typedef struct bit_counter
 */
 
 typedef struct motion_vector_t motion_vector_t;
+
 struct motion_vector_t
 {
   int32_t hor_vector;
@@ -636,14 +637,15 @@ struct motion_vector_t
 };
 
 
-#define AMVP_MAX_NUM_CANDS		2
-#define AMVP_MAX_NUM_CANDS_MEM	5//3
+#define AMVP_MAX_NUM_CANDS			2
+#define MERGE_MVP_MAX_NUM_CANDS		5
+#define MV_MAX_NUM_CANDS_MEM	MERGE_MVP_MAX_NUM_CANDS//3
 
 typedef struct mv_candiate_list_t mv_candiate_list_t;
 struct mv_candiate_list_t
 {
 	int	num_mv_candidates;
-	motion_vector_t	mv_candidates[AMVP_MAX_NUM_CANDS_MEM];
+	motion_vector_t	mv_candidates[MV_MAX_NUM_CANDS_MEM];
 };
 
 typedef struct cu_partition_info_t cu_partition_info_t;
@@ -682,12 +684,12 @@ struct cu_partition_info_t
 	uint32_t sad;
 	uint32_t distortion, cost;
 	uint32_t variance, variance_luma, variance_chroma;
-	uint recursive_split;
-
+	uint32_t recursive_split;
 	//inter prediction. Trying to avoid buffer consolidation
 //	uint inter_distortion, inter_distortion_chroma;
 //	uint inter_cost, inter_cost_chroma;
 	int prediction_mode;
+	int merge_flag, merge_idx, skipped;
 	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
 	motion_vector_t	inter_mv[2];
@@ -714,7 +716,9 @@ struct ctu_info_t
 	uint8_t			*pred_depth;//[MAX_NUM_PARTITIONS];
 	uint8_t			*part_size_type;//[MAX_NUM_PARTITIONS];
 	uint8_t			*pred_mode;//[MAX_NUM_PARTITIONS];//intra or inter
-	uint8_t			*skipped;//[MAX_NUM_PARTITIONS];//intra or inter
+	uint8_t			*skipped;//[MAX_NUM_PARTITIONS];
+	uint8_t			*merge;
+	uint8_t			*merge_idx;
 	uint8_t			*qp;
 	wnd_t			*coeff_wnd;
 
@@ -1018,7 +1022,7 @@ struct henc_thread_t
 	uint			num_intra_partitions;
 
 
-	int					*partition_depth_start;//start of depths in the partition_info list
+	int				*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
 	//current processing state and buffers
 	int				cu_current, cu_next;
@@ -1028,9 +1032,11 @@ struct henc_thread_t
 	wnd_t			prediction_wnd;									//prediction applied to original MBs
 	wnd_t			residual_wnd;									//residual after substracting prediction
 	wnd_t			residual_dec_wnd;								//decoded residual. output of inverse transform
-	wnd_t			transform_quant_wnd[NUM_QUANT_WNDS];			//for transform coefficients and quantification 
+	wnd_t			transform_quant_wnd_[NUM_QUANT_WNDS];			//windows to be used with pointers 
+	wnd_t			*transform_quant_wnd[NUM_QUANT_WNDS];			//for transform coefficients and quantification 
 	wnd_t			itransform_iquant_wnd;							//for itransform coefficients and iquantification
-	wnd_t			decoded_mbs_wnd[NUM_DECODED_WNDS];
+	wnd_t			decoded_mbs_wnd_[NUM_DECODED_WNDS];				//windows to be used with pointers
+	wnd_t			*decoded_mbs_wnd[NUM_DECODED_WNDS];
 
 	wnd_t			filtered_block_wnd[4][4];
 	wnd_t			filtered_block_temp_wnd[4];
@@ -1048,14 +1054,15 @@ struct henc_thread_t
 	uint8_t				(*cabac_aux_buff);
 	int					cabac_aux_buff_size;
 //	ctu_info_t			*curr_ctu_group_info;	//this is supposed to be a small window matching the processing grain
-	uint8_t				*cbf_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	uint8_t				*cbf_buffs_chroma[NUM_PICT_COMPONENTS];//processing buffers for iteration buff
-	uint8_t				*intra_mode_buffs[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-	uint8_t				*tr_idx_buffs[NUM_CBF_BUFFS];
+	uint8_t				*cbf_buffs[NUM_PICT_COMPONENTS][MAX_PARTITION_DEPTH];
+	uint8_t				*cbf_buffs_chroma[NUM_PICT_COMPONENTS];//processing aux buffers
+	uint8_t				*intra_mode_buffs[NUM_PICT_COMPONENTS][MAX_PARTITION_DEPTH];
+	uint8_t				*tr_idx_buffs[MAX_PARTITION_DEPTH];
 
 	//inter
-	mv_candiate_list_t	mv_candidates[2];
-	mv_candiate_list_t	mv_search_candidates;
+	mv_candiate_list_t	amvp_candidates[2];
+	mv_candiate_list_t	merge_mvp_candidates[2];
+	mv_candiate_list_t	mv_search_candidates;//non normative candidate list for motion_search
 //	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 //	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];

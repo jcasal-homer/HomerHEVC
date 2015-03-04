@@ -66,7 +66,7 @@ void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, i
 		wnd->window_size_x[comp] = aligned_padding_x+aligned_width+aligned_padding_x;
 		wnd->window_size_y[comp] = padding_size_y+height+padding_size_y;
 
-		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc(wnd->window_size_x[comp]*wnd->window_size_y[comp]*pix_size, sizeof(byte)))==NULL)
+		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc((wnd->window_size_x[comp]*wnd->window_size_y[comp])*pix_size, sizeof(byte)))==NULL)
 			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
 
 		wnd->pwnd[comp]=(void*)((uint8_t*)wnd->palloc[comp]+((padding_size_y*wnd->window_size_x[comp]+aligned_padding_x)*wnd->pix_size));
@@ -84,8 +84,9 @@ void wnd_delete(wnd_t *wnd)
 	int i;
 	for(i=0;i<3;i++)
 	{
-		if(wnd->pwnd[i] != NULL)
+		if(wnd->palloc[i])//if(wnd->pwnd[i] != NULL)
 			hmr_aligned_free(wnd->palloc[i]);
+		wnd->palloc[i] = NULL;
 		wnd->pwnd[i] = NULL;
 	}
 }
@@ -169,7 +170,7 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
-	wnd_t *decoded_src_wnd = &et->decoded_mbs_wnd[0];
+	wnd_t *decoded_src_wnd = et->decoded_mbs_wnd[0];
 	wnd_t *decoded_dst_wnd = &et->ed->curr_reference_frame->img;
 	int component = Y_COMP;
 	int src_stride;
@@ -212,7 +213,7 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 {
 	int l;
 	wnd_t *decoded_src_wnd = &et->ed->curr_reference_frame->img;
-	wnd_t *decoded_dst_wnd = &et->decoded_mbs_wnd[0];
+	wnd_t *decoded_dst_wnd = et->decoded_mbs_wnd[0];
 	int component = Y_COMP;
 	int src_stride = et->pict_width[component];
 	int dst_stride;
@@ -230,7 +231,7 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 		for(component=Y_COMP;component<=V_COMP;component++)
 		{
 			int i, j;
-			decoded_dst_wnd = &et->decoded_mbs_wnd[l];
+			decoded_dst_wnd = et->decoded_mbs_wnd[l];
 			src_stride = WND_STRIDE_2D(*decoded_src_wnd, component);
 			dst_stride = WND_STRIDE_2D(*decoded_dst_wnd, component);
 			decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src_wnd, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);

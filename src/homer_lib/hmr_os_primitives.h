@@ -33,6 +33,9 @@
 //data alignment
 #define ALIGN(a)	__declspec(align(a))
 
+//get cpu info
+#define GET_CPU_ID(cpu_info)	__cpuid(cpu_info, 1);
+
 //thread function return format
 #define THREAD_RETURN_TYPE	void
 #define THREAD_RETURN	
@@ -95,6 +98,17 @@ typedef void* hmr_sem_ptr;
 
 //data alignment
 #define ALIGN(a)	__attribute__((aligned(a)))
+
+//get cpu info
+#define GET_CPU_ID(cpu_info)																			\
+{																									\
+	int a,b,c,d;																					\
+	__asm__ __volatile__ ("cpuid":	"=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (1));				\
+	cpu_info[0] = a;																				\
+	cpu_info[1] = b;																				\
+	cpu_info[2] = c;																				\
+	cpu_info[3] = d;																				\
+}
 
 //thread function return format
 #define THREAD_RETURN_TYPE	void *

@@ -146,29 +146,6 @@ void *HOMER_enc_init()
 	cont_init(&phvenc->output_hmr_container);
 	cont_init(&phvenc->cont_empty_reference_wnds);
 
-//	phvenc->debug_file  = fopen("C:\\Patrones\\refs_Homer.bin","wb");//refs.yuv","wb")
-
-
-/*	phvenc->ctu_info = (ctu_info_t*)calloc (MAX_NUM_CTUs, sizeof(ctu_info_t));
-
-	for(i=0;i<MAX_NUM_CTUs;i++)
-	{
-		//------- ctu encoding info -------
-		//cbf
-		phvenc->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
-		phvenc->ctu_info[i].cbf[CHR_COMP] = phvenc->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
-		phvenc->ctu_info[i].cbf[V_COMP] = phvenc->ctu_info[i].cbf[U_COMP]+MAX_NUM_PARTITIONS;
-		//intra mode
-		phvenc->ctu_info[i].intra_mode[Y_COMP] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
-		phvenc->ctu_info[i].intra_mode[CHR_COMP] = phvenc->ctu_info[i].intra_mode[Y_COMP]+MAX_NUM_PARTITIONS;
-//		phvenc->ctu_info[i].intra_mode[V_COMP] = phvenc->ctu_info[i].intra_mode[U_COMP]+MAX_NUM_PARTITIONS;
-		//tr_idx, pred_depth, part_size_type, pred_mode
-		phvenc->ctu_info[i].tr_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-		phvenc->ctu_info[i].pred_depth = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-		phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-		phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-	}
-*/
 	phvenc->wfpp_enable = 0;
 	phvenc->num_sub_streams = 0;
 	phvenc->wfpp_num_threads = 0;
@@ -185,6 +162,52 @@ void *HOMER_enc_init()
 	return phvenc;
 }
 
+
+void put_frame_to_encode(hvenc_t *ed, encoder_in_out_t* input_frame)
+{
+	video_frame_t	*p;
+	uint8_t *src, *dst;
+	int stride_dst, stride_src;
+	int comp, j;
+
+	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
+
+	p->temp_info.pts = input_frame->pts;
+	p->img_type = input_frame->image_type;
+	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	{
+		src = input_frame->stream.streams[comp];
+		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
+		stride_src = input_frame->stream.data_stride[comp];//,  ed->pict_width[comp];
+		stride_dst = WND_STRIDE_2D(p->img, comp);
+
+		for(j=0;j<ed->pict_height[comp];j++)
+		{
+			memcpy(dst, src, ed->pict_width[comp]);
+			src += stride_src;
+			dst += stride_dst;
+		}
+	}
+	sync_cont_put_filled(ed->input_hmr_container, p);
+}
+
+int get_frame_to_encode(hvenc_t *ed, video_frame_t **picture)
+{
+	sync_cont_get_filled(ed->input_hmr_container, (void**)picture);
+	if(picture==NULL)
+	{
+		int iiiii=0;
+	}
+
+	return (*picture)!=NULL;
+}
+
+void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture)
+{
+	sync_cont_put_empty(ed->input_hmr_container, picture);
+}
+
+
 #define HMR_FREE(a) if(a!=NULL)free(a);(a)=NULL;
 #define HMR_ALIGNED_FREE(a) if(a!=NULL)hmr_aligned_free(a);(a)=NULL;
 
@@ -199,7 +222,11 @@ void HOMER_enc_close(void* h)
 		phvenc->run = 0;
 
 		if(phvenc->encoder_thread!=NULL)
-			JOINT_THREAD(phvenc->encoder_thread);		
+		{
+			sync_cont_put_filled(phvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
+//			put_avaliable_frame(phvenc, NULL);
+			JOINT_THREAD(phvenc->encoder_thread);
+		}
 	}
 
 	free(phvenc->ref_pic_set_list);phvenc->ref_pic_set_list=NULL;
@@ -211,6 +238,8 @@ void HOMER_enc_close(void* h)
 		if(henc_th==NULL)
 			break;
 
+		HMR_FREE(henc_th->ctu_rd->merge_idx)
+		HMR_FREE(henc_th->ctu_rd->merge)
 		HMR_FREE(henc_th->ctu_rd->skipped)
 		HMR_FREE(henc_th->ctu_rd->pred_mode)
 		HMR_FREE(henc_th->ctu_rd->part_size_type)
@@ -241,12 +270,12 @@ void HOMER_enc_close(void* h)
 		}		
 
 		for(i=0;i<NUM_DECODED_WNDS;i++)
-			wnd_delete(&henc_th->decoded_mbs_wnd[i]);
+			wnd_delete(&henc_th->decoded_mbs_wnd_[i]);
 
 		wnd_delete(&henc_th->itransform_iquant_wnd);
 
 		for(i=0;i<NUM_QUANT_WNDS;i++)
-			wnd_delete(&henc_th->transform_quant_wnd[i]);
+			wnd_delete(&henc_th->transform_quant_wnd_[i]);
 
 		HMR_ALIGNED_FREE(henc_th->aux_buff)
 
@@ -280,6 +309,8 @@ void HOMER_enc_close(void* h)
 		HMR_FREE(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0])
 		HMR_FREE(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0])
 		HMR_FREE(phvenc->ctu_info[i].qp)
+		HMR_FREE(phvenc->ctu_info[i].merge)
+		HMR_FREE(phvenc->ctu_info[i].merge_idx)
 		HMR_FREE(phvenc->ctu_info[i].skipped)
 		HMR_FREE(phvenc->ctu_info[i].pred_mode)
 		HMR_FREE(phvenc->ctu_info[i].part_size_type)
@@ -377,45 +408,6 @@ void HOMER_enc_close(void* h)
 }
 
 
-void put_frame_to_encode(hvenc_t *ed, encoder_in_out_t* input_frame)
-{
-	video_frame_t	*p;
-	uint8_t *src, *dst;
-	int stride_dst, stride_src;
-	int comp, j;
-
-	sync_cont_get_empty(ed->input_hmr_container, (void**)&p);
-
-	p->temp_info.pts = input_frame->pts;
-	p->img_type = input_frame->image_type;
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
-	{
-		src = input_frame->stream.streams[comp];
-		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
-		stride_src = input_frame->stream.data_stride[comp];//,  ed->pict_width[comp];
-		stride_dst = WND_STRIDE_2D(p->img, comp);
-
-		for(j=0;j<ed->pict_height[comp];j++)
-		{
-			memcpy(dst, src, ed->pict_width[comp]);
-			src += stride_src;
-			dst += stride_dst;
-		}
-	}
-	sync_cont_put_filled(ed->input_hmr_container, p);
-}
-
-
-void get_frame_to_encode(hvenc_t *ed, video_frame_t **picture)
-{
-	sync_cont_get_filled(ed->input_hmr_container, (void**)picture);
-}
-
-void put_avaliable_frame(hvenc_t *ed, video_frame_t *picture)
-{
-	sync_cont_put_empty(ed->input_hmr_container, picture);
-}
-
 
 static const int pad_unit_x[]={1,2,2,1};
 static int pad_unit_y[]={1,2,1,1};
@@ -451,7 +443,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->run = 0;
 
 				if(phvenc->encoder_thread!=NULL)
+				{
+					sync_cont_put_filled(phvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
 					JOINT_THREAD(phvenc->encoder_thread);
+				}
 			}
 			phvenc->avg_dist = 1000;
 			phvenc->ctu_width[0] = phvenc->ctu_height[0] = cfg->cu_size;
@@ -658,22 +653,24 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			{
 				for(i=0;i<phvenc->pict_total_ctu;i++)
 				{
-					free(phvenc->ctu_info[i].cbf[Y_COMP]);
+					HMR_FREE(phvenc->ctu_info[i].cbf[Y_COMP]);
 					//intra mode
-					free(phvenc->ctu_info[i].intra_mode[Y_COMP]);
-					free(phvenc->ctu_info[i].inter_mode);
+					HMR_FREE(phvenc->ctu_info[i].intra_mode[Y_COMP]);
+					HMR_FREE(phvenc->ctu_info[i].inter_mode);
 					//tr_idx, pred_depth, part_size_type, pred_mode
-					free(phvenc->ctu_info[i].tr_idx);
-					free(phvenc->ctu_info[i].pred_depth);
-					free(phvenc->ctu_info[i].part_size_type);
-					free(phvenc->ctu_info[i].pred_mode);
-					free(phvenc->ctu_info[i].skipped);
+					HMR_FREE(phvenc->ctu_info[i].tr_idx);
+					HMR_FREE(phvenc->ctu_info[i].pred_depth);
+					HMR_FREE(phvenc->ctu_info[i].part_size_type);
+					HMR_FREE(phvenc->ctu_info[i].pred_mode);
 
+					HMR_FREE(phvenc->ctu_info[i].skipped);
+					HMR_FREE(phvenc->ctu_info[i].merge);
+					HMR_FREE(phvenc->ctu_info[i].merge_idx);
 					//inter
-					free(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
-					free(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
-					free(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
-					free(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
+					HMR_FREE(phvenc->ctu_info[i].mv_ref[REF_PIC_LIST_0]);
+					HMR_FREE(phvenc->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]);
+					HMR_FREE(phvenc->ctu_info[i].mv_diff[REF_PIC_LIST_0]);
+					HMR_FREE(phvenc->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]);
 //					free(phvenc->ctu_info[i].mv_ref1);
 					
 //					free(phvenc->ctu_info[i].ref_idx1);
@@ -701,6 +698,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc->ctu_info[i].part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].merge = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				phvenc->ctu_info[i].merge_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				phvenc->ctu_info[i].qp = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 
 				//inter
@@ -719,18 +718,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->max_sublayers = 1;//TLayers en HM
 			phvenc->max_layers = 1;
 
-#if defined _MSC_VER	//Microsoft code
-			__cpuid(cpu_info, 1);
-#else		//gcc
-			{
-				int a,b,c,d;
-				__asm__ __volatile__ ("cpuid":	"=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (1));
-				cpu_info[0] = a;
-				cpu_info[1] = b;
-				cpu_info[2] = c;
-				cpu_info[3] = d;
-			}
-#endif
+			GET_CPU_ID(cpu_info)
 #ifndef COMPUTE_SSE_FUNCS
 			cpu_info[2] = 0;
 #endif
@@ -794,6 +782,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->index = ithreads;
 				henc_th->funcs = &phvenc->funcs;
 				henc_th->wfpp_enable = phvenc->wfpp_enable;
+				henc_th->wfpp_num_threads = phvenc->wfpp_num_threads;
+
+				//alloc processing windows (processing buffers attached to windows will be allocated depending on the resolution)
 				henc_th->wfpp_num_threads = phvenc->wfpp_num_threads;
 
 				SEM_COPY(henc_th->deblock_filter_sem, phvenc->deblock_filter_semaphore);
@@ -873,14 +864,19 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				henc_th->aux_buff = (short*) hmr_aligned_alloc (MAX_CU_SIZE*MAX_CU_SIZE, sizeof(int));
 
-				for(i=0;i<NUM_QUANT_WNDS;i++)
-					wnd_realloc(&henc_th->transform_quant_wnd[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));		
-
 				wnd_realloc(&henc_th->itransform_iquant_wnd, henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 				for(i=0;i<NUM_DECODED_WNDS;i++)
-					wnd_realloc(&henc_th->decoded_mbs_wnd[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(int16_t));
+				{
+					wnd_realloc(&henc_th->decoded_mbs_wnd_[i], (henc_th->ctu_group_size+1)*(henc_th->ctu_width[0]), henc_th->ctu_height[0]*2, 1, 1, sizeof(int16_t));
+					henc_th->decoded_mbs_wnd[i] = &henc_th->decoded_mbs_wnd_[i];//use pointers to exchange windows
+				}
 
+				for(i=0;i<NUM_QUANT_WNDS;i++)
+				{
+					wnd_realloc(&henc_th->transform_quant_wnd_[i], henc_th->ctu_group_size*(henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));		
+					henc_th->transform_quant_wnd[i] = &henc_th->transform_quant_wnd_[i];//use pointers to exchange windows
+				}
 
 				filter_buff_width = MAX_CU_SIZE	+ 16;
 				filter_buff_height = MAX_CU_SIZE + 2;//MAX_CU_SIZE + 1; - modified for the chroma
@@ -933,7 +929,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				henc_th->ctu_rd->part_size_type = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				henc_th->ctu_rd->pred_mode = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				henc_th->ctu_rd->skipped = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
-
+				henc_th->ctu_rd->merge = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+				henc_th->ctu_rd->merge_idx = (uint8_t*)calloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 				henc_th->ee = phvenc->ee_list[2*henc_th->index];
 				henc_th->ec = &phvenc->ec_list[henc_th->index];
 			}
@@ -1119,8 +1116,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			
 
 			//---------------- end slice -------------------
-			phvenc->run = 1;
-			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
+//			phvenc->run = 1;
+//			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
 		}	
 		break;
 
@@ -1381,10 +1378,14 @@ void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu)
 	uint8_t *part_size_type = dst_ctu->part_size_type;
 	uint8_t *pred_mode = dst_ctu->pred_mode;
 	uint8_t *skipped = dst_ctu->skipped;
+	uint8_t *merge = dst_ctu->merge;
+	uint8_t *merge_idx = dst_ctu->merge_idx;
 	memcpy(dst_ctu, src_ctu, sizeof(ctu_info_t));
 	dst_ctu->part_size_type = part_size_type;
 	dst_ctu->pred_mode = pred_mode;
 	dst_ctu->skipped = skipped;
+	dst_ctu->merge = merge;
+	dst_ctu->merge_idx = merge_idx;
 }
 
 
@@ -1501,6 +1502,18 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 
 		ctu = init_ctu(et);
 
+/*
+		if(et->ed->num_encoded_frames == 14 && ctu->ctu_number>=14)
+		{
+			for(gcnt=0;gcnt<NUM_QUANT_WNDS;gcnt++)
+			{
+				int iiiiiii=0;
+				wnd_realloc(&et->transform_quant_wnd_[gcnt], et->ctu_group_size*(et->ctu_width[0]), et->ctu_height[0], 0, 0, sizeof(int16_t));		
+				et->transform_quant_wnd[gcnt] = &et->transform_quant_wnd_[gcnt];//use pointers to exchange windows
+			}
+		}
+*/
+
 		//Prepare Memory
 		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
 		mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
@@ -1513,10 +1526,14 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 
 		//map spatial features and neighbours in recursive partition structure
 		create_partition_ctu_neighbours(et, ctu, ctu->partition_list);
+
+
 		if(currslice->slice_type != I_SLICE && !et->ed->is_scene_change)// && (ctu->ctu_number & 0x1) == 0)
 		{
 			int ll;
+
 			motion_inter(et, ctu);
+
 			for(ll = 0; ll<et->num_partitions_in_cu;ll++)
 			{
 				if(ctu->pred_mode[ll]==INTRA_MODE)
@@ -1539,7 +1556,7 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 		}
 		//cabac - encode ctu
 		PROFILER_RESET(cabac)
-		ctu->coeff_wnd = &et->transform_quant_wnd[0];
+		ctu->coeff_wnd = et->transform_quant_wnd[0];
 
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		PROFILER_ACCUMULATE(cabac)
@@ -1589,6 +1606,7 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 	{
 		ee_end_slice(et->ee, currslice, ctu);
 	}
+
 	return THREAD_RETURN;
 }
 
@@ -1661,7 +1679,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	int n, i, num_threads;
-	while(ed->run)
+//	while(ed->run)
 	{
 		output_set_t* ouput_sets = &ed->output_sets[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
 		int		output_nalu_cnt = 0;
@@ -1691,7 +1709,14 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		hmr_bitstream_init(&ed->slice_nalu->bs);
 
 		//get next image
-		get_frame_to_encode(ed, &ed->current_pict.img2encode);//get next image to encode and init type
+		if(!get_frame_to_encode(ed, &ed->current_pict.img2encode))//get next image to encode and init type
+			return THREAD_RETURN;
+
+		if(ed->run==0)
+		{
+			int iiiii=0;
+		}
+
 		ed->num_pictures++;
 
 #ifdef COMPUTE_METRICS

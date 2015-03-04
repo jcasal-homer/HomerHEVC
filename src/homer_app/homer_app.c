@@ -41,18 +41,18 @@
 //#define FILE_OUT  "//home//jcasal//Desktop//output_Homer.bin"//bin"//"output_32_.265"
 
 
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\Patrones\\DebugPattern_384x256.yuv"//TestEBU720p50.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//BrazilianDancer.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//"DebugPattern_384x256.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
-#define FILE_OUT	"C:\\Patrones\\TestEBU720p50_zeros_9.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
+#define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 
-#define HOR_SIZE	1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	384//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	256//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			50//25//50
 
 
@@ -125,12 +125,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-	if(argc==1)
+/*	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-
+*/
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -287,10 +287,11 @@ int main (int argc, char **argv)
 	int totalbits=0;
 	unsigned int msInit=0, msTotal=0;
 	int bCoding = 1;
-	int input_frames = 0, encoded_frames = 0;
+	int bytes_read = 0;
+	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 15;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 18;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -318,11 +319,11 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 2;
+	HmrCfg.max_pred_partition_depth = 1;
+	HmrCfg.max_intra_tr_depth = 1;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 1;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -386,10 +387,10 @@ int main (int argc, char **argv)
 		int frame_size = (int) (HmrCfg.width*HmrCfg.height*1.5);
 //		fpos_t pos = frame_size*skipped_frames;
 //		long long frame_size = ;
-		if(input_frames<skipped_frames)
+		if(frames_read<skipped_frames)
 		{
 			fseek_64(infile, frame_size, SEEK_CUR); // move to first frame
-			input_frames++;
+			frames_read++;
 			msInit = get_ms();
 			continue;
 		}
@@ -397,29 +398,32 @@ int main (int argc, char **argv)
 		frame[1] = (unsigned char*)stream.streams[1];
 		frame[2] = (unsigned char*)stream.streams[2];
 
-		if(fread(frame[0],HmrCfg.width,HmrCfg.height,infile)==0)
-			bCoding = 0;
-		if(fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
-			bCoding = 0;
-		if(fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)==0)
-			bCoding = 0;
+		bytes_read = fread(frame[0],HmrCfg.width,HmrCfg.height,infile)*HmrCfg.width;
+		bytes_read += fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
+		bytes_read += fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
 
 		stream.data_stride[0] = HmrCfg.width;
 		stream.data_stride[1] = stream.data_stride[2]  = stream.data_stride[0]/2;
 
 		input_frame.stream = stream;
-		input_frame.pts = input_frames-skipped_frames;
+		input_frame.pts = frames_read-skipped_frames;
 		input_frame.image_type = IMAGE_AUTO;
 
 		if(bCoding)
 		{
-			num_nalus = 8;
-			HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
-//			printf("\r\ninput_frame %d: calling HOMER_enc_encode", encoded_frames);
-//			fflush(stdout);
-			input_frames++;
+			int bEndOfFile = bytes_read!=frame_size;
+			if(!bEndOfFile)//if EOF is reached don´t try to encode
+			{
+				num_nalus = 8;
+				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
+				encoder_thread(pEncoder);
+				frames_read++;			
+			}
+			else
+			{
+				int iiiii=0;
+			}
 
-//			encoder_thread(pEncoder);
 
 			HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
 
@@ -439,7 +443,7 @@ int main (int argc, char **argv)
 
 				encoded_frames++;
 			}
-			if(encoded_frames==num_frames)
+			if(encoded_frames == num_frames || (bEndOfFile && encoded_frames==frames_read-skipped_frames))
 			{
 				bCoding = 0;
 			}

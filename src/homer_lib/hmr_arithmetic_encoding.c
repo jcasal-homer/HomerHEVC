@@ -397,8 +397,6 @@ void encode_split_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr
 
 __inline void encode_skip_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
-	uint simbol = 0;//pcCU->isSkipped( uiAbsPartIdx ) ? 1 : 0;
-
 	ctu_info_t	*ctu_left, *ctu_top;
 	uint		aux_part_idx = 0;
 
@@ -601,28 +599,31 @@ __inline void encode_merge_flag(enc_env_t* ee, uint merge_flag)
 
 void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
-	/*  UInt uiUnaryIdx = pcCU->getMergeIndex( uiAbsPartIdx );
-	UInt uiNumCand = pcCU->getSlice()->getMaxNumMergeCand();
+	int abs_index = curr_partition_info->abs_index;
+	uint uiUnaryIdx = ctu->merge_idx[abs_index];
+	uint uiNumCand = MERGE_MVP_MAX_NUM_CANDS;//pcCU->getSlice()->getMaxNumMergeCand();
 	if ( uiNumCand > 1 )
 	{
-	for( UInt ui = 0; ui < uiNumCand - 1; ++ui )
-	{
-	const UInt uiSymbol = ui == uiUnaryIdx ? 0 : 1;
-	if ( ui==0 )
-	{
-	m_pcBinIf->encodeBin( uiSymbol, m_cCUMergeIdxExtSCModel.get( 0, 0, 0 ) );
+		uint ui;
+		for( ui = 0; ui < uiNumCand - 1; ++ui )
+		{
+			const uint uiSymbol = ui == uiUnaryIdx ? 0 : 1;
+			if ( ui==0 )
+			{
+				context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_merge_idx_model, 0, 0, 0); 
+				ee->ee_encode_bin(ee, cm, uiSymbol);	
+			}
+			else
+			{
+				ee->ee_encode_bin_EP(ee, uiSymbol);
+			}
+			if( uiSymbol == 0 )
+			{
+				break;
+			}
+		}
 	}
-	else
-	{
-	m_pcBinIf->encodeBinEP( uiSymbol );
-	}
-	if( uiSymbol == 0 )
-	{
-	break;
-	}
-	}
-	}
-	*/
+
 }
 
 void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
@@ -741,12 +742,12 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 
 	for (part_idx = 0, sub_part_idx = abs_index; part_idx < num_pu; part_idx++, sub_part_idx += pu_offset)
 	{
-		uint merge_flag = 0/*ctu->merge[sub_part_idx]*/;
+		uint merge_flag = ctu->merge[sub_part_idx];
 
 		encode_merge_flag(ee, merge_flag);
 		if (merge_flag)
 		{
-			//			encode_merge_index(ee, ctu, curr_partition_info);
+			encode_merge_index(ee, ctu, curr_partition_info);
 		}
 		else
 		{
@@ -1526,7 +1527,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 	is_intra = ctu->pred_mode[abs_index] == INTRA_MODE;
 	if(!is_intra)
 	{
-		uint merge_flag = 0;/*ctu->merge[sub_part_idx]*/
+		uint merge_flag = ctu->merge[abs_index];
 		uint qtroot = CBF(ctu, abs_index, Y_COMP, 0) || CBF(ctu, abs_index, U_COMP, 0) || CBF(ctu, abs_index, V_COMP, 0);
 		if(!(merge_flag && ctu->part_size_type[abs_index] == SIZE_2Nx2N))
 		{
@@ -1664,44 +1665,7 @@ void transform_tree(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partit
 	}
 }
 
-void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt)
-{
-	slice_t *currslice = &et->ed->current_pict.slice;
-	int abs_index = curr_partition_info->abs_index;
-	int is_intra = ctu->pred_mode[abs_index]==INTRA_MODE;
-	int is_skipped = ctu->skipped[abs_index];
-	PartSize part_size_type = (PartSize)ctu->part_size_type[abs_index];
 
-	if( !isIntra(currslice->slice_type))
-	{
-		encode_skip_flag(ee, ctu, curr_partition_info);
-	}
-
-	//if(is_skipped)
-	//{
-	//		encode_merge_index(...)
-	//		encode_end_of_cu(...)
-	//}
-
-	if( !isIntra(currslice->slice_type))
-	{
-		encode_pred_mode(ee, ctu, curr_partition_info);
-	}
-
-	encode_part_size(et, ee, curr_partition_info, part_size_type, is_intra);
-
-	if(is_intra)
-	{
-		encode_intra_dir_luma_ang(ee, ctu, curr_partition_info, TRUE);
-		encode_intra_dir_chroma(ee, ctu, curr_partition_info);
-	}
-	else
-	{
-		encode_inter_motion_info(et, ee, currslice, ctu, curr_partition_info, part_size_type);
-	}
-
-	transform_tree(et, ee, ctu, curr_partition_info, gcnt);
-}
 
 void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
@@ -1766,6 +1730,49 @@ void encode_end_of_cu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_
 			ee->ee_encode_bin_TRM( ee, bTerminateSlice);
 	}
 }
+
+void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt)
+{
+	slice_t *currslice = &et->ed->current_pict.slice;
+	int abs_index = curr_partition_info->abs_index;
+	int is_intra = ctu->pred_mode[abs_index]==INTRA_MODE;
+	int is_skipped = ctu->skipped[abs_index];
+	PartSize part_size_type = (PartSize)ctu->part_size_type[abs_index];
+
+	if( !isIntra(currslice->slice_type))
+	{
+		encode_skip_flag(ee, ctu, curr_partition_info);
+	}
+
+	if(is_skipped)
+	{
+		encode_merge_index(ee, ctu, curr_partition_info);
+		encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
+		return;
+	}
+
+	if( !isIntra(currslice->slice_type))
+	{
+		encode_pred_mode(ee, ctu, curr_partition_info);
+	}
+
+	encode_part_size(et, ee, curr_partition_info, part_size_type, is_intra);
+
+	if(is_intra)
+	{
+		encode_intra_dir_luma_ang(ee, ctu, curr_partition_info, TRUE);
+		encode_intra_dir_chroma(ee, ctu, curr_partition_info);
+	}
+	else
+	{
+		encode_inter_motion_info(et, ee, currslice, ctu, curr_partition_info, part_size_type);
+	}
+
+	transform_tree(et, ee, ctu, curr_partition_info, gcnt);
+
+	encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
+}
+
 
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu, int gcnt)
 {
@@ -1841,7 +1848,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
-				encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
+//				encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 			}
 			while(depth_state[curr_depth]==4)
 			{
