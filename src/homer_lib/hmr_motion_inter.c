@@ -2468,7 +2468,7 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 	{																																						\
 		memset(&ctu->mv_ref_idx[ref_list][abs_idx], -1, num_partitions*sizeof(ctu->mv_ref_idx[0][0]));														\
 		memset(&ctu->skipped[abs_idx], 0, num_partitions*sizeof(ctu->skipped[0]));																			\
-		memset(&ctu->merge[abs_idx], cu_info->merge_flag, num_partitions*sizeof(ctu->merge[0]));															\
+		memset(&ctu->merge[abs_idx], 0, num_partitions*sizeof(ctu->merge[0]));															\
 	}																																						\
 	memset(&ctu->pred_mode[abs_idx], cu_info->prediction_mode, num_partitions*sizeof(ctu->pred_mode[0]));													\
 }																																							
@@ -2705,13 +2705,12 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 						best_dist = dist;
 						if(uiNoResidual==1)//if it is skipped write 0 in the residual and copy the prediction wnd to the decoder wnd
 						{
-							copy_cu_wnd_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth]);
-							zero_cu_wnd_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth]);
+							copy_cu_wnd_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth+1]);
+							zero_cu_wnd_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
 							SET_ENC_INFO_BUFFS(et, curr_cu_info, curr_depth/*+(part_size_type!=SIZE_2Nx2N)*/, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
 						put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
-						bestIsSkip = CBF_ALL(ctu, abs_index, curr_depth) == 0;
-
+						bestIsSkip = CBF_ALL(ctu, abs_index, 0) == 0;
 						//exchange we keep in currdepth and the aux_depth, where we keep the best buffers
 						//we keep best windows in the last depth as we are only processing 2nx2n
 //						ptrswap(wnd_t*, et->transform_quant_wnd[curr_depth+1],et->transform_quant_wnd[NUM_QUANT_WNDS-1]);
@@ -2734,7 +2733,7 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 //	ptrswap(wnd_t*, et->decoded_mbs_wnd[NUM_DECODED_WNDS-1], et->decoded_mbs_wnd[curr_depth+1]);
 
 	//save the information
-	curr_cu_info->skipped = bestIsSkip?(1<<depth):0;
+	curr_cu_info->skipped = bestIsSkip;
 	curr_cu_info->inter_mv[REF_PIC_LIST_0] = best_mv;
 	curr_cu_info->cost = curr_cu_info->distortion = best_dist;
 	curr_cu_info->merge_flag = TRUE;
@@ -2813,7 +2812,12 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 		curr_depth = curr_cu_info->depth;
 		num_part_in_cu = curr_cu_info->num_part_in_cu;
 		abs_index = curr_cu_info->abs_index;
-		
+
+		if(et->ed->num_encoded_frames == 5 && ctu->ctu_number == 7)// && curr_cu_info->abs_index == 192)
+		{
+			int iiii=0;
+		}
+
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
 
 		//rc

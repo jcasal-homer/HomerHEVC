@@ -55,14 +55,14 @@
 
 //to access cu_partition list
 #define WND_POSITION_1D(type, w, comp, gcnt, ctu_width, offset) ((type)(w).pwnd[comp]+gcnt*ctu_width[comp]+(offset))//((type)(w).pwnd[comp]+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+(offset))
-#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[comp]+part_y*(w).window_size_x[comp]+gcnt*ctu_width[comp]+part_x)//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
+#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[(comp)]+(part_y)*(w).window_size_x[(comp)]+(gcnt)*ctu_width[comp]+(part_x))//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
 
 //random access
 #define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
 #define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
 
 #define CBF(ctu, abs_index, comp, tr_depth) (((ctu)->cbf[(comp)][(abs_index)]>>(tr_depth))&1)
-#define CBF_ALL(ctu, abs_index, tr_depth) (CBF((ctu), (abs_index), Y_COMP, (curr_depth)) || CBF((ctu), (abs_index), U_COMP, (curr_depth)) || CBF((ctu), (abs_index), V_COMP, (curr_depth)))
+#define CBF_ALL(ctu, abs_index, tr_depth) (CBF((ctu), (abs_index), Y_COMP, (tr_depth)) | CBF((ctu), (abs_index), U_COMP, (tr_depth)) | CBF((ctu), (abs_index), V_COMP, (tr_depth)))
 
 
 #define MOTION_PEL_MASK					0x1

@@ -319,7 +319,7 @@ int main (int argc, char **argv)
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
 	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 1;
+	HmrCfg.max_pred_partition_depth = 2;
 	HmrCfg.max_intra_tr_depth = 1;
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.wfpp_enable = 1;

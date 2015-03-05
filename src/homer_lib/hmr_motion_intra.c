@@ -777,6 +777,8 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 	parent_part_info->abs_index = 0;
 	parent_part_info->num_part_in_cu = ((curr_part_size*curr_part_size)>>et->num_partitions_in_cu_shift);
 	parent_part_info->parent = NULL;//pointer to parent partition
+	get_partition_neigbours(et, parent_part_info);
+
 	num_qtree_partitions = 0;
 	//calculate the number of iterations needed to cover all the tree elements (nodes and leaves)
 
@@ -867,9 +869,10 @@ void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * w
 
 	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
-		int src_buff_stride = 0;//wnd->window_size_x[comp];
-		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+		int num_partitions = comp==Y_COMP?(curr_part->abs_index<<et->num_partitions_in_cu_shift):(curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2;
 		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, num_partitions);
+
 		for(j=0;j<size;j++)
 		{
 			memset(buff_dst, 0, size*sizeof(buff_dst[0]));
@@ -886,11 +889,14 @@ void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * w
 
 	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
-		int src_buff_stride = wnd_src->window_size_x[comp];
-		int dst_buff_stride = wnd_dst->window_size_x[comp];
-		int16_t * buff_src = WND_POSITION_1D(int16_t  *, *wnd_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
-		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
 		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
+		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
+		int src_buff_stride = WND_STRIDE_2D(*wnd_src, comp);
+		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
+		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, et->ctu_width);
+		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, et->ctu_width);
+
 		for(j=0;j<size;j++)
 		{
 			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
