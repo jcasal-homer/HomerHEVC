@@ -594,40 +594,6 @@ struct output_set_t
 };
 
 
-//picture_t pool for image storage
-/*#define PICT_POOL_SIZE 5
-typedef struct img_pool
-{
-	unsigned char	*imgs[PICT_POOL_SIZE][NUM_PICT_PARAMS];
-	unsigned int	write_index;
-	unsigned int	read_index;
-}img_pool_t;
-
-typedef struct symbol
-{
-	int type;
-	int value;
-	int value2;
-	int context;
-	int len;
-}symbol_t;
-*/
-/*
-typedef struct bit_counter
-{
-  int mb_total;
-  uint16_t mb_mode;
-  uint16_t mb_inter;
-  uint16_t mb_cbp;
-  uint16_t mb_delta_quant;
-  int mb_y_coeff;
-  int mb_uv_coeff;
-  int mb_cb_coeff;
-  int mb_cr_coeff;  
-  int mb_stuffing;
-}bit_counter_t;
-*/
-
 typedef struct motion_vector_t motion_vector_t;
 
 struct motion_vector_t
@@ -1118,9 +1084,9 @@ struct hvenc_t
 	uint		*sub_streams_entry_point_list;
 
 	//header info
-	vps_t	vps;
-	sps_t	sps;
-	pps_t	pps;
+	vps_t		vps;
+	sps_t		sps;
+	pps_t		pps;
 
 	//Encoder Cfg	
 	//Encoding layer
@@ -1211,9 +1177,9 @@ struct hvenc_t
 	//--------------------------------------------------------------
 	uint16_t			*ang_table;//for angular intra prediction    
 	uint16_t			*inv_ang_table;//for angular intra prediction
-	uint32_t				*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
-	int32_t					*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-	int32_t					*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	uint32_t			*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
+	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	//reference pictures

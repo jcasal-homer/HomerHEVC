@@ -469,7 +469,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			while(phvenc->max_cu_size>(1<<phvenc->max_cu_size_shift))phvenc->max_cu_size_shift++;
 
 			phvenc->max_pred_partition_depth = (cfg->max_pred_partition_depth>(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT))?(phvenc->max_cu_size_shift-MIN_TU_SIZE_SHIFT):cfg->max_pred_partition_depth;
-			phvenc->motion_estimation_precision = cfg->motion_estimation_precision;
+			if(cfg->motion_estimation_precision==PEL)
+				phvenc->motion_estimation_precision=MOTION_PEL_MASK;
+			else if(cfg->motion_estimation_precision==HALF_PEL)
+				phvenc->motion_estimation_precision=MOTION_HALF_PEL_MASK;
+			else
+				phvenc->motion_estimation_precision = MOTION_QUARTER_PEL_MASK;
 
 			if(cfg->width%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)) || cfg->height%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)))
 			{
