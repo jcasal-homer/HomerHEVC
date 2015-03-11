@@ -428,7 +428,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			HVENC_Cfg *cfg = (HVENC_Cfg *)in;
 			int prev_num_sub_streams, prev_num_ee, prev_num_ec;
 			unsigned int min_cu_size = phvenc->min_cu_size, min_cu_size_mask;
-
+			int num_merge_candidates = 2;
 #ifdef COMPUTE_AS_HM
 			cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 			cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -437,6 +437,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cfg->chroma_qp_offset = 0;
 			cfg->wfpp_num_threads = 1;
 			cfg->intra_period = 20;
+			num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 #endif
 			if(phvenc->run==1)
 			{
@@ -476,6 +477,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			else
 				phvenc->motion_estimation_precision = MOTION_QUARTER_PEL_MASK;
 
+			phvenc->num_merge_mvp_candidates = num_merge_candidates;//MERGE_MVP_MAX_NUM_CANDS;
 			if(cfg->width%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)) || cfg->height%(phvenc->max_cu_size>>(phvenc->max_pred_partition_depth-1)))
 			{
 				printf("HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
@@ -1256,7 +1258,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
 	currslice->slice_beta_offset_div2 = ed->pps.beta_offset_div2;
-	currslice->max_num_merge_candidates = 5;
+	currslice->max_num_merge_candidates = ed->num_merge_mvp_candidates;
 
 //	if((currslice->poc%ed->intra_period)==0)
 	if(currslice->poc==0 || (ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)

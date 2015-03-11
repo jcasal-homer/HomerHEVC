@@ -597,11 +597,11 @@ __inline void encode_merge_flag(enc_env_t* ee, uint merge_flag)
 	ee->ee_encode_bin(ee, cm, merge_flag);	
 }
 
-void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int num_merge_candidates)
 {
 	int abs_index = curr_partition_info->abs_index;
 	uint uiUnaryIdx = ctu->merge_idx[abs_index];
-	uint uiNumCand = MERGE_MVP_MAX_NUM_CANDS;//pcCU->getSlice()->getMaxNumMergeCand();
+	uint uiNumCand = num_merge_candidates;//pcCU->getSlice()->getMaxNumMergeCand();
 	if ( uiNumCand > 1 )
 	{
 		uint ui;
@@ -747,7 +747,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 		encode_merge_flag(ee, merge_flag);
 		if (merge_flag)
 		{
-			encode_merge_index(ee, ctu, curr_partition_info);
+			encode_merge_index(ee, ctu, curr_partition_info, slice->max_num_merge_candidates);
 		}
 		else
 		{
@@ -1746,7 +1746,7 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 
 	if(is_skipped)
 	{
-		encode_merge_index(ee, ctu, curr_partition_info);
+		encode_merge_index(ee, ctu, curr_partition_info, currslice->max_num_merge_candidates);
 		encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 		return;
 	}

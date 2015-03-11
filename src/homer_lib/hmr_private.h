@@ -1118,6 +1118,7 @@ struct hvenc_t
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
 	int				motion_estimation_precision;
+	int				num_merge_mvp_candidates;
 	int				wfpp_enable;
 	int				wfpp_num_threads;
 
