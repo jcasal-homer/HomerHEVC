@@ -2808,9 +2808,9 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 	int gcnt = 0;
 	picture_t *currpict = &et->ed->current_pict;
 	slice_t *currslice = &currpict->slice;
-	volatile double dist, best_cost;//, cost_luma, cost_chroma;
+	double dist, best_cost;//, cost_luma, cost_chroma;
 	int position = 0;
-	volatile int curr_depth = 0;
+	int curr_depth = 0;
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	cu_partition_info_t	*parent_part_info = NULL;
 	cu_partition_info_t	*curr_cu_info = ctu->partition_list;
@@ -2818,7 +2818,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 	uint cost_sum[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int abs_index;
 	int num_part_in_cu;
-	volatile double consumed_distortion = 0, avg_distortion = 0;
+	double consumed_distortion = 0, avg_distortion = 0;
 	int consumed_ctus = 0;
 //	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
 
@@ -2871,7 +2871,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 	while(curr_depth!=0 || depth_state[curr_depth]!=1)
 	{
-		volatile double cost = 0, intra_cost = 0;
+		double cost = 0, intra_cost = 0;
 		int stop_recursion = FALSE;
 		PartSize part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
 		curr_depth = curr_cu_info->depth;
@@ -2891,22 +2891,14 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 		//if(ctu->ctu_number == 0 && abs_index==64)// && curr_depth==1)//ctu->ctu_number == 97 && et->ed->num_encoded_frames == 10 && && curr_depth==2  && abs_index == 64)
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
-			volatile int num_enc_frames = et->ed->num_encoded_frames;
-			volatile int a = 50;
-			int mv_cost;
+			int mv_cost = 0;
 
 			if(part_size_type == SIZE_2Nx2N)
 			{
-				volatile uint curr_depth_vol = curr_depth;
-				volatile uint sad, merge_dist = MAX_COST, merge_cost = MAX_COST;
+				uint sad, merge_dist = MAX_COST, merge_cost = MAX_COST;
 				motion_vector_t merge_mv;
-				volatile int merge_sum;
+				int merge_sum;
 				uint motion_estimation_precision = (et->ed->motion_estimation_precision*2-1);//compute all precisions below the configured
-
-				if(ctu->ctu_number==2 && curr_cu_info->abs_index==8)
-				{
-					int iiii=0;
-				}
 
 				//encode inter
 				curr_cu_info->prediction_mode = INTER_MODE;
