@@ -41,17 +41,25 @@ uint32_t sse_aligned_sad_64x64(uint8_t *src, uint32_t src_stride, int16_t *pred,
 
 
 //------------------------------------------------------ssd -------------------------------------------------------------------------
-uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 
 
-uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, uint32_t size);
-uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride);
+uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size);
+uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
 
 
+//------------------------------------------------------ssd16b -------------------------------------------------------------------------
+uint32_t sse_aligned_ssd16b(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
+
+uint32_t sse_aligned_ssd16b_4x4(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd16b_8x8(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd16b_16x16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd16b_32x32(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd16b_64x64(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
 //------------------------------------------------------predict -------------------------------------------------------------------------
 
 void sse_aligned_predict(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride, int size);

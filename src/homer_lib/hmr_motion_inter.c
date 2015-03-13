@@ -92,14 +92,14 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 		uint32_t ssd_zero;
 //		int16_t zero_buff[256];
 //		memset(zero_buff,0,sizeof(zero_buff));
-		ssd_zero = ssd_16(residual_buff, residual_buff_stride, (int16_t*)zero_buff, 0, curr_part_size);
+		ssd_zero = et->funcs->ssd16b(residual_buff, residual_buff_stride, (int16_t*)zero_buff, 0, curr_part_size);
 
 		et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, Y_COMP, 0, curr_part_size, per, rem);
 
 		//1D ->2D buffer
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
 
-		ssd_ = ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
+		ssd_ = et->funcs->ssd16b(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size);
 
 #ifndef COMPUTE_AS_HM
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
@@ -118,7 +118,7 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 	}
 	else
 	{
-		ssd_ = ssd_16(residual_buff, residual_buff_stride, quant_buff, 0, curr_part_size);
+		ssd_ = et->funcs->ssd16b(residual_buff, residual_buff_stride, quant_buff, 0, curr_part_size);
 
 		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 	}
@@ -193,13 +193,13 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 		uint32_t ssd_zero;
 //		int16_t zero_buff[256];
 //		memset(zero_buff,0,sizeof(zero_buff));
-		ssd_zero = (uint32_t)(weight*ssd_16(residual_buff, residual_buff_stride, (int16_t*)zero_buff, 0, curr_part_size));
+		ssd_zero = (uint32_t)(weight*et->funcs->ssd16b(residual_buff, residual_buff_stride, (int16_t*)zero_buff, 0, curr_part_size));
 
 		et->funcs->inv_quant(et, quant_buff, iquant_buff, curr_depth, component, 0, curr_part_size, per, rem);
 
 		//1D ->2D buffer
 		et->funcs->itransform(et->bit_depth, residual_dec_buff, iquant_buff, residual_buff_stride, curr_part_size, curr_part_size, cu_mode, et->pred_aux_buff);
-		ssd_ = (uint32_t)(weight*ssd_16(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size));
+		ssd_ = (uint32_t)(weight*et->funcs->ssd16b(residual_buff, residual_buff_stride, residual_dec_buff, residual_buff_stride, curr_part_size));
 
 #ifndef COMPUTE_AS_HM
 //		if(ssd_zero < clip((200./et->ed->avg_dist),1.01,1.25)*ssd_)
@@ -220,7 +220,7 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	}
 	else
 	{
-		ssd_ = (uint32_t)(weight*ssd_16(residual_buff, residual_buff_stride, quant_buff, 0, curr_part_size));
+		ssd_ = (uint32_t)(weight*et->funcs->ssd16b(residual_buff, residual_buff_stride, quant_buff, 0, curr_part_size));
 
 		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 	}
@@ -2745,9 +2745,9 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 					}
 					else
 					{
-						dist = (uint32_t) ssd(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
-						dist += (uint32_t) (weight*ssd(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
-						dist += (uint32_t) (weight*ssd(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist = (uint32_t) et->funcs->ssd(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
+						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
 
 //						dist = MAX_COST;
 						curr_cu_info->inter_cbf[Y_COMP] = curr_cu_info->inter_cbf[U_COMP] = curr_cu_info->inter_cbf[V_COMP] = 0;

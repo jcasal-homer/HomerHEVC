@@ -734,7 +734,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				printf("SSE42 avaliable!!");
 
 				phvenc->funcs.sad = sse_aligned_sad;
-				phvenc->funcs.ssd = ssd;
+				phvenc->funcs.ssd = sse_aligned_ssd;
+				phvenc->funcs.ssd16b = sse_aligned_ssd16b;
 				phvenc->funcs.modified_variance = sse_modified_variance;
 				phvenc->funcs.predict = sse_aligned_predict;
 				phvenc->funcs.reconst = sse_aligned_reconst;
@@ -755,6 +756,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			{
 				phvenc->funcs.sad = sad;
 				phvenc->funcs.ssd = ssd;
+				phvenc->funcs.ssd16b = ssd16b;
 				phvenc->funcs.modified_variance = modified_variance;
 				phvenc->funcs.predict = predict;
 				phvenc->funcs.reconst = reconst;

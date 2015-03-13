@@ -51,35 +51,59 @@
 
 
 //--------------------------------------- SSD -----------------------------------------------------------------------------------------------------------
-#define CALC_ALIGNED_SSD_2x4(result, src_ln1, src_ln2, pred_ln1, pred_ln2, zero, aux)																				\
-	aux = sse_128_sub_i16(sse128_unpacklo_u8(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2)),zero),sse128_unpacklo_u8(sse128_unpacklo_u8(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2)),zero));									\
+#define CALC_ALIGNED_SSD_2x4(result, src_ln1, src_ln2, pred_ln1, pred_ln2, aux)																				\
+	aux = sse_128_sub_i16(sse_128_convert_u8_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2))),sse128_unpacklo_u16(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2)));									\
 	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));
 
-
-#define CALC_ALIGNED_SSD_2x8(result, src_ln1, src_ln2, pred_ln1, pred_ln2, zero, aux)																				\
-	aux = sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln1),zero),sse128_unpacklo_u8(sse_128_load_vector_u(pred_ln1),zero));					\
-	aux = sse_128_madd_i16_i32(aux, aux);																														\
-	result = sse_128_add_i32(result,aux);																													\
-	aux = sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src_ln2),zero),sse128_unpacklo_u8(sse_128_load_vector_u(pred_ln2),zero));					\
+#define CALC_ALIGNED_SSD_2x8(result, src_ln1, src_ln2, pred_ln1, pred_ln2, aux)																						\
+	aux = sse_128_sub_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(src_ln1)),sse_128_load_vector_u(pred_ln1));													\
+	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));																								\
+	aux = sse_128_sub_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(src_ln2)),sse_128_load_vector_u(pred_ln2));													\
 	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));																														
 
-#define CALC_ALIGNED_SSD_16(result, src, pred, zero, aux)																											\
-	aux = sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_a(src),zero),sse128_unpacklo_u8(sse_128_load_vector_a(pred),zero));							\
-	aux = sse_128_madd_i16_i32(aux, aux);																														\
-	result = sse_128_add_i32(result,aux);																													\
-	aux = sse_128_sub_i16(sse128_unpackhi_u8(sse_128_load_vector_a(src),zero),sse128_unpackhi_u8(sse_128_load_vector_a(pred),zero));							\
+#define CALC_ALIGNED_SSD_16(result, src, pred, aux)																													\
+	aux = sse_128_sub_i16(sse_128_convert_u8_i16(sse_128_load_vector_a(src)),sse_128_load_vector_a(pred));															\
+	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));																								\
+	aux = sse_128_sub_i16(sse_128_convert_u8_i16(sse_128_load_vector_u(src+8)),sse_128_load_vector_a(pred+8));														\
 	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));
 
-#define CALC_ALIGNED_SSD_32(result, src, pred, zero, aux)											\
-	CALC_ALIGNED_SSD_16(result, src, pred, zero, aux)												\
-	CALC_ALIGNED_SSD_16(result, (src+16), (pred+16), zero, aux)										
+#define CALC_ALIGNED_SSD_32(result, src, pred, aux)																													\
+	CALC_ALIGNED_SSD_16(result, src, pred,  aux)																													\
+	CALC_ALIGNED_SSD_16(result, (src+16), (pred+16), aux)										
 
 
-#define CALC_ALIGNED_SSD_64(result, src, pred, zero, aux)								\
-	CALC_ALIGNED_SSD_16(result, src, pred, zero, aux)									\
-	CALC_ALIGNED_SSD_16(result, src+16, pred+16, zero, aux)								\
-	CALC_ALIGNED_SSD_16(result, src+32, pred+32, zero, aux)								\
-	CALC_ALIGNED_SSD_16(result, src+48, pred+48, zero, aux)																				
+#define CALC_ALIGNED_SSD_64(result, src, pred, aux)																													\
+	CALC_ALIGNED_SSD_16(result, src, pred, aux)																														\
+	CALC_ALIGNED_SSD_16(result, src+16, pred+16, aux)																												\
+	CALC_ALIGNED_SSD_16(result, src+32, pred+32, aux)																												\
+	CALC_ALIGNED_SSD_16(result, src+48, pred+48, aux)																				
+
+
+//--------------------------------------- SSD16b -----------------------------------------------------------------------------------------------------------
+
+#define CALC_ALIGNED_SSD16b_2x4(result, src_ln1, src_ln2, pred_ln1, pred_ln2, aux)																				\
+	aux = sse_128_sub_i16(sse128_unpacklo_u16(sse_128_load_vector_u(src_ln1),sse_128_load_vector_u(src_ln2)),sse128_unpacklo_u16(sse_128_load_vector_u(pred_ln1),sse_128_load_vector_u(pred_ln2)));									\
+	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));
+
+
+#define CALC_ALIGNED_SSD16b_8(result, src, pred, aux)																												\
+	aux = sse_128_sub_i16(sse_128_load_vector_u(src),sse_128_load_vector_u(pred));																					\
+	result = sse_128_add_i32(result,sse_128_madd_i16_i32(aux, aux));
+
+#define CALC_ALIGNED_SSD16b_16(result, src, pred, aux)																												\
+	CALC_ALIGNED_SSD16b_8(result, src, pred,  aux)																													\
+	CALC_ALIGNED_SSD16b_8(result, (src+8), (pred+8), aux)
+
+#define CALC_ALIGNED_SSD16b_32(result, src, pred, aux)																												\
+	CALC_ALIGNED_SSD16b_16(result, src, pred,  aux)																													\
+	CALC_ALIGNED_SSD16b_16(result, (src+16), (pred+16), aux)										
+
+#define CALC_ALIGNED_SSD16b_64(result, src, pred, aux)																												\
+	CALC_ALIGNED_SSD16b_16(result, src, pred, aux)																													\
+	CALC_ALIGNED_SSD16b_16(result, src+16, pred+16, aux)																											\
+	CALC_ALIGNED_SSD16b_16(result, src+32, pred+32, aux)																											\
+	CALC_ALIGNED_SSD16b_16(result, src+48, pred+48, aux)																				
+
 
 
 //--------------------------------------- PREDICT -----------------------------------------------------------------------------------------------------------

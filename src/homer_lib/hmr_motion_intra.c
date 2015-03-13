@@ -107,7 +107,7 @@ uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 	return ssd;
 }
 
-uint32_t sad_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
+uint32_t sad16b(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
 {
 	unsigned int sad = 0;
 	int x, y;
@@ -125,7 +125,7 @@ uint32_t sad_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_
 	return sad;
 }
 
-uint32_t ssd_16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
+uint32_t ssd16b(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
 {
 	unsigned int ssd = 0;
 	int  aux;

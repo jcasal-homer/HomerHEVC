@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE_FRAMES		1
 #define COMPUTE_METRICS			1
 
@@ -910,6 +910,7 @@ struct low_level_funcs_t
 {
 	uint32_t (*sad)(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	uint32_t (*ssd)(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+	uint32_t (*ssd16b)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	void (*predict)(uint8_t * orig, int orig_stride, int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int size);
 	void (*reconst)(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride, int size);
 	uint32_t (*modified_variance)(uint8_t *p, int size, int stride, int modif);

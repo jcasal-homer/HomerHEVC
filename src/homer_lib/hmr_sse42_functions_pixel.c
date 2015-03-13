@@ -239,14 +239,11 @@ uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uin
 
 
 //---------------------------------------------ssd ------------------------------------------------------------------
-
-
 uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, uint32_t size)
 {
 	uint32_t i,j,n;
 	uint32_t ssd = 0;
 	__m128_u8	_128_aux;
-	__m128_		_128_zero = sse_128_zero_vector();
 	__m128_u16	_128u32_result = sse_128_zero_vector();
 
 
@@ -261,7 +258,7 @@ uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, u
 	{
 		for(i=0;i<n;i++)
 		{
-			CALC_ALIGNED_SSD_16(_128u32_result, psrc, ppred, _128_zero, _128_aux)
+			CALC_ALIGNED_SSD_16(_128u32_result, psrc, ppred, _128_aux)
 
 			psrc+=size;
 			ppred+=size;
@@ -273,205 +270,101 @@ uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, u
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
-uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
-	__m128_		_128_zero = sse_128_zero_vector();
 
 
-	CALC_ALIGNED_SSD_2x4(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_zero, _128_aux)	
-	CALC_ALIGNED_SSD_2x4(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_zero, _128_aux)	
+	CALC_ALIGNED_SSD_2x4(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_aux)	
+	CALC_ALIGNED_SSD_2x4(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_aux)	
 
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
-
-uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
-	__m128_		_128_zero = sse_128_zero_vector();
 
-	CALC_ALIGNED_SSD_2x8(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_2x8(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_2x8(_128u32_result, src+4*src_stride, src+5*src_stride, pred+4*pred_stride, pred+5*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_2x8(_128u32_result, src+6*src_stride, src+7*src_stride, pred+6*pred_stride, pred+7*pred_stride, _128_zero, _128_aux)
+	CALC_ALIGNED_SSD_2x8(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_aux)
+	CALC_ALIGNED_SSD_2x8(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_aux)
+	CALC_ALIGNED_SSD_2x8(_128u32_result, src+4*src_stride, src+5*src_stride, pred+4*pred_stride, pred+5*pred_stride, _128_aux)
+	CALC_ALIGNED_SSD_2x8(_128u32_result, src+6*src_stride, src+7*src_stride, pred+6*pred_stride, pred+7*pred_stride, _128_aux)
 
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
 
-uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
-	__m128_		_128_zero = sse_128_zero_vector();
-
-	CALC_ALIGNED_SSD_16(_128u32_result, src, pred, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+1*src_stride, pred+1*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+2*src_stride, pred+2*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+3*src_stride, pred+3*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+4*src_stride, pred+4*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+5*src_stride, pred+5*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+6*src_stride, pred+6*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+7*src_stride, pred+7*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+8*src_stride, pred+8*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+9*src_stride, pred+9*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+10*src_stride, pred+10*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+11*src_stride, pred+11*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+12*src_stride, pred+12*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+13*src_stride, pred+13*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+14*src_stride, pred+14*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_16(_128u32_result, src+15*src_stride, pred+15*pred_stride, _128_zero, _128_aux)
-
-	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
-}
-
-
-
-uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride)
-{
-	uint32_t ssd = 0;
-	__m128_u8	_128_aux;
-	__m128_		_128_zero = sse_128_zero_vector();
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-
-	CALC_ALIGNED_SSD_32(_128u32_result, src, pred, _128_zero, _128_aux);
-	CALC_ALIGNED_SSD_32(_128u32_result, src+1*src_stride, pred+1*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+2*src_stride, pred+2*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+3*src_stride, pred+3*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+4*src_stride, pred+4*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+5*src_stride, pred+5*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+6*src_stride, pred+6*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+7*src_stride, pred+7*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+8*src_stride, pred+8*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+9*src_stride, pred+9*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+10*src_stride, pred+10*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+11*src_stride, pred+11*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+12*src_stride, pred+12*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+13*src_stride, pred+13*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+14*src_stride, pred+14*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+15*src_stride, pred+15*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+16*src_stride, pred+16*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+17*src_stride, pred+17*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+18*src_stride, pred+18*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+19*src_stride, pred+19*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+20*src_stride, pred+20*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+21*src_stride, pred+21*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+22*src_stride, pred+22*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+23*src_stride, pred+23*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+24*src_stride, pred+24*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+25*src_stride, pred+25*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+26*src_stride, pred+26*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+27*src_stride, pred+27*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+28*src_stride, pred+28*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+29*src_stride, pred+29*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+30*src_stride, pred+30*pred_stride, _128_zero, _128_aux)
-	CALC_ALIGNED_SSD_32(_128u32_result, src+31*src_stride, pred+31*pred_stride, _128_zero, _128_aux)
-	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
-}
-
-
-uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride)
-{
+	uint8_t *psrc = src;
+	int16_t *ppred = pred;
 	int i;
+
+	for(i=0;i<16;i++)
+	{
+		CALC_ALIGNED_SSD_16(_128u32_result, psrc, ppred, _128_aux);
+
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+
+uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+{
 	uint32_t ssd = 0;
 	__m128_u8	_128_aux;
-	__m128_		_128_zero = sse_128_zero_vector();
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+	uint8_t *psrc = src;
+	int16_t *ppred = pred;
+	int i;
+
+	for(i=0;i<32;i++)
+	{
+		CALC_ALIGNED_SSD_32(_128u32_result, psrc, ppred, _128_aux);
+
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u8	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
 
 	uint8_t *psrc = src;
-	uint8_t *ppred = pred;
+	int16_t *ppred = pred;
+	int i;
 
-
-
-#ifndef EXTRA_OPTIMIZATION
-	for(i=0;i<16;i++)
+	for(i=0;i<64;i++)
 	{
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc, ppred, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+src_stride, ppred+pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+2*src_stride, ppred+2*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+3*src_stride, ppred+3*pred_stride, _128_zero, _128_aux);
+		CALC_ALIGNED_SSD_64(_128u32_result, psrc, ppred, _128_aux);
 
-		psrc+=4*src_stride;
-		ppred+=4*pred_stride;
+		psrc+=src_stride;
+		ppred+=pred_stride;
 	}
-#else //EXTRA_OPTIMIZATION
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc, ppred, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+src_stride, ppred+pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+2*src_stride, ppred+2*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+3*src_stride, ppred+3*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+4*src_stride, ppred+4*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+5*src_stride, ppred+5*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+6*src_stride, ppred+6*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+7*src_stride, ppred+7*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+8*src_stride, ppred+8*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+9*src_stride, ppred+9*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+10*src_stride, ppred+10*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+11*src_stride, ppred+11*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+12*src_stride, ppred+12*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+13*src_stride, ppred+13*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+14*src_stride, ppred+14*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+15*src_stride, ppred+15*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+16*src_stride, ppred+16*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+17*src_stride, ppred+17*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+18*src_stride, ppred+18*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+19*src_stride, ppred+19*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+20*src_stride, ppred+20*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+21*src_stride, ppred+21*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+22*src_stride, ppred+22*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+23*src_stride, ppred+23*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+24*src_stride, ppred+24*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+25*src_stride, ppred+25*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+26*src_stride, ppred+26*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+27*src_stride, ppred+27*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+28*src_stride, ppred+28*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+29*src_stride, ppred+29*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+30*src_stride, ppred+30*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+31*src_stride, ppred+31*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+32*src_stride, ppred+32*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+33*src_stride, ppred+33*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+34*src_stride, ppred+34*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+35*src_stride, ppred+35*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+36*src_stride, ppred+36*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+37*src_stride, ppred+37*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+38*src_stride, ppred+38*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+39*src_stride, ppred+39*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+40*src_stride, ppred+40*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+41*src_stride, ppred+41*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+42*src_stride, ppred+42*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+43*src_stride, ppred+43*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+44*src_stride, ppred+44*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+45*src_stride, ppred+45*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+46*src_stride, ppred+46*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+47*src_stride, ppred+47*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+48*src_stride, ppred+48*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+49*src_stride, ppred+49*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+50*src_stride, ppred+50*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+51*src_stride, ppred+51*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+52*src_stride, ppred+52*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+53*src_stride, ppred+53*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+54*src_stride, ppred+54*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+55*src_stride, ppred+55*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+56*src_stride, ppred+56*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+57*src_stride, ppred+57*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+58*src_stride, ppred+58*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+59*src_stride, ppred+59*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+60*src_stride, ppred+60*pred_stride, _128_zero, _128_aux);
-		CALC_ALIGNED_SSD_64(_128u32_result, psrc+61*src_stride, ppred+61*pred_stride, _128_zero, _128_aux);
-#endif
+
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 
 }
 
 
-
-
-uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size)
+uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	if(size==4)
 		return sse_aligned_ssd_4x4(src, src_stride, pred, pred_stride);
@@ -483,7 +376,124 @@ uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, uint8_t * pred, uin
 		return sse_aligned_ssd_32x32(src, src_stride, pred, pred_stride);
 	else// if(size==64)
 		return sse_aligned_ssd_64x64(src, src_stride, pred, pred_stride);
+
 }
+
+//---------------------------------------------ssd16b ------------------------------------------------------------------
+
+uint32_t sse_aligned_ssd16b_4x4(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u32	_128_aux;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+
+	CALC_ALIGNED_SSD16b_2x4(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_aux)	
+	CALC_ALIGNED_SSD16b_2x4(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_aux)	
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+uint32_t sse_aligned_ssd16b_8x8(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u32	_128_aux;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+	int16_t *psrc = src;
+	int16_t *ppred = pred;
+	int i;
+
+	for(i=0;i<8;i++)
+	{
+		CALC_ALIGNED_SSD16b_8(_128u32_result, psrc, ppred, _128_aux)
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+uint32_t sse_aligned_ssd16b_16x16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u32	_128_aux;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+	int16_t *psrc = src;
+	int16_t *ppred = pred;
+	int i;
+
+	for(i=0;i<16;i++)
+	{
+		CALC_ALIGNED_SSD16b_16(_128u32_result, psrc, ppred, _128_aux);
+
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+
+uint32_t sse_aligned_ssd16b_32x32(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u8	_128_aux;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+	int16_t *psrc = src;
+	int16_t *ppred = pred;
+	int i;
+
+	for(i=0;i<32;i++)
+	{
+		CALC_ALIGNED_SSD16b_32(_128u32_result, psrc, ppred, _128_aux);
+
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+}
+
+
+uint32_t sse_aligned_ssd16b_64x64(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+{
+	uint32_t ssd = 0;
+	__m128_u8	_128_aux;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
+
+	int16_t *psrc = src;
+	int16_t *ppred = pred;
+	int i;
+
+	for(i=0;i<64;i++)
+	{
+		CALC_ALIGNED_SSD16b_64(_128u32_result, psrc, ppred, _128_aux);
+
+		psrc+=src_stride;
+		ppred+=pred_stride;
+	}
+
+	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+
+}
+
+
+uint32_t sse_aligned_ssd16b(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size)
+{
+	if(size==4)
+		return sse_aligned_ssd16b_4x4(src, src_stride, pred, pred_stride);
+	else if(size==8)
+		return sse_aligned_ssd16b_8x8(src, src_stride, pred, pred_stride);
+	else if(size==16)
+		return sse_aligned_ssd16b_16x16(src, src_stride, pred, pred_stride);
+	else if(size==32)
+		return sse_aligned_ssd16b_32x32(src, src_stride, pred, pred_stride);
+	else// if(size==64)
+		return sse_aligned_ssd16b_64x64(src, src_stride, pred, pred_stride);
+}
+
 
 
 
