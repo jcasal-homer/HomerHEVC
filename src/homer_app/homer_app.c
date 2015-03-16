@@ -287,8 +287,8 @@ int main (int argc, char **argv)
 	int bytes_read = 0;
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 000;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 400;//1500;//500;//2200;//100;//700;//15;
+	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -329,7 +329,7 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 	HmrCfg.reinit_gop_on_scene_change = 0;
-	HmrCfg.performance_mode = PERF_FULL_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.performance_mode = PERF_FAST_COMPUTATION;//PERF_FULL_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 
