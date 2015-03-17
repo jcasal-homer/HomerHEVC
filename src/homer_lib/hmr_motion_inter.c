@@ -2895,7 +2895,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 			if(part_size_type == SIZE_2Nx2N)
 			{
-				uint merge_dist = MAX_COST, merge_cost = MAX_COST;
+				uint sad, merge_dist = MAX_COST, merge_cost = MAX_COST;
 				motion_vector_t merge_mv;
 				int merge_sum;
 				uint motion_estimation_precision = (et->ed->motion_estimation_precision*2-1);//compute all precisions below the configured
@@ -2917,12 +2917,12 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 //				merge_cost = MAX_COST;
 //				put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
 
-				curr_cu_info->sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N, 2*curr_cu_info->size*curr_cu_info->size, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
+				sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N, 2*curr_cu_info->size*curr_cu_info->size, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 #ifdef COMPUTE_AS_HM
 				mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 				dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 #else
-				if(curr_cu_info->size < 64 || (curr_cu_info->sad<50000))// && curr_cu_info->size == 64))
+				if(curr_cu_info->size < 64 || (sad<50000))// && curr_cu_info->size == 64))
 				{
 					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 					dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
@@ -3000,7 +3000,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				}
 */
 //				if(!stop_recursion && ((curr_cu_info->size<64 && dist>(1.5*avg_distortion*(curr_cu_info->num_part_in_cu+curr_depth)/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
-				if(!stop_recursion && (curr_cu_info->size<64 || curr_cu_info->sad>100000))// && curr_cu_info->variance<2*dist)// && dist>(1*avg_distortion*(curr_cu_info->num_part_in_cu)/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
+				if(!stop_recursion && (curr_cu_info->size<64 || sad>100000))// && curr_cu_info->variance<2*dist)// && dist>(1*avg_distortion*(curr_cu_info->num_part_in_cu)/*+4000*curr_cu_info->num_part_in_cu*/))))// || (curr_cu_info->size>16 && curr_cu_info->variance<curr_cu_info->size/4)))
 #endif
 				{
 					//encode intra
@@ -3095,6 +3095,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				cost = dist = curr_cu_info->cost = curr_cu_info->distortion = MAX_COST;
 				if((curr_depth-1) == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->parent->size>8)	//SIZE_NxN
 				{
+					uint sad;
 					uint motion_estimation_precision = (et->ed->motion_estimation_precision*2-1);//compute all precisions below the configured
 					int position_aux = curr_cu_info->parent->list_index - et->partition_depth_start[curr_depth-1];
 					uint aux_cost = curr_cu_info->parent->cost;
@@ -3102,7 +3103,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 					uint aux_sum = curr_cu_info->parent->sum;
 
 //					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0);//.25*avg_distortion*4*curr_cu_info->num_part_in_cu);
-					curr_cu_info->sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
+					sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 					dist = encode_inter(et, ctu, gcnt, curr_depth-1, position_aux, SIZE_NxN);//this function is referenced by the initial depth, not by the processing depth
 #ifdef COMPUTE_AS_HM
