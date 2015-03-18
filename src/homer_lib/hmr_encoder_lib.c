@@ -1141,7 +1141,7 @@ config_error:
 
 int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
 {
-	if (curr_poc == 0)
+	if(curr_slice->slice_type == I_SLICE)//(curr_poc == 0)
 	{
 		return NALU_CODED_SLICE_IDR_W_RADL;
 	}
@@ -1745,7 +1745,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		cont_get(ed->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
 		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
 
-		if(currslice->poc==0)//if(ed->pict_type == I_SLICE)
+		//if(currslice->poc==0)
+		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
 		{
 			hmr_bitstream_init(&ed->vps_nalu.bs);
 			hmr_bitstream_init(&ed->sps_nalu.bs);

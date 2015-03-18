@@ -246,7 +246,7 @@ void hmr_put_seq_header(hvenc_t* ed)
 	}
 	
 	hmr_bitstream_write_bits(bs, ed->num_long_term_ref_pic_sets?1:0,1);//long_term_ref_pics_present_flag
-	if(ed->num_long_term_ref_pic_sets=!0)
+	if(ed->num_long_term_ref_pic_sets != 0)
 	{
 /*		hmr_bitstream_write_bits_uvlc(bs, ed->num_long_term_ref_pic_sets);
 		for(i=0;i<ed->num_long_term_ref_pic_sets;i++)
