@@ -33,7 +33,7 @@
 #define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE_FRAMES		1
-#define COMPUTE_METRICS			1
+//#define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		This is the herarchy to follow
@@ -1169,6 +1169,7 @@ struct hvenc_t
 	double				bitrate;
 	double				vbv_size;
 	double				vbv_init;
+	int					qp_min;
 	int					qp_depth;//granularity of qp diff
 	int					pict_qp, chroma_qp_offset;//for fixed qp mode or initial qp in cbr or vbr
 

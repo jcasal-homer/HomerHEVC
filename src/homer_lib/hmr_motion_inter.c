@@ -2849,7 +2849,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
-		if(total_intra_partitions > (total_partitions*.8))
+		if(total_intra_partitions > (total_partitions*.5))
 		{
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)
@@ -3509,7 +3509,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && 20<currslice->poc-et->ed->last_gop_reinit && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
-		if(total_intra_partitions > (total_partitions*.8))
+		if(total_intra_partitions > (total_partitions*.5))
 		{
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)

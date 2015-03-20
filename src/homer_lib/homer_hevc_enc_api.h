@@ -66,6 +66,7 @@ enum HOMER_RD_MODES {
 enum HOMER_BR_MODES {
 	BR_FIXED_QP = 0,
 	BR_CBR,
+	BR_VBR,
 	NUM_BR_MODES
 };
 

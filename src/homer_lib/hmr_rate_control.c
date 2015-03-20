@@ -198,6 +198,32 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	}
 */	else
 	{
+		//vbr
+		if(ed->bitrate_mode == BR_VBR)
+		{
+			if(currslice->slice_type != I_SLICE)
+			{
+				if(consumed_bitrate<.45*ed->rc.target_pict_size && ed->rc.vbv_fullness<.75*ed->rc.vbv_size)
+				{
+					ed->rc.acc_rate += (.005*ed->rc.vbv_size);//2*ed->rc.average_pict_size;
+					consumed_bitrate -= (.005*ed->rc.vbv_size);//2*ed->rc.average_pict_size;
+
+		//			ed->rc.acc_rate += consumed_bitrate;
+		//			consumed_bitrate = 0;//;
+					ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
+				}
+				else if(consumed_bitrate>1.55*ed->rc.target_pict_size && ed->rc.vbv_fullness>.1*ed->rc.vbv_size)// && ed->rc.vbv_fullness<.75*ed->rc.vbv_size)// && ed->rc.acc_rate>0)
+				{
+					ed->rc.acc_rate -= (.005*ed->rc.vbv_size);//2*ed->rc.average_pict_size;
+					consumed_bitrate += (.005*ed->rc.vbv_size);//2*ed->rc.average_pict_size;
+
+		//			ed->rc.acc_rate += consumed_bitrate;
+		//			consumed_bitrate = 0;//;
+					ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
+				}
+			}
+		}
+
 		ed->rc.vbv_fullness -= consumed_bitrate;
 		ed->rc.vbv_fullness -= ed->rc.acc_avg;
 		ed->rc.acc_rate -= ed->rc.acc_avg;
@@ -257,6 +283,13 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		vbv_corrector = 1.0-clip((min_vbv_size)/ed->rc.vbv_size, 0.0, 1.0);
 	qp = ((pic_corrector+vbv_corrector)/1.)*(MAX_QP)+/*(pic_corrector-1)+*/(entropy-3.);
 
+	//variable rate
+	if(ed->bitrate_mode == BR_VBR)
+	{
+		if(qp<ed->qp_min)
+			qp=ed->qp_min;
+	}
+
 	if(curr_thread->ed->intra_period>1)
 	{
 		if(currslice->slice_type == I_SLICE || (ed->is_scene_change && ed->gop_reinit_on_scene_change))
@@ -277,7 +310,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	{
 		qp+=4;
 	}
-	else if(currslice->slice_type == I_SLICE && consumed_bitrate > 1.*(ed->rc.target_bits_per_ctu*consumed_ctus))
+	else if(currslice->slice_type == I_SLICE && consumed_bitrate > 1.*(ed->rc.target_bits_per_ctu*consumed_ctus) && ed->rc.vbv_fullness<.5*ed->rc.vbv_size)//control scene changes in I frames
 	{
 		qp+=2;
 	}

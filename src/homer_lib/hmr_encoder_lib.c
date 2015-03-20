@@ -458,8 +458,17 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			phvenc->rd_mode = clip(cfg->rd_mode,0,NUM_RD_MODES-1);
 			phvenc->bitrate_mode = clip(cfg->bitrate_mode,0,NUM_BR_MODES-1);
 			phvenc->bitrate = cfg->bitrate;
-			phvenc->vbv_size = cfg->vbv_size;
-			phvenc->vbv_init = cfg->vbv_init;
+			if(phvenc->bitrate_mode == BR_VBR)
+			{
+				phvenc->vbv_size = 40*phvenc->bitrate;
+				phvenc->vbv_init = .5*phvenc->vbv_size;
+				phvenc->qp_min = 15;
+			}
+			else
+			{
+				phvenc->vbv_size = cfg->vbv_size;
+				phvenc->vbv_init = cfg->vbv_init;
+			}
 			phvenc->qp_depth = 0;//cfg->qp_depth;//if rc enabled qp_depth == 0
 
 			phvenc->pict_qp = cfg->qp;
@@ -1883,6 +1892,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", ed->accumulated_psnr[Y_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[U_COMP]/ed->num_encoded_frames, ed->accumulated_psnr[V_COMP]/ed->num_encoded_frames);
 #endif
 			printf("vbv: %.2f, avg_dist: %.2f, ", ed->rc.vbv_fullness/ed->rc.vbv_size, ed->avg_dist);
+			printf("rc.target_pict_size: %.2f", ed->rc.target_pict_size);
 			fflush(stdout);
 		}
 #endif
