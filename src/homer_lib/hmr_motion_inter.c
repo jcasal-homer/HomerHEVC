@@ -3343,8 +3343,12 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 
 	for( uiMergeCand = 0; uiMergeCand < numValidMergeCand; ++uiMergeCand )
 	{
-		motion_compensation_done = FALSE;
 		mv = et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand];
+		motion_compensation_done = FALSE;
+		//prune duplicated candidates
+		if(uiMergeCand>0 && mv.hor_vector == et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand-1].hor_vector && mv.ver_vector == et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand-1].ver_vector)
+			continue;
+
 		for(uiNoResidual = 0; uiNoResidual < 2; ++uiNoResidual )
 		{
 			if(!(uiNoResidual==0 && mergeCandBuffer[uiMergeCand]==1))
