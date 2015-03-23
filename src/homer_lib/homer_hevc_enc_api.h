@@ -166,7 +166,7 @@ void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], uint32_t   *nalu_list
 //int32_t  HOMER_enc_encode(void* handle, uint8_t *picture[], nalu_t *nalu_out[], uint32_t   *nalu_list_size);
 int32_t  HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame);//uint8_t *picture[]);//, nalu_t *nalu_out[], uint32_t   *nalu_list_size)
 int32_t  HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], uint32_t   *nalu_list_size);
-void encoder_thread(void* ed);//void *encoder_thread(void *h);//
+//void encoder_thread(void* ed);//void *encoder_thread(void *h);//
 int32_t  HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], uint32_t   num_nalus, encoder_in_out_t *vout);
 int32_t  HOMER_enc_control(void *h, int32_t  cmd, void *in);
 

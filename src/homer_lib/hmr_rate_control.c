@@ -152,7 +152,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(currslice->slice_type == I_SLICE && ed->intra_period!=1)
 	{
-		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+		if(1)//ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
 		{
 			ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 			consumed_bitrate = ed->rc.average_pict_size;
@@ -161,7 +161,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 		{
 			double bits_to_apply = consumed_bitrate/2;//ed->rc.average_pict_size + (consumed_bitrate-ed->rc.average_pict_size)*(ed->rc.vbv_fullness/ed->rc.vbv_size-.5);
 			ed->rc.acc_rate += consumed_bitrate-bits_to_apply;// - 2*ed->rc.average_pict_size;
-			consumed_bitrate =bits_to_apply;///=2;// 2*ed->rc.average_pict_size;			
+			consumed_bitrate = bits_to_apply;///=2;// 2*ed->rc.average_pict_size;			
 		}
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;	
@@ -231,13 +231,18 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
+#ifdef DBG_TRACE
 		printf("HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
+#endif // DBG_TRACE
+
 		ed->rc.vbv_fullness=ed->rc.vbv_size;
 	}
 
 	if(ed->rc.vbv_fullness<0)
 	{
+#ifdef DBG_TRACE
 		printf("HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
+#endif
 		ed->rc.vbv_fullness=0;
 	}
 }

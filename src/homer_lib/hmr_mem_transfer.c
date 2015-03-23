@@ -66,7 +66,7 @@ void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, i
 		wnd->window_size_x[comp] = aligned_padding_x+aligned_width+aligned_padding_x;
 		wnd->window_size_y[comp] = padding_size_y+height+padding_size_y;
 
-		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc((wnd->window_size_x[comp]*wnd->window_size_y[comp])*pix_size, sizeof(byte)))==NULL)
+		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc((wnd->window_size_x[comp]*wnd->window_size_y[comp])*pix_size+16, sizeof(byte)))==NULL)
 			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
 
 		wnd->pwnd[comp]=(void*)((uint8_t*)wnd->palloc[comp]+((padding_size_y*wnd->window_size_x[comp]+aligned_padding_x)*wnd->pix_size));

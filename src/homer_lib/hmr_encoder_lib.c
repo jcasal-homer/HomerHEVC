@@ -1134,8 +1134,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			
 
 			//---------------- end slice -------------------
-//			phvenc->run = 1;
-//			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
+			phvenc->run = 1;
+			CREATE_THREAD(phvenc->encoder_thread, encoder_thread, phvenc);
 		}	
 		break;
 
@@ -1697,7 +1697,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	int n, i, num_threads;
-//	while(ed->run)
+
+	while(ed->run)
 	{
 		output_set_t* ouput_sets = &ed->output_sets[ed->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
 		int		output_nalu_cnt = 0;
@@ -1870,7 +1871,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 #endif
 
 		ed->num_encoded_frames++;
-#ifdef DBG_TRACE_FRAMES
+#ifdef DBG_TRACE
 		{
 			char stringI[] = "I";
 			char stringP[] = "P";
