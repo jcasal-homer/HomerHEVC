@@ -3,7 +3,7 @@
 ******************************************************************************
  * Copyright (C) 2014 homerHEVC project
  *
- * Juan Casal <jcasal.homer@gmail.com>
+ * Juan Casal <jcasal@homerhevc.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -288,7 +288,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 2000;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;

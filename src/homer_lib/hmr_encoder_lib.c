@@ -3,7 +3,7 @@
 /*****************************************************************************
  * Copyright (C) 2014 homerHEVC project
  *
- * Juan Casal <jcasal.homer@gmail.com>
+ * Juan Casal <jcasal@homerhevc.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -1789,10 +1789,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		SEM_RESET(ed->deblock_filter_sem)
 
-#ifdef COMPUTE_AS_HM
+//#ifdef COMPUTE_AS_HM
 		CREATE_THREADS((&ed->hthreads[0]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
 		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
-#else
+/*#else
 		num_threads = ed->wfpp_num_threads + 1;//wfpp + deblocking thread
 
 		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
@@ -1800,7 +1800,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
 #endif
-		//calc average distortion
+*/		//calc average distortion
 		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
 		{
 			ed->avg_dist = 0;
@@ -1825,10 +1825,10 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		ed->is_scene_change = 0;
 
-#ifdef COMPUTE_AS_HM
+//#ifdef COMPUTE_AS_HM
 		if(ed->intra_period>1)
 			hmr_deblock_filter(ed, currslice);
-#endif
+//#endif
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;

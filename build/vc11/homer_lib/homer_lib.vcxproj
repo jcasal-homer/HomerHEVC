@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_profiler.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_quant.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_rate_control.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_sao.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_pixel.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_prediction.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_quant.c" />
