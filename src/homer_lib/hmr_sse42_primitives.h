@@ -25,7 +25,6 @@
 #define __HOMER_HEVC_SSE42_PRIMITIVES__
 
 #include "hmr_os_primitives.h"
-#include "hmr_os_primitives.h"
 #include <smmintrin.h>
 
 typedef __m128i	__m128_;				//generico

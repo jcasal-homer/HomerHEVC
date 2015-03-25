@@ -37,8 +37,8 @@
 #define fseek_64 fseek
 #endif
 
-
-#define FILE_IN  "C:\\Patrones\\TestEBU1080i50_yuv.YUV"//LolaTest420.yuv"//TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+#define FILE_IN  "C:\\PruebasIntegracionCiresXXI\\DroneChateau.yuv"
+//#define FILE_IN  "C:\\Patrones\\TestEBU1080i50_yuv.YUV"//LolaTest420.yuv"//TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_384x256.yuv"//demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
@@ -48,9 +48,9 @@
 #define FILE_REF	"C:\\Patrones\\refs_Homer.bin"
 
 
-#define HOR_SIZE	1920//1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	1080//720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			25//25//50
+#define HOR_SIZE	1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define FPS			24//25//50
 
 
 #ifdef _MSC_VER
@@ -309,9 +309,9 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 100;//100;//1;
-	HmrCfg.gop_size = 1;//1;//0;
-	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
+	HmrCfg.intra_period = 100;//1;
+	HmrCfg.gop_size = 1;//0;
+	HmrCfg.motion_estimation_precision = HALF_PEL;//QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
@@ -323,13 +323,13 @@ int main (int argc, char **argv)
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 5000;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - Only used for CBR
-	HmrCfg.vbv_init = HmrCfg.vbv_size*0.5;//in kbps
+	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps
+	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 	HmrCfg.reinit_gop_on_scene_change = 0;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
+	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_FULL_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 

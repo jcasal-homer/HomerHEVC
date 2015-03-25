@@ -3515,7 +3515,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 
 	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && 20<currslice->poc-et->ed->last_gop_reinit && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
-		if(total_intra_partitions > (total_partitions*.5))
+		if(total_intra_partitions > (total_partitions*.6))
 		{
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)
@@ -3724,7 +3724,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 				{
 					int max_processing_depth = min(et->max_pred_partition_depth+et->max_intra_tr_depth-1, MAX_PARTITION_DEPTH-1);
 
-					if(et->ed->performance_mode == PERF_UFAST_COMPUTATION)//compute half and quarter pixel motion estimation in the best option
+					if(et->ed->performance_mode == PERF_UFAST_COMPUTATION && et->ed->motion_estimation_precision>MOTION_PEL_MASK)//compute half and quarter pixel motion estimation in the best option
 					{
 						uint motion_estimation_precision = ((et->ed->motion_estimation_precision*2-1)&(~MOTION_PEL_MASK));//compute all precisions below the configured exept MOTION_PEL_MASK that has already been done
 						curr_cu_info->sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, part_size_type, threshold,motion_estimation_precision);//(MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
