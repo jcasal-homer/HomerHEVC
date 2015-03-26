@@ -154,9 +154,9 @@ void hmr_bitstream_write2file(bitstream_t* bs);
 
 
 //hmr_headers.c
-void hmr_put_vps_header(hvenc_t* ed);
-void hmr_put_seq_header(hvenc_t* ed);
-void hmr_put_pic_header(hvenc_t* ed);
+void hmr_put_vps_header(hvenc_enc_t* hvenc);
+void hmr_put_seq_header(hvenc_enc_t* hvenc);
+void hmr_put_pic_header(hvenc_enc_t* hvenc);
 void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice);
 void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed);
 
@@ -177,9 +177,9 @@ void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int widt
 
 
 //init_tables.c
-void init_scan_pyramid(hvenc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
+void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
 void init_flat_quant_pyramids( hvenc_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp);
-void init_quant_pyramids( hvenc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp);
+void init_quant_pyramids( hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp);
 short* get_default_qtable(int size_mode, int list_index);
 void create_abs2raster_tables( unsigned short **zigzag, int total_depth, int depth, int start_value);
 void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigzag, int max_cu_width, int max_cu_height, int total_depth);

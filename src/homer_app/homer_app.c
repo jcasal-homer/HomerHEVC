@@ -311,7 +311,7 @@ int main (int argc, char **argv)
 	HmrCfg.profile = PROFILE_MAIN;
 	HmrCfg.intra_period = 100;//1;
 	HmrCfg.gop_size = 1;//0;
-	HmrCfg.motion_estimation_precision = HALF_PEL;//QUARTER_PEL;//HALF_PEL;//PEL;//
+	HmrCfg.motion_estimation_precision = QUARTER_PEL;//QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
 	HmrCfg.frame_rate = FPS;
 	HmrCfg.num_ref_frames = 1;
@@ -324,7 +324,7 @@ int main (int argc, char **argv)
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 5000;//in kbps
+	HmrCfg.bitrate = 2000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
@@ -413,6 +413,7 @@ int main (int argc, char **argv)
 			{
 				num_nalus = 8;
 				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
+				Sleep(1000/(2*HmrCfg.frame_rate));
 //				encoder_thread(pEncoder);
 				frames_read++;			
 			}
@@ -448,7 +449,7 @@ int main (int argc, char **argv)
 
 		if(!bCoding)
 		{
-			HOMER_enc_close(pEncoder);
+//			HOMER_enc_close(pEncoder);
 			msTotal += get_ms()-msInit;
 			printf("\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
 

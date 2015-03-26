@@ -58,7 +58,7 @@
 
 
 #define MAX_NUM_CTUs				8160	//1920*1088 resolution
-#define MAX_MB_GROUP_SIZE		1
+//#define MAX_MB_GROUP_SIZE		1
 
 #define     MAX_CU_DEPTHS			7		//from 128x128 to 2x2. For scan piramid. 
 //#define     MAX_CU_SIZE					(1<<(MAX_CU_DEPTHS))        // maximum allowable size of CU
@@ -903,7 +903,7 @@ struct picture_t
 
 typedef struct henc_thread_t henc_thread_t;
 typedef struct hvenc_t hvenc_t;
-
+typedef struct hvenc_enc_t hvenc_enc_t;
 
 typedef struct low_level_funcs_t low_level_funcs_t;
 struct low_level_funcs_t
@@ -962,7 +962,7 @@ struct henc_thread_t
 	int				pict_width_in_ctu, pict_height_in_ctu;
 	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
-	int				ctu_group_size;
+//	int				ctu_group_size;
 
 	//cfg
 	int				max_cu_size;
@@ -1064,19 +1064,19 @@ struct henc_thread_t
 struct hvenc_t
 {
 	int num_encoded_frames;
-
+	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 	hmr_thread_t	encoder_thread;
 	hmr_sem_t		deblock_filter_semaphore;
 	hmr_sem_ptr		deblock_filter_sem;
 	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
-	int				run;
+//	int				run;
 
 	//nalus
-	nalu_t		vps_nalu;
-	nalu_t		sps_nalu;
-	nalu_t		pps_nalu;
+//	nalu_t		vps_nalu;
+//	nalu_t		sps_nalu;
+//	nalu_t		pps_nalu;
 	nalu_t		slice_nalu_list[NUM_OUTPUT_NALUS];//slice
 	nalu_t		*slice_nalu;//slice
 	bitstream_t	slice_bs;//slice information previous to nalu_ebsp conversion
@@ -1085,9 +1085,9 @@ struct hvenc_t
 	uint		*sub_streams_entry_point_list;
 
 	//header info
-	vps_t		vps;
-	sps_t		sps;
-	pps_t		pps;
+//	vps_t		vps;
+//	sps_t		sps;
+//	pps_t		pps;
 
 	//Encoder Cfg	
 	//Encoding layer
@@ -1106,7 +1106,7 @@ struct hvenc_t
 	int				pict_width_in_ctu, pict_height_in_ctu;
 	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
-	int				ctu_group_size;
+//	int				ctu_group_size;
 	//statistics for scene change detection
 	double			avg_dist;
 	int				is_scene_change;
@@ -1135,19 +1135,19 @@ struct hvenc_t
 
 	int				partition_depth_start[MAX_PARTITION_DEPTH];//start of depths in the partition_info list
 
-	int				profile;
+//	int				profile;
 	int				bit_depth;
 	int				max_sublayers;
 	int				max_layers;
 		
-	profile_tier_level_t	ptl;
+//	profile_tier_level_t	ptl;
 
 	//current picture_t Config
 	picture_t		current_pict;
 	video_frame_t	*curr_reference_frame;
-	video_frame_t	ref_wnds[MAX_NUM_REF*2];
+//	video_frame_t	ref_wnds[MAX_NUM_REF*2];
 
-	void			*cont_empty_reference_wnds;//for decoding and reference frames
+//	void			*cont_empty_reference_wnds;//for decoding and reference frames
 	video_frame_t	*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
 	int				reference_list_index;
 	int				last_poc, last_idr, num_pictures;
@@ -1178,18 +1178,18 @@ struct hvenc_t
 	uint16_t			*abs2raster_table; //g_auiZscanToRaster en HM
 	uint16_t			*raster2abs_table; //g_auiRasterToZscan en HM
 	//--------------------------------------------------------------
-	uint16_t			*ang_table;//for angular intra prediction    
-	uint16_t			*inv_ang_table;//for angular intra prediction
-	uint32_t			*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
-	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
+	const uint16_t		*ang_table;//for angular intra prediction    
+	const uint16_t		*inv_ang_table;//for angular intra prediction
+//	uint32_t			*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
+//	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+//	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+//	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	//reference pictures
 //	int					ref_pic_set_index;//moved to slice_t
-	int					num_short_term_ref_pic_sets;
-	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
-	int					num_long_term_ref_pic_sets;
+//	int					num_short_term_ref_pic_sets;
+//	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
+//	int					num_long_term_ref_pic_sets;
 
 	//arithmetic coding
 	int					num_ee;
@@ -1202,13 +1202,13 @@ struct hvenc_t
 	//rate control
 	rate_control_t		rc;
 
-	low_level_funcs_t	funcs;
+//	low_level_funcs_t	funcs;
 
 	//input and output
-	video_frame_t	input_frames[NUM_INPUT_FRAMES];
-	void			*input_hmr_container;
-	output_set_t	output_sets[NUM_OUTPUT_NALUS];
-	void			*output_hmr_container;
+//	video_frame_t	input_frames[NUM_INPUT_FRAMES];
+//	void			*input_hmr_container;
+//	output_set_t	output_sets[NUM_OUTPUT_NALUS];
+//	void			*output_hmr_container;
 
 #ifdef COMPUTE_METRICS
 	double			current_psnr[3];
@@ -1217,5 +1217,70 @@ struct hvenc_t
 #endif
 //	FILE			*debug_file;
 };
+
+#define MAX_NUM_ENCODER_CTX	8
+struct hvenc_enc_t
+{
+	hvenc_t			*encoder_module[MAX_NUM_ENCODER_CTX];
+	int				num_encoder_modules;
+
+	int				run;
+	int				num_encoded_frames;
+	uint32_t		poc;
+	int				max_sublayers, max_layers;
+
+	int				profile;
+	int				intra_period;
+	int				num_ref_frames;
+	int				gop_size;
+	int				num_b;
+	profile_tier_level_t	ptl;
+	int				pict_height[3], pict_width[3];
+	int				ctu_width[3], ctu_height[3];
+	int				bit_depth;
+
+	//header info
+	vps_t		vps;
+	sps_t		sps;
+	pps_t		pps;
+
+	//nalus
+	nalu_t		vps_nalu;
+	nalu_t		sps_nalu;
+	nalu_t		pps_nalu;
+
+	bitstream_t	aux_bs;//list of bitstreams for coef wfpp encoding
+
+
+	//reference pictures
+	video_frame_t		ref_wnds[MAX_NUM_REF*2];
+//	int					ref_pic_set_index;//moved to slice_t
+	int					num_short_term_ref_pic_sets;
+	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
+	int					num_long_term_ref_pic_sets;
+	//input and output
+	video_frame_t		input_frames[NUM_INPUT_FRAMES];
+	void				*input_hmr_container;
+	output_set_t		output_sets[NUM_OUTPUT_NALUS];
+	void				*output_hmr_container;
+	
+	//for reconstructed img and reference frames
+	void				*cont_empty_reference_wnds;
+
+	//scan tables	 
+	//-------these are for abs_index partitions---------------------
+	uint16_t			*abs2raster_table; //g_auiZscanToRaster en HM
+	uint16_t			*raster2abs_table; //g_auiRasterToZscan en HM
+	//--------------------------------------------------------------
+	const uint16_t		*ang_table;//for angular intra prediction    
+	const uint16_t		*inv_ang_table;//for angular intra prediction
+	uint32_t			*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
+	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
+	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
+
+	low_level_funcs_t	funcs;
+};
+
 
 #endif  /* __HOMER_HEVC_PRIVATE_H__*/

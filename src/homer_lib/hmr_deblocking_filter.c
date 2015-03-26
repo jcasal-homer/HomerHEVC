@@ -416,7 +416,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 			int  tc_offset_div2 = currslice->slice_tc_offset_div2;
 			int tc, beta, side_threshold, threshold_cut;
 			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
-			int pcm_filter = (ed->sps.pcm_enabled_flag && ed->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
+			int pcm_filter = (ed->hvenc->sps.pcm_enabled_flag && ed->hvenc->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
 			cu_partition_info_t *sub_cu_info = &ctu->partition_list[ed->partition_depth_start[ed->max_cu_depth]];//4x4 blocks
 
 			sub_cu_info += bs_abs_idx;
@@ -463,7 +463,7 @@ void deblock_filter_luma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *curr
 				int dp = dp0 + dp3;
 				int dq = dq0 + dq3;
 
-				if (pcm_filter || ed->pps.transquant_bypass_enable_flag)
+				if (pcm_filter || currslice->pps->transquant_bypass_enable_flag)
 				{
 					// Check if each of PUs is I_PCM with LF disabling
 //					partition_p_no_filter = (pcm_filter && ctu_aux->getIPCMFlag(uiPartPIdx));
@@ -581,7 +581,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 			int  tc_offset_div2 = currslice->slice_tc_offset_div2;
 			int tc;//, beta, side_threshold, threshold_cut;
 //			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
-			int pcm_filter = (ed->sps.pcm_enabled_flag && ed->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
+			int pcm_filter = (ed->hvenc->sps.pcm_enabled_flag && ed->hvenc->sps.pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
 			cu_partition_info_t *sub_cu_info = &ctu->partition_list[ed->partition_depth_start[ed->max_cu_depth]];//4x4 blocks
 
 			sub_cu_info += bs_abs_idx;
@@ -610,7 +610,7 @@ void deblock_filter_chroma(hvenc_t* ed, ctu_info_t *ctu, cu_partition_info_t *cu
 
 			for(ch_component = U_COMP;ch_component<=V_COMP;ch_component++)
 			{
-				int chr_qp_offset = (ch_component == U_COMP)?ed->pps.cb_qp_offset:ed->pps.cr_qp_offset;
+				int chr_qp_offset = (ch_component == U_COMP)?ed->hvenc->pps.cb_qp_offset:ed->hvenc->pps.cr_qp_offset;
 				int chr_qp;
 				aux_decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width);
 				aux_decoded_buff += edge*num_pels_in_partition*offset;

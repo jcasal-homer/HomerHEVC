@@ -189,7 +189,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 
 		decoded_frame_width = decoded_dst_wnd->data_width[component];
 		decoded_frame_height = decoded_dst_wnd->data_height[component];
-		copy_width = ((ctu->x[component]+et->ctu_width[component]*et->ctu_group_size)<decoded_frame_width)?(et->ctu_width[component]*et->ctu_group_size):(decoded_frame_width-ctu->x[component]);
+		copy_width = ((ctu->x[component]+et->ctu_width[component])<decoded_frame_width)?(et->ctu_width[component]):(decoded_frame_width-ctu->x[component]);
 		copy_height = ((ctu->y[component]+et->ctu_height[component])<decoded_frame_height)?(et->ctu_height[component]):(decoded_frame_height-(ctu->y[component]));
 //		mem_transfer_2d2d((uint8_t*)decoded_buff_src, (uint8_t*)decoded_buff_dst, copy_width*sizeof(decoded_buff_src[0]), copy_height, src_stride*sizeof(decoded_buff_src[0]), dst_stride*sizeof(decoded_buff_dst[0]));
 		for(j=0;j<copy_height;j++)
