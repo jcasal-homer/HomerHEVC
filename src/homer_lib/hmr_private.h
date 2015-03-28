@@ -179,7 +179,6 @@
 //-------------------------end binary encode-------------------------------------
 
 
-#define MAXnum_ref_frames_in_pic_order_cnt_cycle  256	
 typedef int Boolean;
 
 typedef unsigned char	byte;
@@ -1005,8 +1004,15 @@ struct henc_thread_t
 	wnd_t			decoded_mbs_wnd_[NUM_DECODED_WNDS];				//windows to be used with pointers
 	wnd_t			*decoded_mbs_wnd[NUM_DECODED_WNDS];
 
+	//deblock filter
+	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
+	uint8_t			*deblock_edge_filter[2];
+	uint8_t			*deblock_filter_strength_bs[2];
+
+	//quarter precission buffers
 	wnd_t			filtered_block_wnd[4][4];
 	wnd_t			filtered_block_temp_wnd[4];
+
 	//intra predicition
 	int16_t				(*adi_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
 	int16_t				(*adi_filtered_pred_buff);//this buffer holds the left column and top row for intra pred (bottom2top and left2right)
@@ -1070,7 +1076,6 @@ struct hvenc_t
 	hmr_thread_t	encoder_thread;
 	hmr_sem_t		deblock_filter_semaphore;
 	hmr_sem_ptr		deblock_filter_sem;
-	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
 //	int				run;
 
 	//nalus
@@ -1156,8 +1161,8 @@ struct hvenc_t
 	int				num_ref_frames;
 
 	//deblock filter
-	uint8_t			*deblock_edge_filter[2];
-	uint8_t			*deblock_filter_strength_bs[2];
+//	uint8_t			*deblock_edge_filter[2];
+//	uint8_t			*deblock_filter_strength_bs[2];
 
 //	int				slice_type;
 

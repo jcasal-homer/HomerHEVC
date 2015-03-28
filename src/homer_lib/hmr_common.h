@@ -61,6 +61,8 @@
 //random access
 #define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
 #define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
+#define WND_WIDTH_2D(w, comp) ((w).data_width[comp])
+#define WND_HEIGHT_2D(w, comp) ((w).data_height[comp])
 
 #define CBF(ctu, abs_index, comp, tr_depth) (((ctu)->cbf[(comp)][(abs_index)]>>(tr_depth))&1)
 #define CBF_ALL(ctu, abs_index, tr_depth) (CBF((ctu), (abs_index), Y_COMP, (tr_depth)) | CBF((ctu), (abs_index), U_COMP, (tr_depth)) | CBF((ctu), (abs_index), V_COMP, (tr_depth)))
@@ -189,6 +191,7 @@ int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_le
 
 //encodelib.cpp
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu);
+void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu);
 THREAD_RETURN_TYPE encoder_thread(void *h);//void encoder_thread(void* ed);
 
 //hmr_motion_intra.c
@@ -254,6 +257,7 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 
 //hmr_deblocking_filter.c
 void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice);
+void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu);
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);

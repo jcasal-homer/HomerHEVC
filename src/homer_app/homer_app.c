@@ -37,8 +37,8 @@
 #define fseek_64 fseek
 #endif
 
-#define FILE_IN  "C:\\PruebasIntegracionCiresXXI\\DroneChateau.yuv"
-//#define FILE_IN  "C:\\Patrones\\TestEBU1080i50_yuv.YUV"//LolaTest420.yuv"//TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\PruebasIntegracionCiresXXI\\DroneChateau.yuv"
+#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU1080i50_yuv.YUV"//LolaTest420.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_384x256.yuv"//demo_pattern_192x128.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\1080p_pedestrian_area.yuv"
@@ -50,7 +50,7 @@
 
 #define HOR_SIZE	1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
 #define VER_SIZE	720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			24//25//50
+#define FPS			50//24//25//50
 
 
 #ifdef _MSC_VER
@@ -324,7 +324,7 @@ int main (int argc, char **argv)
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//BR_FIXED_QP;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 2000;//in kbps
+	HmrCfg.bitrate = 5000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
