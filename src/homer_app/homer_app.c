@@ -413,7 +413,6 @@ int main (int argc, char **argv)
 			{
 				num_nalus = 8;
 				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
-				Sleep(1000/(2*HmrCfg.frame_rate));
 //				encoder_thread(pEncoder);
 				frames_read++;			
 			}
@@ -422,24 +421,31 @@ int main (int argc, char **argv)
 				int iiiii=0;
 			}
 
-
-			HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
-
-			if(num_nalus>0)
+//			num_nalus=0;
+//			while(num_nalus==0)
 			{
-				HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
-				fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
-				fflush(outfile);
-				totalbits+=output_stream.stream.data_size[0];
+//				num_nalus=8;
 
-				if(reffile!=NULL)
+				HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
+
+				if(num_nalus>0)
 				{
-					fwrite(output_frame.stream.streams[0], HmrCfg.width, HmrCfg.height, reffile); 
-					fwrite(output_frame.stream.streams[1], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
-					fwrite(output_frame.stream.streams[2], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
-				}
+					HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
+					fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
+					fflush(outfile);
+					totalbits+=output_stream.stream.data_size[0];
 
-				encoded_frames++;
+					if(reffile!=NULL)
+					{
+						fwrite(output_frame.stream.streams[0], HmrCfg.width, HmrCfg.height, reffile); 
+						fwrite(output_frame.stream.streams[1], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+						fwrite(output_frame.stream.streams[2], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+					}
+
+					encoded_frames++;
+				}
+//				else
+//					Sleep(5);
 			}
 			if(encoded_frames == num_frames || (bEndOfFile && encoded_frames==frames_read-skipped_frames))
 			{

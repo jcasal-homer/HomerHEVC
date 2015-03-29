@@ -1064,12 +1064,13 @@ struct henc_thread_t
 
 
 #define MAX_NUM_THREADS			32
-#define NUM_INPUT_FRAMES		2
+#define NUM_INPUT_FRAMES		4
 #define NUM_OUTPUT_NALUS		(2*NUM_INPUT_FRAMES)
 #define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
 struct hvenc_t
 {
-	int num_encoded_frames;
+	int				index;
+	int				num_encoded_frames;
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
@@ -1153,9 +1154,9 @@ struct hvenc_t
 //	video_frame_t	ref_wnds[MAX_NUM_REF*2];
 
 //	void			*cont_empty_reference_wnds;//for decoding and reference frames
-	video_frame_t	*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
-	int				reference_list_index;
-	int				last_poc, last_idr, num_pictures;
+//	video_frame_t	*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
+//	int				reference_list_index;
+	int				last_poc, last_idr;//, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
 	int				num_ref_frames;
@@ -1228,9 +1229,14 @@ struct hvenc_enc_t
 {
 	hvenc_t			*encoder_module[MAX_NUM_ENCODER_CTX];
 	int				num_encoder_modules;
+	CRITICAL_SECTION CriticalSection; 
+	CRITICAL_SECTION CriticalSection2; 
+
 
 	int				run;
 	int				num_encoded_frames;
+	int				last_idr, last_gop_reinit;
+	double			avg_dist;
 	uint32_t		poc;
 	int				max_sublayers, max_layers;
 
@@ -1263,6 +1269,10 @@ struct hvenc_enc_t
 	int					num_short_term_ref_pic_sets;
 	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
 	int					num_long_term_ref_pic_sets;
+
+	video_frame_t		*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
+	int					reference_list_index;
+
 	//input and output
 	video_frame_t		input_frames[NUM_INPUT_FRAMES];
 	void				*input_hmr_container;
@@ -1283,6 +1293,8 @@ struct hvenc_enc_t
 	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
 	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
+
+	rate_control_t		rc;
 
 	low_level_funcs_t	funcs;
 };

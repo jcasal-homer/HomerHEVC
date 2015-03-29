@@ -33,6 +33,7 @@ void hmr_rc_init(hvenc_t* ed)
 	ed->rc.vbv_fullness = ed->vbv_init*1000;
 	ed->rc.average_pict_size = ed->bitrate*1000/ed->frame_rate;
 	ed->rc.average_bits_per_ctu = ed->rc.average_pict_size/ed->pict_total_ctu;
+	ed->hvenc->rc = ed->rc;
 }
 
 void hmr_rc_init_seq(hvenc_t* ed)
@@ -74,6 +75,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 			henc_th->target_pict_size = (uint32_t)ed->rc.target_pict_size;
 		}
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
@@ -82,6 +84,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
 	double intra_avg_size = 2.25*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 
+	ed->rc = ed->hvenc->rc;
 	switch(currslice->slice_type)
 	{
 		case  I_SLICE:
@@ -124,6 +127,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 		henc_th->num_bits = 0;
 		henc_th->acc_qp = 0;
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 
@@ -245,6 +249,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 #endif
 		ed->rc.vbv_fullness=0;
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 

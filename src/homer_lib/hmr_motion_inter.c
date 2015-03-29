@@ -3521,6 +3521,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 			if(et->ed->gop_reinit_on_scene_change)
 				et->ed->last_intra = currslice->poc;
 			et->ed->last_gop_reinit = currslice->poc;
+			et->ed->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
 			printf("\r\n---------------------scene change detected. total_intra_partitions:%d, total_partitions:%d , ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", total_intra_partitions, total_partitions, et->ed->avg_dist, avg_distortion);
 #endif
@@ -3748,6 +3749,10 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 						merge_cost +=curr_cu_info->merge_idx;
 						merge_cost=calc_cost_full(merge_cost, curr_depth, avg_distortion);
 						merge_cost+=cost_rd(et->ed->avg_dist, curr_cu_info->sum);
+						if(curr_cu_info->skipped)
+						{
+							merge_cost*=.95;
+						}
 					}
 
 					curr_cu_info->inter_mv[REF_PIC_LIST_0] = inter_mv;

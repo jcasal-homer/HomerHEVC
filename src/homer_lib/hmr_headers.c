@@ -411,7 +411,7 @@ void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
 		{	
 			int num_bits = 0;
 			int bits_for_poc = currslice->sps->log2_max_pic_order_cnt_lsb_minus4+4;
-			int poc_lsb = (currslice->poc - ed->last_idr+(1<<bits_for_poc))%(1<<bits_for_poc);
+			int poc_lsb = (currslice->poc - ed->hvenc->last_idr+(1<<bits_for_poc))%(1<<bits_for_poc);
 
 			hmr_bitstream_write_bits(bs, poc_lsb, bits_for_poc);
 

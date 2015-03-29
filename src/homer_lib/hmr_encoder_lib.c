@@ -193,6 +193,10 @@ void *HOMER_enc_init()
 		hvenc->funcs.itransform = itransform;
 	}
 
+	if(!InitializeCriticalSectionAndSpinCount(&hvenc->CriticalSection, 0))
+		return NULL;
+	if(!InitializeCriticalSectionAndSpinCount(&hvenc->CriticalSection2, 0))
+		return NULL;
 	return hvenc;
 }
 
@@ -481,7 +485,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->intra_period = 20;
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 #endif
-			hvenc->num_encoder_modules = 1;
+			hvenc->num_encoder_modules = 2;
 			hvenc->max_sublayers = 1;//TLayers en HM
 			hvenc->max_layers = 1;
 
@@ -539,7 +543,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				phvenc_mod = (hvenc_t*)calloc(1, sizeof(hvenc_t));
 				phvenc_mod->hvenc = hvenc;
-
+				phvenc_mod->index = n_enc_mod;
 				hvenc->encoder_module[n_enc_mod] = phvenc_mod;
 
 				if(hvenc->run==1)
@@ -1183,6 +1187,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			//----------------- end pps ------------------
 			hvenc->run = 1;
 			CREATE_THREAD(hvenc->encoder_module[0]->encoder_thread, encoder_thread, hvenc->encoder_module[0]);//falta
+			CREATE_THREAD(hvenc->encoder_module[1]->encoder_thread, encoder_thread, hvenc->encoder_module[1]);//falta
+
 		}	
 		break;
 
@@ -1400,7 +1406,7 @@ void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 	currslice->ref_pic_set->num_pics = currslice->ref_pic_set->num_negative_pics+currslice->ref_pic_set->num_positive_pics;
 }
 
-void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
+void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 {
 	int i, j;
 	video_frame_t *refpic;
@@ -1409,7 +1415,7 @@ void apply_reference_picture_set(hvenc_t* ed, slice_t *currslice)
 
 	for(i=0;i<MAX_NUM_REF;i++)
 	{
-		refpic = ed->reference_picture_buffer[(ed->reference_list_index-1-i)&MAX_NUM_REF_MASK];
+		refpic = hvenc->reference_picture_buffer[(hvenc->reference_list_index-1-i)&MAX_NUM_REF_MASK];
 		if(refpic!=NULL)
 		{
 			refpic->is_reference = FALSE;
@@ -1482,8 +1488,9 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 
 	if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL || currslice->nalu_type == NALU_CODED_SLICE_IDR_N_LP)
 	{
-		ed->last_idr = currslice->poc;
+		ed->hvenc->last_idr = currslice->poc;
 	}
+	ed->last_idr = ed->hvenc->last_idr;
 
 	if(currslice->poc == 0)//if(ed->last_poc == 0)//first image?
 	{
@@ -1897,13 +1904,15 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		int		output_nalu_cnt = 0;
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
-	
+
+		EnterCriticalSection(&ed->hvenc->CriticalSection); 
+
 		//get next image
 		if(!get_frame_to_encode(ed->hvenc, &ed->current_pict.img2encode))//get next image to encode and init type
 			return THREAD_RETURN;
 
 		//entra seccion critica
-		ed->num_pictures++;
+//		ed->num_pictures++;
 		ed->last_poc = ed->hvenc->poc;
 		ed->hvenc->poc++;
 		ed->num_encoded_frames = ed->hvenc->num_encoded_frames;
@@ -1925,11 +1934,21 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			if(currslice->poc==0)
 				hmr_rc_init_seq(ed);
 
+			ed->rc = ed->hvenc->rc;
 			hmr_rc_init_pic(ed, &currpict->slice);
 		}
 		//get free img for decoded blocks
 		cont_get(ed->hvenc->cont_empty_reference_wnds,(void**)&ed->curr_reference_frame);
 		ed->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+
+		apply_reference_picture_set(ed->hvenc, currslice);		
+
+		//prunning of references must be done in a selective way
+		if(ed->hvenc->reference_picture_buffer[ed->hvenc->reference_list_index]!=NULL)
+			cont_put(ed->hvenc->cont_empty_reference_wnds,ed->hvenc->reference_picture_buffer[ed->hvenc->reference_list_index]);
+
+		ed->hvenc->reference_picture_buffer[ed->hvenc->reference_list_index] = ed->curr_reference_frame;
+		ed->hvenc->reference_list_index = (ed->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
 
 		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
 		{
@@ -1953,14 +1972,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			hmr_put_pic_header(ed->hvenc);//pic header
 		}
 
-		apply_reference_picture_set(ed, currslice);		
-
-		//prunning of references must be done in a selective way
-		if(ed->reference_picture_buffer[ed->reference_list_index]!=NULL)
-			cont_put(ed->hvenc->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
-
-		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_reference_frame;
-		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
+		ed->avg_dist = ed->hvenc->avg_dist;
 
 		for(n = 0; n<ed->wfpp_num_threads;n++)
 		{
@@ -2005,12 +2017,16 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		if(ed->bitrate_mode != BR_FIXED_QP)
 			hmr_rc_end_pic(ed, currslice);
 
+		ed->hvenc->avg_dist = ed->avg_dist;
 		ed->is_scene_change = 0;
 
 //#ifdef COMPUTE_AS_HM
 //		if(ed->intra_period>1)
 //			hmr_deblock_filter(ed, currslice);
 //#endif
+		LeaveCriticalSection(&ed->hvenc->CriticalSection);
+
+		EnterCriticalSection(&ed->hvenc->CriticalSection2); 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
@@ -2044,7 +2060,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 			char *frame_type_str;
 			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
 
-			printf("\r\nframe:%d, %s, bits:%d,",ed->num_encoded_frames, frame_type_str, ed->slice_bs.streambytecnt*8);
+			printf("\r\nmodule:%d, frame:%d, %s, bits:%d,", ed->index,ed->num_encoded_frames, frame_type_str, ed->slice_bs.streambytecnt*8);
 #ifdef COMPUTE_METRICS
 
 			homer_psnr(&ed->current_pict, &ed->curr_reference_frame->img, ed->pict_width, ed->pict_height, ed->current_psnr); 
@@ -2065,10 +2081,11 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 //			cont_put(ed->cont_empty_reference_wnds,ed->reference_picture_buffer[ed->reference_list_index]);
 
 		//fill padding in reference picture
-		reference_picture_border_padding(&ed->curr_reference_frame->img);
+//		reference_picture_border_padding(&ed->curr_reference_frame->img);
 //		ed->reference_picture_buffer[ed->reference_list_index] = ed->curr_reference_frame;
 //		ed->reference_list_index = (ed->reference_list_index+1)&MAX_NUM_REF_MASK;
 //		ed->last_poc++;
+
 
 		ouput_sets->pts = ed->current_pict.img2encode->temp_info.pts;
 		ouput_sets->image_type = ed->current_pict.img2encode->img_type;
@@ -2077,6 +2094,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ouput_sets->num_nalus = output_nalu_cnt;
 		ouput_sets->frame = ed->curr_reference_frame;
 		cont_put(ed->hvenc->output_hmr_container, ouput_sets);
+		LeaveCriticalSection(&ed->hvenc->CriticalSection2);
+
 	}
 
 	return THREAD_RETURN;
