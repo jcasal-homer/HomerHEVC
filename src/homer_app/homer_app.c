@@ -288,7 +288,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 2000;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -421,18 +421,26 @@ int main (int argc, char **argv)
 				int iiiii=0;
 			}
 
-//			num_nalus=0;
+			num_nalus=0;
 //			while(num_nalus==0)
 			{
-//				num_nalus=8;
+				num_nalus=8;
 
 				HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
 
 				if(num_nalus>0)
 				{
+					if(encoded_frames == 20)
+					{
+						int iiiii=0;
+					}
 					HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
-					fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
-					fflush(outfile);
+
+//					if(encoded_frames>=20)
+					{
+						fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
+						fflush(outfile);
+					}
 					totalbits+=output_stream.stream.data_size[0];
 
 					if(reffile!=NULL)
@@ -444,7 +452,9 @@ int main (int argc, char **argv)
 
 					encoded_frames++;
 				}
-//				else
+//				else if(((encoded_frames)%HmrCfg.intra_period)!=0)
+//					break;
+//				else if(encoded_frames>1)
 //					Sleep(5);
 			}
 			if(encoded_frames == num_frames || (bEndOfFile && encoded_frames==frames_read-skipped_frames))

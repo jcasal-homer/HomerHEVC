@@ -2079,7 +2079,7 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 			subpix_mv = curr_cu_info->subpix_mv[REF_PIC_LIST_0];		
 		}
 
-		sad += hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
+		sad += hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, MOTION_SEARCH_RANGE_X, MOTION_SEARCH_RANGE_Y, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
 		mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, &mv);
 //		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
 		curr_cu_info->subpix_mv[REF_PIC_LIST_0] = subpix_mv;
@@ -3523,7 +3523,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 			et->ed->last_gop_reinit = currslice->poc;
 			et->ed->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
-			printf("\r\n---------------------scene change detected. total_intra_partitions:%d, total_partitions:%d , ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", total_intra_partitions, total_partitions, et->ed->avg_dist, avg_distortion);
+			printf("\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->ed->num_encoded_frames, total_intra_partitions, total_partitions, et->ed->avg_dist, avg_distortion);
 #endif
 			hmr_rc_change_pic_mode(et, currslice);
 		}

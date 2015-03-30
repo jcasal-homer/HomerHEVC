@@ -340,11 +340,10 @@ void HOMER_enc_close(void* h)
 
 		HMR_FREE(henc_th->partition_info)
 
-		SEM_DESTROY(henc_th->synchro_signal);
+		SEM_DESTROY(henc_th->synchro_signal[0]);
 
 		free(henc_th);
 	}
-	SEM_DESTROY(phvenc_mod->deblock_filter_sem);
 
 	for(i=0;i<phvenc_mod->pict_total_ctu;i++)
 	{
@@ -475,6 +474,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc_t*  phvenc_mod;
 			int num_merge_candidates = 2;
 
+			hvenc->num_encoder_modules = 2;
 #ifdef COMPUTE_AS_HM
 				cfg->rd_mode = RD_DIST_ONLY;    //0 only distortion 
 				cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -484,8 +484,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->wfpp_num_threads = 1;
 				cfg->intra_period = 20;
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
+				hvenc->num_encoder_modules = 1;
 #endif
-			hvenc->num_encoder_modules = 2;
 			hvenc->max_sublayers = 1;//TLayers en HM
 			hvenc->max_layers = 1;
 
@@ -559,6 +559,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_mod->wfpp_enable = 0;
 				phvenc_mod->num_sub_streams = 0;
 				phvenc_mod->wfpp_num_threads = 0;
+
+				if(phvenc_mod->output_sem!=NULL)
+					SEM_DESTROY(phvenc_mod->output_sem);
+
+				SEM_INIT(phvenc_mod->output_sem, 0,1000);
+				SEM_COPY(phvenc_mod->output_signal, phvenc_mod->output_sem);
 
 				//bitstreams
 				hmr_bitstream_alloc(&phvenc_mod->slice_bs, 0x8000000);
@@ -836,10 +842,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_mod->max_sublayers = hvenc->max_sublayers;//TLayers en HM
 				phvenc_mod->max_layers = hvenc->max_layers;
 
-				if(phvenc_mod->deblock_filter_sem!=NULL)
-					SEM_DESTROY(phvenc_mod->deblock_filter_sem);
-				SEM_INIT(phvenc_mod->deblock_filter_semaphore, 0,1000);
-				SEM_COPY(phvenc_mod->deblock_filter_sem, phvenc_mod->deblock_filter_semaphore);
 				for(ithreads=0;ithreads<phvenc_mod->wfpp_num_threads;ithreads++)
 				{
 					int depth_aux;
@@ -858,14 +860,18 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					//alloc processing windows (processing buffers attached to windows will be allocated depending on the resolution)
 					henc_th->wfpp_num_threads = phvenc_mod->wfpp_num_threads;
 
-					SEM_COPY(henc_th->deblock_filter_sem, phvenc_mod->deblock_filter_semaphore);
+					if(henc_th->synchro_signal[0]!=NULL)
+						SEM_DESTROY(henc_th->synchro_signal[0]);
 
-					if(henc_th->synchro_signal!=NULL)
-						SEM_DESTROY(henc_th->synchro_signal);
-
-					SEM_INIT(henc_th->synchro_sem, 0,1000);
-					SEM_COPY(henc_th->synchro_signal, henc_th->synchro_sem);
+					SEM_INIT(henc_th->synchro_sem[0], 0,1000);
+					SEM_COPY(henc_th->synchro_signal[0], henc_th->synchro_sem[0]);
 				
+					if(henc_th->synchro_signal[1]!=NULL)
+						SEM_DESTROY(henc_th->synchro_signal[1]);
+
+					SEM_INIT(henc_th->synchro_sem[1], 0,1000);
+					SEM_COPY(henc_th->synchro_signal[1], henc_th->synchro_sem[1]);
+
 					henc_th->vps = &phvenc_mod->hvenc->vps;
 					henc_th->sps = &phvenc_mod->hvenc->sps;
 					henc_th->pps = &phvenc_mod->hvenc->pps;
@@ -1019,14 +1025,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//exterchange wait and signal semaphores between sucessive threads
 				if(phvenc_mod->wfpp_num_threads==1)
 				{
-					SEM_COPY(phvenc_mod->thread[0]->synchro_wait, phvenc_mod->thread[0]->synchro_sem);
+					SEM_COPY(phvenc_mod->thread[0]->synchro_wait[0], phvenc_mod->thread[0]->synchro_sem[0]);
 				}
 				else
 				{
 					for(i=0;i<phvenc_mod->wfpp_num_threads;i++)
 					{
-						SEM_COPY(phvenc_mod->thread[i]->synchro_wait, phvenc_mod->thread[(i+phvenc_mod->wfpp_num_threads-1)%phvenc_mod->wfpp_num_threads]->synchro_sem);
-					}			
+						SEM_COPY(phvenc_mod->thread[i]->synchro_wait[0], phvenc_mod->thread[(i+phvenc_mod->wfpp_num_threads-1)%phvenc_mod->wfpp_num_threads]->synchro_sem[0]);
+					}
 				}
 
 				//reference picture lists
@@ -1038,6 +1044,24 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			}// end for(n_enc_mod=0;n_enc_mod<hvenc->num_encoder_modules;n_enc_mod++)
 
 
+			//copy sincronization between enc_mods
+			for(n_enc_mod=0;n_enc_mod<hvenc->num_encoder_modules;n_enc_mod++)
+			{
+				hvenc_t*  phvenc_signal_mod = hvenc->encoder_module[(n_enc_mod+hvenc->num_encoder_modules-1)%hvenc->num_encoder_modules];
+				hvenc_t*  phvenc_wait_mod = hvenc->encoder_module[n_enc_mod];
+
+				SEM_COPY(phvenc_wait_mod->output_wait, phvenc_signal_mod->output_sem);
+				for(i=0;i<phvenc_wait_mod->wfpp_num_threads;i++)
+				{
+					SEM_COPY(phvenc_wait_mod->thread[i]->synchro_wait[1], phvenc_signal_mod->thread[i]->synchro_sem[1]);
+					if(hvenc->num_encoder_modules==1)
+						phvenc_wait_mod->thread[i]->num_wait_sem = 1;
+					else
+						phvenc_wait_mod->thread[i]->num_wait_sem = 2;
+				}
+			}
+
+						
 			hvenc->pict_width[0] = phvenc_mod->pict_width[0];
 			hvenc->pict_height[0] = phvenc_mod->pict_height[0];
 			hvenc->pict_width[1] = hvenc->pict_width[2] = phvenc_mod->pict_width[1];
@@ -1686,9 +1710,19 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 		et->cu_next = et->cu_current+min(1,et->pict_width_in_ctu-et->cu_current_x);
 
-		if(et->cu_current_y > 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		if(et->cu_current_y == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
-			SEM_WAIT(et->synchro_wait);
+			SEM_POST(et->synchro_wait[0]);
+		}
+		if(et->ed->num_encoded_frames == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		{
+			SEM_POST(et->synchro_wait[1]);
+		}
+
+//		if(et->cu_current_y > 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		{
+			SEM_WAIT_MULTIPLE(et->synchro_wait, et->num_wait_sem);
+//			SEM_WAIT(et->synchro_wait[0]);
 		}
 
 		if(et->cu_current_x==0 && et->wfpp_enable)
@@ -1758,7 +1792,7 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 
 		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
-			SEM_POST(et->synchro_signal);
+			SEM_POST(et->synchro_signal[0]);
 		}
 
 #ifndef COMPUTE_AS_HM
@@ -1789,28 +1823,17 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 		{
 			if(et->wfpp_enable)
 				ee_copy_entropy_model(et->ee, et->ed->ee_list[(2*et->index+1)%et->ed->num_ee]);
-			SEM_POST(et->synchro_signal);
+			SEM_POST(et->synchro_signal[0]);
 		}
 
 
 		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
 		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
-			SEM_POST(et->synchro_signal);
+			SEM_POST(et->synchro_signal[0]);
 		}
 		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
-/*			if(et->cu_current_y!=0)
-			{
-//				printf("sem_post-a - line processed = %d\r\n",et->cu_current_y);
-				SEM_POST(et->deblock_filter_sem);
-			}
-			if(et->cu_current+1 == et->pict_total_ctu)
-			{
-//				printf("sem_post-b - line processed = %d\r\n",et->cu_current_y);
-				SEM_POST(et->deblock_filter_sem);			
-			}
-*/
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
 			et->cu_current_y+=et->wfpp_num_threads;
@@ -1950,6 +1973,12 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->hvenc->reference_picture_buffer[ed->hvenc->reference_list_index] = ed->curr_reference_frame;
 		ed->hvenc->reference_list_index = (ed->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
 
+
+		if(ed->num_encoded_frames == 20)
+		{
+			int iiiii=0;
+		}
+
 		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
 		{
 			hmr_bitstream_init(&ed->hvenc->vps_nalu.bs);
@@ -1978,10 +2007,12 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		{
 			SYNC_THREAD_CONTEXT(ed, ed->thread[n]);
 			//reset remafore
-			SEM_RESET(ed->thread[n]->synchro_wait)
+			SEM_RESET(ed->thread[n]->synchro_wait[0])
+//			SEM_RESET(ed->thread[n]->synchro_wait[1])
 		}
+		memset(ed->dbg_num_posts,0,sizeof(ed->dbg_num_posts));
 
-		SEM_RESET(ed->deblock_filter_sem)
+		LeaveCriticalSection(&ed->hvenc->CriticalSection);
 
 #ifdef COMPUTE_AS_HM
 		CREATE_THREADS((&ed->hthreads[0]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
@@ -2020,13 +2051,19 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->hvenc->avg_dist = ed->avg_dist;
 		ed->is_scene_change = 0;
 
+//		LeaveCriticalSection(&ed->hvenc->CriticalSection);
+
 //#ifdef COMPUTE_AS_HM
 //		if(ed->intra_period>1)
 //			hmr_deblock_filter(ed, currslice);
 //#endif
-		LeaveCriticalSection(&ed->hvenc->CriticalSection);
 
-		EnterCriticalSection(&ed->hvenc->CriticalSection2); 
+		if(ed->num_encoded_frames==0)
+			SEM_POST(ed->output_wait);
+
+		SEM_WAIT(ed->output_wait);
+
+//		EnterCriticalSection(&ed->hvenc->CriticalSection2); 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
@@ -2094,8 +2131,8 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ouput_sets->num_nalus = output_nalu_cnt;
 		ouput_sets->frame = ed->curr_reference_frame;
 		cont_put(ed->hvenc->output_hmr_container, ouput_sets);
-		LeaveCriticalSection(&ed->hvenc->CriticalSection2);
-
+//		LeaveCriticalSection(&ed->hvenc->CriticalSection2);
+		SEM_POST(ed->output_signal);
 	}
 
 	return THREAD_RETURN;

@@ -72,6 +72,9 @@
 
 #define     MAX_NUM_PARTITIONS		256							//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
 
+#define     MOTION_SEARCH_RANGE_X		64						//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
+#define     MOTION_SEARCH_RANGE_Y		64						//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
+
 #define QUANT_DEFAULT_DC	16
 
 #define CU_DQP_TU_CMAX 5                   //max number bins for truncated unary
@@ -943,10 +946,10 @@ struct henc_thread_t
 	uint		index;
 	int			wfpp_enable;
 	int			wfpp_num_threads;
-	hmr_sem_t	synchro_sem;
-	hmr_sem_ptr	synchro_signal;
-	hmr_sem_ptr	synchro_wait;
-	hmr_sem_ptr	deblock_filter_sem;
+	hmr_sem_t	synchro_sem[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr	synchro_signal[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr	synchro_wait[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	int			num_wait_sem;
 
 	bitstream_t	*bs;
 
@@ -1064,7 +1067,7 @@ struct henc_thread_t
 
 
 #define MAX_NUM_THREADS			32
-#define NUM_INPUT_FRAMES		4
+#define NUM_INPUT_FRAMES		2
 #define NUM_OUTPUT_NALUS		(2*NUM_INPUT_FRAMES)
 #define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
 struct hvenc_t
@@ -1075,8 +1078,7 @@ struct hvenc_t
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 	hmr_thread_t	encoder_thread;
-	hmr_sem_t		deblock_filter_semaphore;
-	hmr_sem_ptr		deblock_filter_sem;
+	int				dbg_num_posts[MAX_NUM_THREADS];
 //	int				run;
 
 	//nalus
@@ -1215,6 +1217,9 @@ struct hvenc_t
 //	void			*input_hmr_container;
 //	output_set_t	output_sets[NUM_OUTPUT_NALUS];
 //	void			*output_hmr_container;
+	hmr_sem_t	output_sem;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr	output_signal;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr	output_wait;// 0 for intra_frame synchronization, 1 for inter frame synchronization
 
 #ifdef COMPUTE_METRICS
 	double			current_psnr[3];

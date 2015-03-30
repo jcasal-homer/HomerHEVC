@@ -44,26 +44,6 @@
 typedef void* hmr_thread_t;
 
 
-#define CREATE_THREAD(thread, func, param)					thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)func,	(LPVOID)param, 0, NULL);					\
-
-#define CREATE_THREADS(threads, func, param, nthreads)																			\
-{																																\
-	int nFork;																													\
-	for(nFork=0;nFork<nthreads-1;nFork++)																						\
-		threads[nFork] = CreateThread(	NULL, 0, (LPTHREAD_START_ROUTINE)func,	(LPVOID)param[nFork], 0, NULL);					\
-	func(param[nFork]);																											\
-}
-
-#define JOINT_THREAD(thread)		WaitForSingleObject(thread, INFINITE);CloseHandle(thread);						
-
-#define JOIN_THREADS(threads, nthreads)								\
-{																		\
-	int nFork;															\
-	WaitForMultipleObjects(nthreads-1,threads,1,INFINITE);				\
-	for(nFork=0;nFork<nthreads-1;nFork++)								\
-		CloseHandle(threads[nFork]);									\
-}
-
 
 //-----------------------------------------------------------semaphores---------------------------------------------------
 
@@ -75,6 +55,7 @@ typedef void* hmr_sem_ptr;
 #define SEM_INIT(sem, count, max_count)									sem = CreateSemaphore(NULL,count,max_count,NULL);
 #define SEM_POST(sem)													ReleaseSemaphore(sem,1,NULL);
 #define SEM_WAIT(sem)													WaitForSingleObject(sem, INFINITE)
+#define SEM_WAIT_MULTIPLE(semaphores, n)								WaitForMultipleObjects(n, semaphores, TRUE, INFINITE)
 #define SEM_RESET(sem)																		\
 {																							\
 	while(WaitForSingleObject(sem, 0)!=WAIT_TIMEOUT);										\
@@ -82,6 +63,27 @@ typedef void* hmr_sem_ptr;
 
 #define SEM_DESTROY(sem)												CloseHandle(sem);
 
+//-----------------------------------------------------------thread---------------------------------------------------
+
+#define CREATE_THREAD(thread, func, param)					thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)func,	(LPVOID)param, 0, NULL);					\
+
+#define CREATE_THREADS(threads, func, param, nthreads)																			\
+{																																\
+	int nFork;																													\
+	for(nFork=0;nFork<nthreads-1;nFork++)																						\
+		CREATE_THREAD(threads[nFork], func, param[nFork]);																		\
+	func(param[nFork]);																											\
+}
+
+#define JOINT_THREAD(thread)	SEM_WAIT(thread);CloseHandle(thread);						
+
+#define JOIN_THREADS(threads, nthreads)									\
+{																		\
+	int nFork;															\
+	SEM_WAIT_MULTIPLE(threads, nthreads-1);								\
+	for(nFork=0;nFork<nthreads-1;nFork++)								\
+		CloseHandle(threads[nFork]);									\
+}
 
 
 #else	//#elif defined(__GNUC__) || defined(__clang__)

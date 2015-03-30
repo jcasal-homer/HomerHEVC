@@ -26,9 +26,12 @@
 #include "hmr_private.h"
 #include "hmr_container.h"
 
-
+#ifndef FALSE
 #define FALSE	0
+#endif
+#ifndef TRUE
 #define TRUE	1
+#endif
 
 #ifndef min
 #define min(a,b) (a<b?a:b)
