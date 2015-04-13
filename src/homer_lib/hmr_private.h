@@ -1077,7 +1077,6 @@ struct hvenc_t
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
-	hmr_thread_t	encoder_thread;
 	int				dbg_num_posts[MAX_NUM_THREADS];
 //	int				run;
 
@@ -1233,10 +1232,9 @@ struct hvenc_t
 struct hvenc_enc_t
 {
 	hvenc_t			*encoder_module[MAX_NUM_ENCODER_CTX];
+	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
 	int				num_encoder_modules;
-	CRITICAL_SECTION CriticalSection; 
-	CRITICAL_SECTION CriticalSection2; 
-
+	hmr_mutex		mutex_start_frame; 
 
 	int				run;
 	int				num_encoded_frames;

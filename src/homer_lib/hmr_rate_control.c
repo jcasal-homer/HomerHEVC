@@ -137,7 +137,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	double consumed_bitrate = 0.0;
 	int consumed_ctus = 0;
 	int avg_qp = 0;
-	int ithreads;
+	int ithreads, imods;
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = ed->thread[ithreads];

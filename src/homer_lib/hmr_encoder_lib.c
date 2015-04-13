@@ -193,10 +193,8 @@ void *HOMER_enc_init()
 		hvenc->funcs.itransform = itransform;
 	}
 
-	if(!InitializeCriticalSectionAndSpinCount(&hvenc->CriticalSection, 0))
-		return NULL;
-	if(!InitializeCriticalSectionAndSpinCount(&hvenc->CriticalSection2, 0))
-		return NULL;
+	MUTEX_INIT(hvenc->mutex_start_frame);
+
 	return hvenc;
 }
 
@@ -248,146 +246,174 @@ void put_avaliable_frame(hvenc_enc_t * venc, video_frame_t *picture)
 void HOMER_enc_close(void* h)
 {
 	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
-	hvenc_t* phvenc_mod = (hvenc_t*)h;
+//	hvenc_t* phvenc_mod;// = (hvenc_t*)h;
 	int i,j;
 	int ithreads;
 	int size_index;
+	int imods;
 	if(hvenc->run==1)
 	{
 		hvenc->run = 0;
 
-		if(phvenc_mod->encoder_thread!=NULL)
+		if(hvenc->encoder_mod_thread[0]!=NULL)
 		{
-			sync_cont_put_filled(hvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
-			JOINT_THREAD(phvenc_mod->encoder_thread);
+			int n_mods;
+			for(n_mods = 0;n_mods<hvenc->num_encoder_modules;n_mods++)
+				sync_cont_put_filled(hvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
+			JOIN_THREADS(hvenc->encoder_mod_thread, hvenc->num_encoder_modules);
 		}
 	}
 
 	HMR_FREE(hvenc->ref_pic_set_list)
 
-	//for all modules
-
-	for(ithreads=0;ithreads<phvenc_mod->wfpp_num_threads;ithreads++)
+	//for all encoding_modules
+	for(imods = 0;imods<hvenc->num_encoder_modules;imods++)
 	{
-		henc_thread_t* henc_th = phvenc_mod->thread[ithreads];
-		if(henc_th==NULL)
-			break;
-
-		HMR_FREE(henc_th->ctu_rd->merge_idx)
-		HMR_FREE(henc_th->ctu_rd->merge)
-		HMR_FREE(henc_th->ctu_rd->skipped)
-		HMR_FREE(henc_th->ctu_rd->pred_mode)
-		HMR_FREE(henc_th->ctu_rd->part_size_type)
-		HMR_FREE(henc_th->ctu_rd)
-	
-		HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[V_COMP])
-		HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[U_COMP])
-
-		for(i=0;i<NUM_CBF_BUFFS;i++)
+		hvenc_t* phvenc_mod = hvenc->encoder_module[imods];
+		for(ithreads=0;ithreads<phvenc_mod->wfpp_num_threads;ithreads++)
 		{
-			HMR_ALIGNED_FREE(henc_th->tr_idx_buffs[i])
-			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[V_COMP][i])
-			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[U_COMP][i])
-			HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[Y_COMP][i])
-			HMR_ALIGNED_FREE(henc_th->cbf_buffs[V_COMP][i])
-			HMR_ALIGNED_FREE(henc_th->cbf_buffs[U_COMP][i])
-			HMR_ALIGNED_FREE(henc_th->cbf_buffs[Y_COMP][i])			
+			henc_thread_t* henc_th = phvenc_mod->thread[ithreads];
+			if(henc_th==NULL)
+				break;
+
+			HMR_FREE(henc_th->ctu_rd->merge_idx)
+			HMR_FREE(henc_th->ctu_rd->merge)
+			HMR_FREE(henc_th->ctu_rd->skipped)
+			HMR_FREE(henc_th->ctu_rd->pred_mode)
+			HMR_FREE(henc_th->ctu_rd->part_size_type)
+			HMR_FREE(henc_th->ctu_rd)
+	
+			HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[V_COMP])
+			HMR_ALIGNED_FREE(henc_th->cbf_buffs_chroma[U_COMP])
+
+			for(i=0;i<NUM_CBF_BUFFS;i++)
+			{
+				HMR_ALIGNED_FREE(henc_th->tr_idx_buffs[i])
+				HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[V_COMP][i])
+				HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[U_COMP][i])
+				HMR_ALIGNED_FREE(henc_th->intra_mode_buffs[Y_COMP][i])
+				HMR_ALIGNED_FREE(henc_th->cbf_buffs[V_COMP][i])
+				HMR_ALIGNED_FREE(henc_th->cbf_buffs[U_COMP][i])
+				HMR_ALIGNED_FREE(henc_th->cbf_buffs[Y_COMP][i])			
+			}
+
+			HMR_ALIGNED_FREE(henc_th->cabac_aux_buff)
+
+			for(j=0;j<4;j++)
+			{
+				wnd_delete(&henc_th->filtered_block_temp_wnd[j]);
+				for(i=0;i<4;i++)
+				{
+					wnd_delete(&henc_th->filtered_block_wnd[j][i]);
+				}
+			}		
+
+			HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_HOR])
+			HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_VER])
+			HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_HOR])
+			HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_VER])
+			HMR_FREE(henc_th->deblock_partition_info)
+
+			for(i=0;i<NUM_QUANT_WNDS;i++)
+				wnd_delete(&henc_th->transform_quant_wnd_[i]);
+
+			for(i=0;i<NUM_DECODED_WNDS;i++)
+				wnd_delete(&henc_th->decoded_mbs_wnd_[i]);
+
+			wnd_delete(&henc_th->itransform_iquant_wnd);
+
+			HMR_ALIGNED_FREE(henc_th->aux_buff)
+
+			wnd_delete(&henc_th->residual_dec_wnd);
+			wnd_delete(&henc_th->residual_wnd);
+			wnd_delete(&henc_th->prediction_wnd);
+
+			HMR_ALIGNED_FREE(henc_th->pred_aux_buff)
+
+			wnd_delete(&henc_th->curr_mbs_wnd);
+
+			HMR_ALIGNED_FREE(henc_th->adi_pred_buff)
+			HMR_ALIGNED_FREE(henc_th->adi_filtered_pred_buff)
+			HMR_ALIGNED_FREE(henc_th->top_pred_buff)
+			HMR_ALIGNED_FREE(henc_th->left_pred_buff)
+			HMR_ALIGNED_FREE(henc_th->bottom_pred_buff)
+			HMR_ALIGNED_FREE(henc_th->right_pred_buff)
+
+			HMR_FREE(henc_th->partition_info)
+
+			SEM_DESTROY(henc_th->synchro_signal[1]);
+			SEM_DESTROY(henc_th->synchro_signal[0]);
+
+			HMR_FREE(henc_th);
 		}
 
-		HMR_ALIGNED_FREE(henc_th->cabac_aux_buff)
-
-		HMR_FREE(henc_th->deblock_partition_info)
-
-		HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_HOR])
-		HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_VER])
-		HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_HOR])
-		HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_VER])
-
-
-		for(j=0;j<4;j++)
+		for(i=0;i<phvenc_mod->pict_total_ctu;i++)
 		{
-			wnd_delete(&henc_th->filtered_block_temp_wnd[j]);
-			for(i=0;i<4;i++)
-			{
-				wnd_delete(&henc_th->filtered_block_wnd[j][i]);
-			}
-		}		
+			HMR_FREE(phvenc_mod->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0])
+			HMR_FREE(phvenc_mod->ctu_info[i].mv_diff[REF_PIC_LIST_0])
+			HMR_FREE(phvenc_mod->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0])
+			HMR_FREE(phvenc_mod->ctu_info[i].mv_ref[REF_PIC_LIST_0])
+			HMR_FREE(phvenc_mod->ctu_info[i].qp)
+			HMR_FREE(phvenc_mod->ctu_info[i].merge_idx)
+			HMR_FREE(phvenc_mod->ctu_info[i].merge)
+			HMR_FREE(phvenc_mod->ctu_info[i].skipped)
+			HMR_FREE(phvenc_mod->ctu_info[i].pred_mode)
+			HMR_FREE(phvenc_mod->ctu_info[i].part_size_type)
+			HMR_FREE(phvenc_mod->ctu_info[i].pred_depth)
+			HMR_FREE(phvenc_mod->ctu_info[i].tr_idx)
+			HMR_FREE(phvenc_mod->ctu_info[i].inter_mode)
+			HMR_FREE(phvenc_mod->ctu_info[i].intra_mode[Y_COMP])
+			HMR_FREE(phvenc_mod->ctu_info[i].cbf[Y_COMP])
+		}
 
-		for(i=0;i<NUM_DECODED_WNDS;i++)
-			wnd_delete(&henc_th->decoded_mbs_wnd_[i]);
+		HMR_FREE(phvenc_mod->ctu_info)
 
-		wnd_delete(&henc_th->itransform_iquant_wnd);
+		for(i=0;i<phvenc_mod->num_ec;i++)
+		{
+			HMR_FREE(phvenc_mod->ec_list[i].b_ctx)
+			HMR_FREE(phvenc_mod->ec_list[i].contexts)
+			HMR_FREE(phvenc_mod->ec_list[i].e_ctx)
+		}
+		HMR_FREE(phvenc_mod->ec_list)
 
-		for(i=0;i<NUM_QUANT_WNDS;i++)
-			wnd_delete(&henc_th->transform_quant_wnd_[i]);
+		for(i=0;i<phvenc_mod->num_ee;i++)
+		{
+			HMR_FREE(phvenc_mod->ee_list[i]->b_ctx)
+			HMR_FREE(phvenc_mod->ee_list[i]->contexts)
+			HMR_FREE(phvenc_mod->ee_list[i]->e_ctx)
+			HMR_FREE(phvenc_mod->ee_list[i]);
+		}
+		HMR_FREE(phvenc_mod->ee_list)
 
-		HMR_ALIGNED_FREE(henc_th->aux_buff)
+		for(i=0;i<phvenc_mod->num_sub_streams;i++)
+			hmr_bitstream_free(&phvenc_mod->aux_bs[i]);
+		HMR_FREE(phvenc_mod->aux_bs)
 
-		wnd_delete(&henc_th->residual_dec_wnd);
-		wnd_delete(&henc_th->residual_wnd);
-		wnd_delete(&henc_th->prediction_wnd);
+		HMR_FREE(phvenc_mod->sub_streams_entry_point_list)
 
-		HMR_ALIGNED_FREE(henc_th->pred_aux_buff)
+		for(i=0;i<NUM_OUTPUT_NALUS;i++)
+			hmr_bitstream_free(&phvenc_mod->slice_nalu_list[i].bs);
 
-		wnd_delete(&henc_th->curr_mbs_wnd);
+		hmr_bitstream_free(&phvenc_mod->slice_bs);
 
-		HMR_ALIGNED_FREE(henc_th->adi_pred_buff)
-		HMR_ALIGNED_FREE(henc_th->adi_filtered_pred_buff)
-		HMR_ALIGNED_FREE(henc_th->top_pred_buff)
-		HMR_ALIGNED_FREE(henc_th->left_pred_buff)
-		HMR_ALIGNED_FREE(henc_th->bottom_pred_buff)
-		HMR_ALIGNED_FREE(henc_th->right_pred_buff)
+		if(phvenc_mod->output_signal)
+			SEM_DESTROY(phvenc_mod->output_signal);
 
-		HMR_FREE(henc_th->partition_info)
+	//	HMR_FREE(phvenc_mod->ang_table)
+	//	HMR_FREE(phvenc_mod->inv_ang_table)
 
-		SEM_DESTROY(henc_th->synchro_signal[0]);
-
-		free(henc_th);
+		HMR_FREE(phvenc_mod)
 	}
+	// end for all modules
 
-	for(i=0;i<phvenc_mod->pict_total_ctu;i++)
-	{
-		HMR_FREE(phvenc_mod->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0])
-		HMR_FREE(phvenc_mod->ctu_info[i].mv_diff[REF_PIC_LIST_0])
-		HMR_FREE(phvenc_mod->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0])
-		HMR_FREE(phvenc_mod->ctu_info[i].mv_ref[REF_PIC_LIST_0])
-		HMR_FREE(phvenc_mod->ctu_info[i].qp)
-		HMR_FREE(phvenc_mod->ctu_info[i].merge)
-		HMR_FREE(phvenc_mod->ctu_info[i].merge_idx)
-		HMR_FREE(phvenc_mod->ctu_info[i].skipped)
-		HMR_FREE(phvenc_mod->ctu_info[i].pred_mode)
-		HMR_FREE(phvenc_mod->ctu_info[i].part_size_type)
-		HMR_FREE(phvenc_mod->ctu_info[i].pred_depth)
-		HMR_FREE(phvenc_mod->ctu_info[i].tr_idx)
-		HMR_FREE(phvenc_mod->ctu_info[i].inter_mode)
-		HMR_FREE(phvenc_mod->ctu_info[i].intra_mode[Y_COMP])
-		HMR_FREE(phvenc_mod->ctu_info[i].cbf[Y_COMP])
-	}
+	hmr_bitstream_free(&hvenc->aux_bs);
+	hmr_bitstream_free(&hvenc->pps_nalu.bs);
+	hmr_bitstream_free(&hvenc->sps_nalu.bs);
+	hmr_bitstream_free(&hvenc->vps_nalu.bs);
 
-	HMR_FREE(phvenc_mod->ctu_info)
-
-	for(i=0;i<phvenc_mod->num_ec;i++)
-	{
-		HMR_FREE(phvenc_mod->ec_list[i].b_ctx)
-		HMR_FREE(phvenc_mod->ec_list[i].contexts)
-		HMR_FREE(phvenc_mod->ec_list[i].e_ctx)
-	}
-	HMR_FREE(phvenc_mod->ec_list)
-
-	for(i=0;i<phvenc_mod->num_ee;i++)
-	{
-		HMR_FREE(phvenc_mod->ee_list[i]->b_ctx)
-		HMR_FREE(phvenc_mod->ee_list[i]->contexts)
-		HMR_FREE(phvenc_mod->ee_list[i]->e_ctx)
-		HMR_FREE(phvenc_mod->ee_list[i]);
-	}
-	HMR_FREE(phvenc_mod->ee_list)
-
-	for(i=0;i<phvenc_mod->num_sub_streams;i++)
-		hmr_bitstream_free(&phvenc_mod->aux_bs[i]);
-	HMR_FREE(phvenc_mod->aux_bs)
-
-	HMR_FREE(phvenc_mod->sub_streams_entry_point_list)
+	sync_cont_delete(hvenc->input_hmr_container);
+	cont_delete(hvenc->output_hmr_container);
+	cont_delete(hvenc->cont_empty_reference_wnds);
 
 	for(i=0;i<2*MAX_NUM_REF;i++)
 	{
@@ -400,27 +426,6 @@ void HOMER_enc_close(void* h)
 	}
 
 	//--------------------------------------------------------HOMER_enc_init-----------------------------------------------------------------------------
-
-	for(i=0;i<NUM_OUTPUT_NALUS;i++)
-		hmr_bitstream_free(&phvenc_mod->slice_nalu_list[i].bs);
-
-	hmr_bitstream_free(&hvenc->pps_nalu.bs);
-	hmr_bitstream_free(&hvenc->sps_nalu.bs);
-	hmr_bitstream_free(&hvenc->vps_nalu.bs);
-	hmr_bitstream_free(&phvenc_mod->slice_bs);
-
-	sync_cont_delete(hvenc->input_hmr_container);
-	cont_delete(phvenc_mod->hvenc->output_hmr_container);
-	cont_delete(hvenc->cont_empty_reference_wnds);
-
-//	HMR_FREE(phvenc_mod->ang_table)
-//	HMR_FREE(phvenc_mod->inv_ang_table)
-
-	HMR_FREE(phvenc_mod)
-
-
-	// end for all modules
-
 
 	for ( size_index=0; size_index<NUM_SCALING_MODES; size_index++ )
 	{
@@ -449,6 +454,8 @@ void HOMER_enc_close(void* h)
 	HMR_FREE(hvenc->raster2abs_table)
 	HMR_FREE(hvenc->abs2raster_table)
 
+	MUTEX_CLOSE(hvenc->mutex_start_frame);
+
 	HMR_FREE(hvenc)
 }
 
@@ -473,6 +480,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			int n_enc_mod;
 			hvenc_t*  phvenc_mod;
 			int num_merge_candidates = 2;
+			int bitstream_size = 0x2000000;
 
 			hvenc->num_encoder_modules = 2;
 #ifdef COMPUTE_AS_HM
@@ -486,6 +494,20 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 				hvenc->num_encoder_modules = 1;
 #endif
+
+			if(hvenc->run==1)
+			{
+				hvenc->run = 0;
+
+				if(hvenc->encoder_mod_thread[0]!=NULL)
+				{
+					int n_mods;
+					for(n_mods = 0;n_mods<hvenc->num_encoder_modules;n_mods++)
+						sync_cont_put_filled(hvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
+					JOIN_THREADS(hvenc->encoder_mod_thread, hvenc->num_encoder_modules);
+				}
+			}
+
 			hvenc->max_sublayers = 1;//TLayers en HM
 			hvenc->max_layers = 1;
 
@@ -498,11 +520,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
 
 			//bitstreams
+			hmr_bitstream_free(&hvenc->aux_bs);
 			hmr_bitstream_alloc(&hvenc->aux_bs, 256);
+			hmr_bitstream_free(&hvenc->vps_nalu.bs);
 			hmr_bitstream_alloc(&hvenc->vps_nalu.bs, 256);
+			hmr_bitstream_free(&hvenc->sps_nalu.bs);
 			hmr_bitstream_alloc(&hvenc->sps_nalu.bs, 256);
+			hmr_bitstream_free(&hvenc->pps_nalu.bs);
 			hmr_bitstream_alloc(&hvenc->pps_nalu.bs, 256);
-
 
 			hvenc->num_short_term_ref_pic_sets = hvenc->gop_size+1;
 			if(hvenc->ref_pic_set_list)
@@ -546,30 +571,17 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_mod->index = n_enc_mod;
 				hvenc->encoder_module[n_enc_mod] = phvenc_mod;
 
-				if(hvenc->run==1)
-				{
-					hvenc->run = 0;
+				phvenc_mod->frame_rate = cfg->frame_rate;
 
-					if(phvenc_mod->encoder_thread!=NULL)
-					{
-						sync_cont_put_filled(phvenc_mod->hvenc->input_hmr_container, NULL);//wake encoder_thread if it is waiting
-						JOINT_THREAD(phvenc_mod->encoder_thread);
-					}
-				}
 				phvenc_mod->wfpp_enable = 0;
 				phvenc_mod->num_sub_streams = 0;
 				phvenc_mod->wfpp_num_threads = 0;
 
-				if(phvenc_mod->output_sem!=NULL)
-					SEM_DESTROY(phvenc_mod->output_sem);
+				if(phvenc_mod->output_signal!=NULL)
+					SEM_DESTROY(phvenc_mod->output_signal);
 
 				SEM_INIT(phvenc_mod->output_sem, 0,1000);
 				SEM_COPY(phvenc_mod->output_signal, phvenc_mod->output_sem);
-
-				//bitstreams
-				hmr_bitstream_alloc(&phvenc_mod->slice_bs, 0x8000000);
-				for(i=0;i<NUM_OUTPUT_NALUS;i++)
-					hmr_bitstream_alloc(&phvenc_mod->slice_nalu_list[i].bs, 0x8000000);
 
 				phvenc_mod->avg_dist = 1000;
 				phvenc_mod->ctu_width[0] = hvenc->ctu_width[0];
@@ -592,6 +604,22 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc_mod->vbv_size = cfg->vbv_size;
 					phvenc_mod->vbv_init = cfg->vbv_init;
 				}
+				if(phvenc_mod->bitrate_mode != BR_CBR)
+					bitstream_size = max(hvenc->intra_period,4)*phvenc_mod->bitrate*1000/(8*phvenc_mod->frame_rate);
+				else
+					bitstream_size = 0x2000000;
+
+				for(i=0;i<NUM_OUTPUT_NALUS;i++)
+					hmr_bitstream_free(&phvenc_mod->slice_nalu_list[i].bs);
+
+				hmr_bitstream_free(&phvenc_mod->slice_bs);
+
+				//bitstreams
+				hmr_bitstream_alloc(&phvenc_mod->slice_bs, bitstream_size);
+				for(i=0;i<NUM_OUTPUT_NALUS;i++)
+					hmr_bitstream_alloc(&phvenc_mod->slice_nalu_list[i].bs, bitstream_size);
+
+
 				phvenc_mod->qp_depth = 0;//cfg->qp_depth;//if rc enabled qp_depth == 0
 
 				phvenc_mod->pict_qp = cfg->qp;
@@ -698,7 +726,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					//create new streams
 					phvenc_mod->aux_bs = (bitstream_t	*)calloc (phvenc_mod->num_sub_streams, sizeof(bitstream_t));
 					for(i=0;i<phvenc_mod->num_sub_streams;i++)
-						hmr_bitstream_alloc(&phvenc_mod->aux_bs[i], 0x8000000/phvenc_mod->num_sub_streams);
+						hmr_bitstream_alloc(&phvenc_mod->aux_bs[i], 4*bitstream_size/phvenc_mod->num_sub_streams);
 				}
 
 				//encoding enviroments and rd enviroments (one per thread if wfpp)
@@ -761,8 +789,6 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 						bm_map_funcs(&phvenc_mod->ec_list[i]);
 					}
 				}
-
-				phvenc_mod->frame_rate = cfg->frame_rate;
 	//			phvenc_mod->pic_interlaced = 0;
 	//			phvenc_mod->mb_interlaced = 0;
 
@@ -1210,8 +1236,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->pps.slice_header_extension_present_flag = 0;
 			//----------------- end pps ------------------
 			hvenc->run = 1;
-			CREATE_THREAD(hvenc->encoder_module[0]->encoder_thread, encoder_thread, hvenc->encoder_module[0]);//falta
-			CREATE_THREAD(hvenc->encoder_module[1]->encoder_thread, encoder_thread, hvenc->encoder_module[1]);//falta
+			for(i=0;i<hvenc->num_encoder_modules;i++)
+				CREATE_THREAD(hvenc->encoder_mod_thread[i], encoder_thread, hvenc->encoder_module[i]);
 
 		}	
 		break;
@@ -1285,8 +1311,11 @@ void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu)
 
 		if(pad_right)
 		{
-			int16_t *ptr_right = ptr + cu_width;
-			int16_t *ptr_orig = ptr + cu_width - 1;
+			int padding_right_init = (frame_width-ctu->x[component])<cu_width?(frame_width-ctu->x[component]):cu_width;
+			int16_t *ptr_right = ptr + padding_right_init;
+			int16_t *ptr_orig = ptr + padding_right_init-1;
+			int padding_size = cu_width;
+
 			for(j=0;j<cu_height;j++)
 			{
 				for(i=0;i<padding_x;i++)
@@ -1331,11 +1360,6 @@ void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu)
 			int16_t *ptr_orig = ptr + (padding_height_init-1)*stride;
 			int padding_size = cu_width;
 
-			if(component == Y_COMP)
-			{
-				int iiiii=0;
-			}
-
 			if(pad_left)
 			{
 				ptr_bottom -= padding_x; 
@@ -1344,9 +1368,10 @@ void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu)
 			}
 			if(pad_right)
 			{
+				int padding_right_init = (frame_width-ctu->x[component])<cu_width?(frame_width-ctu->x[component]):cu_width;
 //				ptr_bottom -= padding_x; 
 //				ptr_orig -= padding_x; 
-				padding_size += padding_x;
+				padding_size = padding_right_init+padding_x;
 			}
 			for(j=0;j<padding_y;j++)
 			{
@@ -1486,7 +1511,7 @@ void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
 	if(currslice->poc==0 || (ed->intra_period!=0 && currslice->poc==(ed->last_intra + ed->intra_period) && img_type == IMAGE_AUTO) || (ed->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
 	{
 		ed->last_intra = currslice->poc;
-		ed->last_gop_reinit = currslice->poc;
+		ed->hvenc->last_gop_reinit = ed->last_gop_reinit = currslice->poc;
 		currpict->img2encode->img_type = IMAGE_I;
 		currslice->slice_type = I_SLICE;
 		currslice->slice_temporal_layer_non_reference_flag = 0;
@@ -1927,13 +1952,15 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		int		output_nalu_cnt = 0;
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
-
-		EnterCriticalSection(&ed->hvenc->CriticalSection); 
+		int		imods;
+		MUTEX_LOCK(ed->hvenc->mutex_start_frame); 
 
 		//get next image
 		if(!get_frame_to_encode(ed->hvenc, &ed->current_pict.img2encode))//get next image to encode and init type
+		{
+			MUTEX_UNLOCK(ed->hvenc->mutex_start_frame); 
 			return THREAD_RETURN;
-
+		}
 		//entra seccion critica
 //		ed->num_pictures++;
 		ed->last_poc = ed->hvenc->poc;
@@ -2012,18 +2039,18 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		}
 		memset(ed->dbg_num_posts,0,sizeof(ed->dbg_num_posts));
 
-		LeaveCriticalSection(&ed->hvenc->CriticalSection);
+		MUTEX_UNLOCK(ed->hvenc->mutex_start_frame); 
 
 #ifdef COMPUTE_AS_HM
 		CREATE_THREADS((&ed->hthreads[0]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
-		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads)
+		JOIN_THREADS(ed->hthreads, ed->wfpp_num_threads-1)
 #else
 		num_threads = ed->wfpp_num_threads;// + 1;//wfpp + deblocking thread
 
 //		CREATE_THREAD(ed->hthreads[0], deblocking_filter_thread, ed);
 		CREATE_THREADS((&ed->hthreads[0]), ctu_encoder_thread, ed->thread, ed->wfpp_num_threads)
 
-		JOIN_THREADS(ed->hthreads, num_threads)//ed->wfpp_num_threads)		
+		JOIN_THREADS(ed->hthreads, num_threads-1)//ed->wfpp_num_threads)		
 #endif
 		//calc average distortion
 		if(ed->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || ed->intra_period==1)
@@ -2051,7 +2078,19 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ed->hvenc->avg_dist = ed->avg_dist;
 		ed->is_scene_change = 0;
 
-//		LeaveCriticalSection(&ed->hvenc->CriticalSection);
+		//sync to other modules
+		for(imods = 0;imods<ed->hvenc->num_encoder_modules;imods++)
+		{
+			hvenc_t* phvenc_mod = ed->hvenc->encoder_module[imods];
+			if(phvenc_mod->current_pict.slice.poc>ed->current_pict.slice.poc)
+			{
+				phvenc_mod->rc.vbv_fullness = ed->rc.vbv_fullness;
+				phvenc_mod->rc.acc_avg = ed->rc.acc_avg;
+				phvenc_mod->rc.acc_rate= ed->rc.acc_rate;
+				if(!phvenc_mod->is_scene_change)
+					phvenc_mod->avg_dist= ed->avg_dist;
+			}
+		}
 
 //#ifdef COMPUTE_AS_HM
 //		if(ed->intra_period>1)
@@ -2063,7 +2102,6 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 
 		SEM_WAIT(ed->output_wait);
 
-//		EnterCriticalSection(&ed->hvenc->CriticalSection2); 
 		//slice header
 		ed->slice_nalu->nal_unit_type = currslice->nalu_type;
 		ed->slice_nalu->temporal_id = ed->slice_nalu->rsvd_zero_bits = 0;
@@ -2131,7 +2169,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		ouput_sets->num_nalus = output_nalu_cnt;
 		ouput_sets->frame = ed->curr_reference_frame;
 		cont_put(ed->hvenc->output_hmr_container, ouput_sets);
-//		LeaveCriticalSection(&ed->hvenc->CriticalSection2);
+
 		SEM_POST(ed->output_signal);
 	}
 

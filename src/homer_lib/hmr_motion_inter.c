@@ -2854,6 +2854,8 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)
 				et->ed->last_intra = currslice->poc;
+			et->ed->last_gop_reinit = currslice->poc;
+			et->ed->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
 			printf("\r\n---------------------scene change detected. total_intra_partitions:%d, total_partitions:%d , ed->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", total_intra_partitions, total_partitions, et->ed->avg_dist, avg_distortion);
 #endif
@@ -3513,9 +3515,9 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 	else
 		avg_distortion = et->ed->avg_dist;
 
-	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && 20<currslice->poc-et->ed->last_gop_reinit && consumed_ctus>et->ed->pict_total_ctu/10)
+	if(et->index==0 && et->ed->num_encoded_frames >1 && et->ed->is_scene_change == 0 && 20<currslice->poc-et->ed->hvenc->last_gop_reinit && consumed_ctus>et->ed->pict_total_ctu/10)
 	{
-		if(total_intra_partitions > (total_partitions*.6))
+		if(total_intra_partitions > (total_partitions*.7))
 		{
 			et->ed->is_scene_change = 1;
 			if(et->ed->gop_reinit_on_scene_change)
