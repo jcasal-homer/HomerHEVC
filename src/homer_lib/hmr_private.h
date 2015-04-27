@@ -904,7 +904,7 @@ struct picture_t
 
 
 typedef struct henc_thread_t henc_thread_t;
-typedef struct hvenc_t hvenc_t;
+typedef struct hvenc_engine_t hvenc_engine_t;
 typedef struct hvenc_enc_t hvenc_enc_t;
 
 typedef struct low_level_funcs_t low_level_funcs_t;
@@ -942,7 +942,7 @@ struct low_level_funcs_t
 
 struct henc_thread_t
 {
-	hvenc_t		*ed;
+	hvenc_engine_t	*ed;
 	uint		index;
 	int			wfpp_enable;
 	int			wfpp_num_threads;
@@ -1070,7 +1070,7 @@ struct henc_thread_t
 #define NUM_INPUT_FRAMES		2
 #define NUM_OUTPUT_NALUS		(2*NUM_INPUT_FRAMES)
 #define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
-struct hvenc_t
+struct hvenc_engine_t
 {
 	int				index;
 	int				num_encoded_frames;
@@ -1232,7 +1232,7 @@ struct hvenc_t
 #define MAX_NUM_ENCODER_CTX	8
 struct hvenc_enc_t
 {
-	hvenc_t			*encoder_module[MAX_NUM_ENCODER_CTX];
+	hvenc_engine_t	*encoder_module[MAX_NUM_ENCODER_CTX];
 	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
 	int				num_encoder_modules;
 	hmr_mutex		mutex_start_frame; 

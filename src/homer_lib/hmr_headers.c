@@ -338,7 +338,7 @@ void hmr_put_pic_header(hvenc_enc_t* hvenc)
 	hmr_bitstream_nalu_ebsp(bs, &hvenc->pps_nalu.bs);
 }
 
-void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice)
+void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 {
 	bitstream_t	*bs = &ed->slice_bs;//
 	sps_t	*sps = currslice->sps;
@@ -579,7 +579,7 @@ uint count_needed_start_codes(bitstream_t	*bs)
 }
 
 
-void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed)
+void hmr_slice_header_code_wfpp_entry_points(hvenc_engine_t* ed)
 {
 	bitstream_t	*bs = &ed->slice_bs;//
 	int i;

@@ -27,7 +27,7 @@
 
 
 
-void hmr_rc_init(hvenc_t* ed)
+void hmr_rc_init(hvenc_engine_t* ed)
 {
 	ed->rc.vbv_size = ed->vbv_size*1000;
 	ed->rc.vbv_fullness = ed->vbv_init*1000;
@@ -36,19 +36,19 @@ void hmr_rc_init(hvenc_t* ed)
 	ed->hvenc->rc = ed->rc;
 }
 
-void hmr_rc_init_seq(hvenc_t* ed)
+void hmr_rc_init_seq(hvenc_engine_t* ed)
 {
 }
 
 
-void hmr_rc_gop(hvenc_t* ed)
+void hmr_rc_gop(hvenc_engine_t* ed)
 {
 }
 
 //for scene changes in P frames
 void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
-	hvenc_t* ed = et->ed;
+	hvenc_engine_t* ed = et->ed;
 	int clipped_intra_period = (ed->intra_period==0)?20:ed->intra_period;
 	if(ed->is_scene_change)
 	{
@@ -78,7 +78,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 	ed->hvenc->rc = ed->rc;
 }
 
-void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
+void hmr_rc_init_pic(hvenc_engine_t* ed, slice_t *currslice)
 {
 	int ithreads;
 	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
@@ -132,7 +132,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 
 
 
-void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
+void hmr_rc_end_pic(hvenc_engine_t* ed, slice_t *currslice)
 {
 	double consumed_bitrate = 0.0;
 	int consumed_ctus = 0;
@@ -255,7 +255,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice)
 {
-	hvenc_t* ed = curr_thread->ed;
+	hvenc_engine_t* ed = curr_thread->ed;
 	int ithreads;
 	double qp;
 	double pic_corrector = 0.0;

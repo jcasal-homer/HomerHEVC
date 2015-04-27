@@ -67,7 +67,7 @@ static int num_scaling_list[NUM_SCALING_MODES]={6,6,6,2};
 void *HOMER_enc_init()
 {
 	int i, size, size_index, list_index, qp;
-//	hvenc_t* phvenc = (hvenc_t*)calloc(1,sizeof(hvenc_t));
+//	hvenc_engine_t* phvenc = (hvenc_engine_t*)calloc(1,sizeof(hvenc_engine_t));
 	hvenc_enc_t* hvenc = (hvenc_enc_t*)calloc(1,sizeof(hvenc_enc_t));
 	unsigned short* aux_ptr;
 	int cpu_info[4];
@@ -246,7 +246,7 @@ void put_avaliable_frame(hvenc_enc_t * venc, video_frame_t *picture)
 void HOMER_enc_close(void* h)
 {
 	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
-//	hvenc_t* phvenc_mod;// = (hvenc_t*)h;
+//	hvenc_engine_t* phvenc_mod;// = (hvenc_engine_t*)h;
 	int i,j;
 	int ithreads;
 	int size_index;
@@ -269,7 +269,7 @@ void HOMER_enc_close(void* h)
 	//for all encoding_modules
 	for(imods = 0;imods<hvenc->num_encoder_modules;imods++)
 	{
-		hvenc_t* phvenc_mod = hvenc->encoder_module[imods];
+		hvenc_engine_t* phvenc_mod = hvenc->encoder_module[imods];
 		for(ithreads=0;ithreads<phvenc_mod->wfpp_num_threads;ithreads++)
 		{
 			henc_thread_t* henc_th = phvenc_mod->thread[ithreads];
@@ -478,7 +478,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 		{
 			HVENC_Cfg *cfg = (HVENC_Cfg *)in;
 			int n_enc_mod;
-			hvenc_t*  phvenc_mod;
+			hvenc_engine_t*  phvenc_mod;
 			int num_merge_candidates = 2;
 			int bitstream_size = 0x2000000;
 
@@ -566,7 +566,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				int prev_num_sub_streams, prev_num_ee, prev_num_ec;
 				unsigned int min_cu_size, min_cu_size_mask;
 
-				phvenc_mod = (hvenc_t*)calloc(1, sizeof(hvenc_t));
+				phvenc_mod = (hvenc_engine_t*)calloc(1, sizeof(hvenc_engine_t));
 				phvenc_mod->hvenc = hvenc;
 				phvenc_mod->index = n_enc_mod;
 				hvenc->encoder_module[n_enc_mod] = phvenc_mod;
@@ -1073,8 +1073,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			//copy sincronization between enc_mods
 			for(n_enc_mod=0;n_enc_mod<hvenc->num_encoder_modules;n_enc_mod++)
 			{
-				hvenc_t*  phvenc_signal_mod = hvenc->encoder_module[(n_enc_mod+hvenc->num_encoder_modules-1)%hvenc->num_encoder_modules];
-				hvenc_t*  phvenc_wait_mod = hvenc->encoder_module[n_enc_mod];
+				hvenc_engine_t*  phvenc_signal_mod = hvenc->encoder_module[(n_enc_mod+hvenc->num_encoder_modules-1)%hvenc->num_encoder_modules];
+				hvenc_engine_t*  phvenc_wait_mod = hvenc->encoder_module[n_enc_mod];
 
 				SEM_COPY(phvenc_wait_mod->output_wait, phvenc_signal_mod->output_sem);
 				for(i=0;i<phvenc_wait_mod->wfpp_num_threads;i++)
@@ -1251,7 +1251,7 @@ config_error:
 	return (FALSE);
 }
 
-int get_nal_unit_type(hvenc_t* ed, slice_t *curr_slice, int curr_poc)
+int get_nal_unit_type(hvenc_engine_t* ed, slice_t *curr_slice, int curr_poc)
 {
 	if(curr_slice->slice_type == I_SLICE)//(curr_poc == 0)
 	{
@@ -1487,7 +1487,7 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 	}
 }
 
-void hmr_slice_init(hvenc_t* ed, picture_t *currpict, slice_t *currslice)
+void hmr_slice_init(hvenc_engine_t* ed, picture_t *currpict, slice_t *currslice)
 {
 	int img_type = currpict->img2encode->img_type;
 	currslice->qp =  ed->pict_qp;
@@ -1878,7 +1878,7 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 
 THREAD_RETURN_TYPE deblocking_filter_thread(void *h)
 {
-	hvenc_t* ed = (hvenc_t*)h;
+	hvenc_engine_t* ed = (hvenc_engine_t*)h;
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 
@@ -1941,7 +1941,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 
 THREAD_RETURN_TYPE encoder_thread(void *h)
 {
-	hvenc_t* ed = (hvenc_t*)h;
+	hvenc_engine_t* ed = (hvenc_engine_t*)h;
 	picture_t *currpict = &ed->current_pict;
 	slice_t *currslice = &currpict->slice;
 	int n, i, num_threads;
@@ -2081,7 +2081,7 @@ THREAD_RETURN_TYPE encoder_thread(void *h)
 		//sync to other modules
 		for(imods = 0;imods<ed->hvenc->num_encoder_modules;imods++)
 		{
-			hvenc_t* phvenc_mod = ed->hvenc->encoder_module[imods];
+			hvenc_engine_t* phvenc_mod = ed->hvenc->encoder_module[imods];
 			if(phvenc_mod->current_pict.slice.poc>ed->current_pict.slice.poc)
 			{
 				phvenc_mod->rc.vbv_fullness = ed->rc.vbv_fullness;

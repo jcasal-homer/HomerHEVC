@@ -251,7 +251,7 @@ void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyram
 
 
 //setFlatScalingListen HM
-void init_flat_quant_pyramids( hvenc_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp)
+void init_flat_quant_pyramids( hvenc_engine_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp)
 {
 	uint quant_scale[6] =		{26214,23302,20560,18396,16384,14564};    
 	uint inv_quant_scale[6] =	{40,45,51,57,64,72};
@@ -309,7 +309,7 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
-void hmr_rd_init(hvenc_t* ed, slice_t *currslice)
+void hmr_rd_init(hvenc_engine_t* ed, slice_t *currslice)
 {
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;

@@ -107,7 +107,7 @@ void set_edge_filter_0_subdiv(henc_thread_t* et, cu_partition_info_t*	curr_cu_in
 
 
 
-void set_edge_filter(hvenc_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
+void set_edge_filter(hvenc_engine_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
 {
 	int i;
 //	int num_elements = (max(cu_width, cu_height)>>2);
@@ -820,7 +820,7 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 }
 
 
-void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice)
+void hmr_deblock_filter(hvenc_engine_t* ed, slice_t *currslice)
 {
 	int ctu_num;
 	ctu_info_t* ctu;

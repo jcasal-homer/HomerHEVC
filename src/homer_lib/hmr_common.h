@@ -162,8 +162,8 @@ void hmr_bitstream_write2file(bitstream_t* bs);
 void hmr_put_vps_header(hvenc_enc_t* hvenc);
 void hmr_put_seq_header(hvenc_enc_t* hvenc);
 void hmr_put_pic_header(hvenc_enc_t* hvenc);
-void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice);
-void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed);
+void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice);
+void hmr_slice_header_code_wfpp_entry_points(hvenc_engine_t* ed);
 
 //hmr_mem_transfer.c
 void *hmr_aligned_alloc(int num, int size);
@@ -183,12 +183,12 @@ void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int widt
 
 //init_tables.c
 void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
-void init_flat_quant_pyramids( hvenc_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp);
+void init_flat_quant_pyramids( hvenc_engine_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp);
 void init_quant_pyramids( hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp);
 short* get_default_qtable(int size_mode, int list_index);
 void create_abs2raster_tables( unsigned short **zigzag, int total_depth, int depth, int start_value);
 void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigzag, int max_cu_width, int max_cu_height, int total_depth);
-void hmr_rd_init(hvenc_t* ed, slice_t *currslice);
+void hmr_rd_init(hvenc_engine_t* ed, slice_t *currslice);
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode);
 
 
@@ -259,7 +259,7 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 
 
 //hmr_deblocking_filter.c
-void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice);
+void hmr_deblock_filter(hvenc_engine_t* ed, slice_t *currslice);
 void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu);
 
 //hmr_arithmetic_encoding.c
@@ -291,11 +291,11 @@ void homer_psnr(picture_t *orig, wnd_t* decoded, int pic_width[3], int pic_heigh
 
 
 //hmr_rate_control.c
-void hmr_rc_init(hvenc_t* ed);
-void hmr_rc_init_seq(hvenc_t* ed);
-void hmr_rc_gop(hvenc_t* ed);//, int np, int nb)
-void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice);
-void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice);
+void hmr_rc_init(hvenc_engine_t* ed);
+void hmr_rc_init_seq(hvenc_engine_t* ed);
+void hmr_rc_gop(hvenc_engine_t* ed);//, int np, int nb)
+void hmr_rc_init_pic(hvenc_engine_t* ed, slice_t *currslice);
+void hmr_rc_end_pic(hvenc_engine_t* ed, slice_t *currslice);
 int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice);
 void hmr_rc_change_pic_mode(henc_thread_t* ed, slice_t *currslice);
 #endif //__HOMER_HEVC_COMMON_H__
