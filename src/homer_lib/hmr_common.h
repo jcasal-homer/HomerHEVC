@@ -26,9 +26,12 @@
 #include "hmr_private.h"
 #include "hmr_container.h"
 
-
+#ifndef FALSE
 #define FALSE	0
+#endif
+#ifndef TRUE
 #define TRUE	1
+#endif
 
 #ifndef min
 #define min(a,b) (a<b?a:b)
@@ -61,6 +64,8 @@
 //random access
 #define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
 #define WND_STRIDE_2D(w, comp) ((w).window_size_x[comp])
+#define WND_WIDTH_2D(w, comp) ((w).data_width[comp])
+#define WND_HEIGHT_2D(w, comp) ((w).data_height[comp])
 
 #define CBF(ctu, abs_index, comp, tr_depth) (((ctu)->cbf[(comp)][(abs_index)]>>(tr_depth))&1)
 #define CBF_ALL(ctu, abs_index, tr_depth) (CBF((ctu), (abs_index), Y_COMP, (tr_depth)) | CBF((ctu), (abs_index), U_COMP, (tr_depth)) | CBF((ctu), (abs_index), V_COMP, (tr_depth)))
@@ -154,9 +159,9 @@ void hmr_bitstream_write2file(bitstream_t* bs);
 
 
 //hmr_headers.c
-void hmr_put_vps_header(hvenc_t* ed);
-void hmr_put_seq_header(hvenc_t* ed);
-void hmr_put_pic_header(hvenc_t* ed);
+void hmr_put_vps_header(hvenc_enc_t* hvenc);
+void hmr_put_seq_header(hvenc_enc_t* hvenc);
+void hmr_put_pic_header(hvenc_enc_t* hvenc);
 void hmr_put_slice_header(hvenc_t* ed, slice_t *currslice);
 void hmr_slice_header_code_wfpp_entry_points(hvenc_t* ed);
 
@@ -177,9 +182,9 @@ void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int widt
 
 
 //init_tables.c
-void init_scan_pyramid(hvenc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
+void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth);
 void init_flat_quant_pyramids( hvenc_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp);
-void init_quant_pyramids( hvenc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp);
+void init_quant_pyramids( hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp);
 short* get_default_qtable(int size_mode, int list_index);
 void create_abs2raster_tables( unsigned short **zigzag, int total_depth, int depth, int start_value);
 void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigzag, int max_cu_width, int max_cu_height, int total_depth);
@@ -189,6 +194,7 @@ int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_le
 
 //encodelib.cpp
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu);
+void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu);
 THREAD_RETURN_TYPE encoder_thread(void *h);//void encoder_thread(void* ed);
 
 //hmr_motion_intra.c
@@ -254,6 +260,7 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 
 //hmr_deblocking_filter.c
 void hmr_deblock_filter(hvenc_t* ed, slice_t *currslice);
+void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu);
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);

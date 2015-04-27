@@ -33,6 +33,7 @@ void hmr_rc_init(hvenc_t* ed)
 	ed->rc.vbv_fullness = ed->vbv_init*1000;
 	ed->rc.average_pict_size = ed->bitrate*1000/ed->frame_rate;
 	ed->rc.average_bits_per_ctu = ed->rc.average_pict_size/ed->pict_total_ctu;
+	ed->hvenc->rc = ed->rc;
 }
 
 void hmr_rc_init_seq(hvenc_t* ed)
@@ -74,6 +75,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 			henc_th->target_pict_size = (uint32_t)ed->rc.target_pict_size;
 		}
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
@@ -82,6 +84,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 	int clipped_intra_period = ed->intra_period==0?20:ed->intra_period;
 	double intra_avg_size = 2.25*ed->rc.average_pict_size*sqrt((double)clipped_intra_period);
 
+	ed->rc = ed->hvenc->rc;
 	switch(currslice->slice_type)
 	{
 		case  I_SLICE:
@@ -124,6 +127,7 @@ void hmr_rc_init_pic(hvenc_t* ed, slice_t *currslice)
 		henc_th->num_bits = 0;
 		henc_th->acc_qp = 0;
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 
@@ -133,7 +137,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 	double consumed_bitrate = 0.0;
 	int consumed_ctus = 0;
 	int avg_qp = 0;
-	int ithreads;
+	int ithreads, imods;
 	for(ithreads=0;ithreads<ed->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = ed->thread[ithreads];
@@ -152,7 +156,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(currslice->slice_type == I_SLICE && ed->intra_period!=1)
 	{
-		if(ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
+		if(1)//ed->rc.vbv_fullness<.5*ed->rc.vbv_size)
 		{
 			ed->rc.acc_rate += consumed_bitrate - ed->rc.average_pict_size;
 			consumed_bitrate = ed->rc.average_pict_size;
@@ -161,7 +165,7 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 		{
 			double bits_to_apply = consumed_bitrate/2;//ed->rc.average_pict_size + (consumed_bitrate-ed->rc.average_pict_size)*(ed->rc.vbv_fullness/ed->rc.vbv_size-.5);
 			ed->rc.acc_rate += consumed_bitrate-bits_to_apply;// - 2*ed->rc.average_pict_size;
-			consumed_bitrate =bits_to_apply;///=2;// 2*ed->rc.average_pict_size;			
+			consumed_bitrate = bits_to_apply;///=2;// 2*ed->rc.average_pict_size;			
 		}
 		ed->rc.acc_avg = ed->rc.acc_rate/ed->intra_period;
 		ed->rc.vbv_fullness -= consumed_bitrate+ed->rc.acc_avg;	
@@ -231,15 +235,21 @@ void hmr_rc_end_pic(hvenc_t* ed, slice_t *currslice)
 
 	if(ed->rc.vbv_fullness>ed->rc.vbv_size)
 	{
+#ifdef DBG_TRACE
 		printf("HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
+#endif // DBG_TRACE
+
 		ed->rc.vbv_fullness=ed->rc.vbv_size;
 	}
 
 	if(ed->rc.vbv_fullness<0)
 	{
+#ifdef DBG_TRACE
 		printf("HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
+#endif
 		ed->rc.vbv_fullness=0;
 	}
+	ed->hvenc->rc = ed->rc;
 }
 
 

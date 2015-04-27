@@ -176,9 +176,9 @@ void quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int dep
 	picture_t *currpict = &et->ed->current_pict;	
 	slice_t *currslice = &currpict->slice;		
 	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//et->max_cu_size_shift
-	uint *scan = et->ed->scan_pyramid[scan_mode][inv_depth-1];
+	uint *scan = et->ed->hvenc->scan_pyramid[scan_mode][inv_depth-1];
 	int scan_type = (is_intra?0:3) + comp;
-	int *quant_coeff = et->ed->quant_pyramid[inv_depth-2][scan_type][rem];
+	int *quant_coeff = et->ed->hvenc->quant_pyramid[inv_depth-2][scan_type][rem];
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int qbits = QUANT_SHIFT + per + transform_shift;                
 	int qbits8 = qbits-8;
@@ -226,7 +226,7 @@ void iquant(henc_thread_t* et, int16_t* src, int16_t* dst, int depth, int comp, 
 	int iLevel;
 	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));
 	int scan_type = (is_intra?0:3) + comp;
-	int *dequant_coeff = et->ed->dequant_pyramid[inv_depth-2][scan_type][rem];
+	int *dequant_coeff = et->ed->hvenc->dequant_pyramid[inv_depth-2][scan_type][rem];
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int iq_shift = QUANT_IQUANT_SHIFT - QUANT_SHIFT - transform_shift + 4;
 	int iq_add = (iq_shift>per)? 1 << (iq_shift - per - 1): 0;

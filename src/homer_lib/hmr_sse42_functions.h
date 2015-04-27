@@ -44,7 +44,7 @@ uint32_t sse_aligned_sad_64x64(uint8_t *src, uint32_t src_stride, int16_t *pred,
 uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 
 
-uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size);
+//uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size);
 uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
 uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
 uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);

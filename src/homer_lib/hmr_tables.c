@@ -59,7 +59,7 @@ extern uint g_sigLastScanCG32x32[];
 
 
 //scanning buffers: zigzag, horizontal, vertical y diagonal - zigzag is not used anymore
-void init_scan_pyramid(hvenc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth)
+void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth)
 {
 	const uint  uiNumScanPos  = (uint32_t) iWidth * iWidth;
 	uint        uiNextScanPos = 0;
@@ -218,7 +218,7 @@ short* get_default_qtable(int size_mode, int list_index)
   return src;
 }
 
-void init_quant_pyramids( hvenc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, 
+void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, 
 						 short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp)
 {
 	uint quant_scale[6] =		{26214,23302,20560,18396,16384,14564};    
