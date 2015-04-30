@@ -1342,9 +1342,10 @@ void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu)
 			}
 			if(pad_right)
 			{
-//				ptr_top -= padding_x; 
+				int padding_right_init = (frame_width-ctu->x[component])<cu_width?(frame_width-ctu->x[component]):cu_width;
+//				ptr_bottom -= padding_x; 
 //				ptr_orig -= padding_x; 
-				padding_size += padding_x;
+				padding_size = padding_right_init+padding_x;
 			}
 			for(j=0;j<padding_y;j++)
 			{
@@ -1822,7 +1823,9 @@ THREAD_RETURN_TYPE ctu_encoder_thread(void *h)
 
 #ifndef COMPUTE_AS_HM
 		if(et->ed->intra_period>1)// && ctu->ctu_number == et->pict_total_ctu-1)
+		{
 			hmr_deblock_filter_ctu(et, currslice, ctu);
+		}
 //		else
 //			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, ctu);
 
