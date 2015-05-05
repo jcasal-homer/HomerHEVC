@@ -250,9 +250,9 @@ void HOMER_enc_close(void* h)
 	int ithreads;
 	int size_index;
 	int imods;
-	if(hvenc->run==1)
+	if(hvenc->run==TRUE)
 	{
-		hvenc->run = 0;
+		hvenc->run = FALSE;
 
 		if(hvenc->encoder_mod_thread[0]!=NULL)
 		{
@@ -494,9 +494,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->num_enc_engines = 1;
 #endif
 
-			if(hvenc->run==1)
+			if(hvenc->run==TRUE)
 			{
-				hvenc->run = 0;
+				hvenc->run = FALSE;
 
 				if(hvenc->encoder_mod_thread[0]!=NULL)
 				{
