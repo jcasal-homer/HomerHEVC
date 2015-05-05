@@ -195,7 +195,7 @@ int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_le
 //encodelib.cpp
 void copy_ctu(ctu_info_t* src_ctu, ctu_info_t* dst_ctu);
 void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu);
-THREAD_RETURN_TYPE encoder_thread(void *h);//void encoder_thread(void* enc_engine);
+THREAD_RETURN_TYPE encoder_engine_thread(void *h);//void encoder_engine_thread(void* enc_engine);
 
 //hmr_motion_intra.c
 #define ADI_POINTER_MIDDLE(ptr_adi_orig, size)  (ptr_adi_orig+(size>>1))	//points to the top left square
@@ -260,7 +260,7 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 
 //hmr_deblocking_filter.c
 void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice);
-void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu);
+void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, int dir);
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);

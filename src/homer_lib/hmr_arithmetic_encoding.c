@@ -762,12 +762,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 				{
 					if(slice->num_ref_idx[ref_list_idx]>1)
 					{
-						//						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
-					}
-
-					if(ctu->ctu_number == 3 && sub_part_idx==88)
-					{
-						int iiii=0;
+//						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
 					encode_mv_diff(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);

@@ -210,7 +210,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->chroma_qp_offset);
-		}	
+		}
+		else if(strcmp(argv[args_parsed], "-n_enc_engines")==0 && args_parsed+1<argc)//number of encoder engines
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->num_enc_engines);
+		}
 		else if(strcmp(argv[args_parsed], "-n_wpp_threads")==0 && args_parsed+1<argc)//number of threads
 		{
 			args_parsed++;
@@ -320,8 +325,9 @@ int main (int argc, char **argv)
 	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
+	HmrCfg.num_enc_engines = 2;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 8;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -329,7 +335,7 @@ int main (int argc, char **argv)
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - Only used for CBR
 	HmrCfg.vbv_init = HmrCfg.bitrate*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
-	HmrCfg.reinit_gop_on_scene_change = 0;
+	HmrCfg.reinit_gop_on_scene_change = 1;
 	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM), 1=PERF_FAST_COMPUTATION (rd=1 or rd=2), 2=PERF_UFAST_COMPUTATION (rd=2)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
@@ -418,7 +424,7 @@ int main (int argc, char **argv)
 				}
 				num_nalus = 8;
 				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
-//				encoder_thread(pEncoder);
+//				encoder_engine_thread(pEncoder);
 				frames_read++;			
 			}
 			else

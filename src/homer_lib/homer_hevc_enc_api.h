@@ -149,6 +149,7 @@ struct HVENC_Cfg{
 	int32_t  motion_estimation_precision;
 	int32_t  qp;//for fixed qp mode, or initial qp if cbr or vbr
 	int32_t  chroma_qp_offset;
+	int32_t  num_enc_engines;
 	int32_t  wfpp_enable;
 	int32_t  wfpp_num_threads;
 	int32_t  sign_hiding;
@@ -157,7 +158,7 @@ struct HVENC_Cfg{
 	int32_t  vbv_size;//in kbps
 	int32_t  vbv_init;//in kbps
 	int32_t  reinit_gop_on_scene_change;//
-	int32_t 	rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
+	int32_t  rd_mode;//0=RD_DIST_ONLY,1=RD_FULL,2=RD_FAST
 	int32_t  performance_mode;//0=PERF_FULL_COMPUTATION,1=PERF_FAST_COMPUTATION,2=PERF_UFAST_COMPUTATION
 };
 
@@ -166,7 +167,7 @@ void HOMER_enc_close(void* handle);//, nalu_t *nalu_out[], uint32_t   *nalu_list
 //int32_t  HOMER_enc_encode(void* handle, uint8_t *picture[], nalu_t *nalu_out[], uint32_t   *nalu_list_size);
 int32_t  HOMER_enc_encode(void* handle, encoder_in_out_t* input_frame);//uint8_t *picture[]);//, nalu_t *nalu_out[], uint32_t   *nalu_list_size)
 int32_t  HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu_t *nalu_out[], uint32_t   *nalu_list_size);
-void encoder_thread(void* enc_engine);//void *encoder_thread(void *h);//
+void encoder_engine_thread(void* enc_engine);//void *encoder_engine_thread(void *h);//
 int32_t  HOMER_enc_write_annex_b_output(nalu_t *nalu_out[], uint32_t   num_nalus, encoder_in_out_t *vout);
 int32_t  HOMER_enc_control(void *h, int32_t  cmd, void *in);
 

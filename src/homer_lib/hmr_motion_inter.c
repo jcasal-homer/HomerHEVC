@@ -2292,11 +2292,6 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 
 	curr_depth = curr_cu_info->depth;
 
-	if(et->enc_engine->num_encoded_frames == 7 && ctu->ctu_number == 1 && curr_cu_info->abs_index == 64)
-	{
-		int iiii=0;
-	}
-
 	while(curr_depth!=depth || depth_state[curr_depth]!=end_state)//transform loop
 	{
 //		int fast_end_loop = FALSE;
@@ -3102,11 +3097,6 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 			}
 			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
 			{
-				if(curr_cu_info->abs_index==48)
-				{
-					int iiii=0;
-				}
-
 				cost = dist = curr_cu_info->cost = curr_cu_info->distortion = MAX_COST;
 				if((curr_depth-1) == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->parent->size>8)	//SIZE_NxN
 				{
@@ -3665,10 +3655,6 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 				uint child_sad = parent_part_info->children[0]->sad+parent_part_info->children[1]->sad+parent_part_info->children[2]->sad+parent_part_info->children[3]->sad;
 				PartSize child_part_size_type = (parent_part_info->children[0]->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
 
-				if(curr_depth==1)
-				{
-					int iiii=0;
-				}
 				if(parent_sad<child_sad+parent_part_info->size_chroma && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 //				if(parent_sad<child_sad && parent_part_info->is_b_inside_frame && parent_part_info->is_r_inside_frame)
 				{

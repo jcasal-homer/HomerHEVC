@@ -1216,9 +1216,9 @@ struct hvenc_engine_t
 //	void			*input_hmr_container;
 //	output_set_t	output_sets[NUM_OUTPUT_NALUS];
 //	void			*output_hmr_container;
-	hmr_sem_t	output_sem;// 0 for intra_frame synchronization, 1 for inter frame synchronization
-	hmr_sem_ptr	output_signal;// 0 for intra_frame synchronization, 1 for inter frame synchronization
-	hmr_sem_ptr	output_wait;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_t		output_sem;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr		output_signal;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_ptr		output_wait;// 0 for intra_frame synchronization, 1 for inter frame synchronization
 
 #ifdef COMPUTE_METRICS
 	double			current_psnr[3];

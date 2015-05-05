@@ -1251,10 +1251,6 @@ void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_r
 		cost = (uint32_t)distortion;
 //#ifdef COMPUTE_RD
 
-		if(part_size_type==SIZE_NxN)
-		{
-			int iiii=0;
-		}
 		if(et->rd_mode != RD_DIST_ONLY)
 		{
 			int32_t bit_cost;
@@ -1972,11 +1968,6 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 
 			while(depth_state[curr_depth]==4 && curr_depth>initial_depth)//>0 pq consolidamos sobre el padre, 
 			{
-				if(depth_state[1]==4)
-				{	
-					int iiii=0;
-				}
-
 				cost = parent_part_info->children[0]->cost + parent_part_info->children[1]->cost +parent_part_info->children[2]->cost+parent_part_info->children[3]->cost;
 
 				depth_state[curr_depth] = 0;
