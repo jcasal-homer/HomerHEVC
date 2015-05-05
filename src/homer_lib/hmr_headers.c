@@ -338,12 +338,12 @@ void hmr_put_pic_header(hvenc_enc_t* hvenc)
 	hmr_bitstream_nalu_ebsp(bs, &hvenc->pps_nalu.bs);
 }
 
-void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
+void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
-	bitstream_t	*bs = &ed->slice_bs;//
+	bitstream_t	*bs = &enc_engine->slice_bs;//
 	sps_t	*sps = currslice->sps;
 	pps_t	*pps = currslice->pps;
-	int max_add_outer = ed->pict_total_ctu;
+	int max_add_outer = enc_engine->pict_total_ctu;
 	int bits_outer = 0;
 	int max_addr_inner, req_bits_inner = 0;
 	int slice_address;
@@ -363,7 +363,7 @@ void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 		req_bits_inner++;
 	}
     //slice address
-	slice_address = currslice->first_cu_address/ed->num_partitions_in_cu;
+	slice_address = currslice->first_cu_address/enc_engine->num_partitions_in_cu;
 	inner_address = 0;
 
 	address = (slice_address<<req_bits_inner) + inner_address;
@@ -411,7 +411,7 @@ void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 		{	
 			int num_bits = 0;
 			int bits_for_poc = currslice->sps->log2_max_pic_order_cnt_lsb_minus4+4;
-			int poc_lsb = (currslice->poc - ed->last_idr+(1<<bits_for_poc))%(1<<bits_for_poc);
+			int poc_lsb = (currslice->poc - enc_engine->last_idr+(1<<bits_for_poc))%(1<<bits_for_poc);
 
 			hmr_bitstream_write_bits(bs, poc_lsb, bits_for_poc);
 
@@ -424,7 +424,7 @@ void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 			{
 				hmr_bitstream_write_bits(bs, 1, 1);//short_term_ref_pic_set_sps_flag
 		
-				while ((1 << num_bits) < ed->hvenc->num_short_term_ref_pic_sets)//esto se puede tener en una tabla
+				while ((1 << num_bits) < enc_engine->hvenc->num_short_term_ref_pic_sets)//esto se puede tener en una tabla
 				{
 				  num_bits++;
 				}
@@ -432,10 +432,10 @@ void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 				if(num_bits)
 					hmr_bitstream_write_bits(bs, currslice->ref_pic_set_index, num_bits);//short_term_ref_pic_set_sps_flag
 
-/*				hmr_bitstream_write_bits_uvlc(bs, ed->num_short_term_ref_pic_sets);
-				for(i=0;i<ed->num_short_term_ref_pic_sets;i++)
+/*				hmr_bitstream_write_bits_uvlc(bs, enc_engine->num_short_term_ref_pic_sets);
+				for(i=0;i<enc_engine->num_short_term_ref_pic_sets;i++)
 				{
-					hmr_short_term_ref_pic_set(bs, &ed->ref_pic_set_list[i], i);
+					hmr_short_term_ref_pic_set(bs, &enc_engine->ref_pic_set_list[i], i);
 				}
 */
 			}
@@ -516,7 +516,7 @@ void hmr_put_slice_header(hvenc_engine_t* ed, slice_t *currslice)
 		{
 			hmr_bitstream_write_bits_uvlc(bs, 5 - currslice->max_num_merge_candidates);//five_minus_max_num_merge_cand			
 		}
-		hmr_bitstream_write_bits_svlc(bs, currslice->qp/*ed->pict_qp*/ - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
+		hmr_bitstream_write_bits_svlc(bs, currslice->qp/*enc_engine->pict_qp*/ - (pps->pic_init_qp_minus26 + 26));//slice_qp_delta
 		
 		if(pps->slice_chroma_qp_offsets_present_flag)
 		{
@@ -579,19 +579,19 @@ uint count_needed_start_codes(bitstream_t	*bs)
 }
 
 
-void hmr_slice_header_code_wfpp_entry_points(hvenc_engine_t* ed)
+void hmr_slice_header_code_wfpp_entry_points(hvenc_engine_t* enc_engine)
 {
-	bitstream_t	*bs = &ed->slice_bs;//
+	bitstream_t	*bs = &enc_engine->slice_bs;//
 	int i;
 	uint max_offset = 0, offset_len_minus_1 = 1;
-	int num_entry_point_offsets = ed->num_sub_streams-1;
+	int num_entry_point_offsets = enc_engine->num_sub_streams-1;
 
 	for (i=0; i<num_entry_point_offsets; i++)
 	{
-		ed->sub_streams_entry_point_list[ i ] = ed->aux_bs[i].streambytecnt + count_needed_start_codes(&ed->aux_bs[i]);
-		if ( ed->sub_streams_entry_point_list[ i ] > max_offset)
+		enc_engine->sub_streams_entry_point_list[ i ] = enc_engine->aux_bs[i].streambytecnt + count_needed_start_codes(&enc_engine->aux_bs[i]);
+		if ( enc_engine->sub_streams_entry_point_list[ i ] > max_offset)
 		{
-			max_offset = ed->sub_streams_entry_point_list[ i ];
+			max_offset = enc_engine->sub_streams_entry_point_list[ i ];
 		}
 	}
 
@@ -606,6 +606,6 @@ void hmr_slice_header_code_wfpp_entry_points(hvenc_engine_t* ed)
 
 	for (i=0; i<num_entry_point_offsets; i++)
 	{
-		hmr_bitstream_write_bits(bs, ed->sub_streams_entry_point_list[ i ]-1, offset_len_minus_1+1);//entry_point_offset_minus1
+		hmr_bitstream_write_bits(bs, enc_engine->sub_streams_entry_point_list[ i ]-1, offset_len_minus_1+1);//entry_point_offset_minus1
 	}
 }

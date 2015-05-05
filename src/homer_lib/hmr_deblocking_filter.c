@@ -53,9 +53,9 @@ const uint8_t sm_betaTable[52] =
 __inline uint bx_index(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int deblock_dir, int cu_width_units, int deblock_edge_idx, int index)
 {
 	if(deblock_dir==EDGE_VER)
-		return et->ed->raster2abs_table[et->ed->abs2raster_table[curr_cu_info->abs_index]+index*cu_width_units+deblock_edge_idx];
+		return et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+index*cu_width_units+deblock_edge_idx];
 	else
-		return et->ed->raster2abs_table[et->ed->abs2raster_table[curr_cu_info->abs_index]+deblock_edge_idx*cu_width_units+index];
+		return et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+deblock_edge_idx*cu_width_units+index];
 
 }
 
@@ -71,8 +71,8 @@ void set_edge_filter_0(henc_thread_t* et, cu_partition_info_t* curr_cu_info, uin
 		aux0 = 1;
 	for( i = 0; i < num_elements; i++ )
 	{
-//			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
-		uint bs_idx = et->ed->raster2abs_table[et->ed->abs2raster_table[curr_cu_info->abs_index]+i*aux0];//+aux1];
+//			uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
+		uint bs_idx = et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*aux0];//+aux1];
 		edge_buff[bs_idx] = deblock_internal_edge;
 		bs_buff[bs_idx] = deblock_internal_edge;
 	}
@@ -85,7 +85,7 @@ void set_edge_filter_0_subdiv(henc_thread_t* et, cu_partition_info_t*	curr_cu_in
 		int i;
 		for( i = 0; i < num_elements; i++ )
 		{
-			uint bs_idx = et->ed->raster2abs_table[et->ed->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+edge_idx];
+			uint bs_idx = et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+edge_idx];
 			edge_buff[bs_idx] = deblock_internal_edge;
 			if(edge_idx==0)
 				bs_buff[bs_idx] = deblock_internal_edge;
@@ -96,7 +96,7 @@ void set_edge_filter_0_subdiv(henc_thread_t* et, cu_partition_info_t*	curr_cu_in
 		int i;		
 		for( i = 0; i < num_elements; i++ )
 		{
-			uint bs_idx = et->ed->raster2abs_table[et->ed->abs2raster_table[curr_cu_info->abs_index]+edge_idx*max_cu_width_units+i];
+			uint bs_idx = et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+edge_idx*max_cu_width_units+i];
 			edge_buff[bs_idx] = deblock_internal_edge;
 			if(edge_idx==0)
 				bs_buff[bs_idx] = deblock_internal_edge;
@@ -107,11 +107,11 @@ void set_edge_filter_0_subdiv(henc_thread_t* et, cu_partition_info_t*	curr_cu_in
 
 
 
-void set_edge_filter(hvenc_engine_t* ed, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
+void set_edge_filter(hvenc_engine_t* enc_engine, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
 {
 	int i;
 //	int num_elements = (max(cu_width, cu_height)>>2);
-//	int max_cu_width_units = (ed->max_cu_size>>2);
+//	int max_cu_width_units = (enc_engine->max_cu_size>>2);
 	int aux0, aux1;
 
 	if(deblock_dir==EDGE_VER)
@@ -127,8 +127,8 @@ void set_edge_filter(hvenc_engine_t* ed, cu_partition_info_t*	curr_cu_info, uint
 
 	for( i = 0; i < num_elements; i++ )
 	{
-//			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
-		uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+i*aux0+aux1];
+//			uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
+		uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*aux0+aux1];
 		edge_buff[bs_idx] = deblock_internal_edge;
 		if (deblock_edge_idx == 0)
 		{
@@ -140,7 +140,7 @@ void set_edge_filter(hvenc_engine_t* ed, cu_partition_info_t*	curr_cu_info, uint
 	{
 		for( i = 0; i < num_elements; i++ )
 		{
-			uint bs_idx = ed->raster2abs_table[ed->abs2raster_table[curr_cu_info->abs_index]+deblock_edge_idx*max_cu_width_units+i];
+			uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+deblock_edge_idx*max_cu_width_units+i];
 			edge_buff[bs_idx] = deblock_internal_edge;
 			if (deblock_edge_idx == 0)
 			{
@@ -375,7 +375,7 @@ void deblock_filter_luma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t
 	int num_pels_in_partition = (et->max_cu_size>>et->max_cu_depth);
 	int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, *decoded_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, 0, et->ctu_width);
 	int16_t *aux_decoded_buff = decoded_buff;
-//	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
+//	int	pixels_per_partition = enc_engine->max_cu_size >> enc_engine->max_cu_depth;
 	int	idx;
 	int num_partitions;
 	int max_cu_width_units = (et->max_cu_size>>2);		
@@ -393,7 +393,7 @@ void deblock_filter_luma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t
 		aux_decoded_buff += edge*num_pels_in_partition*decoded_buff_stride;
 	}
 
-//	num_partitions = ed->max_cu_size >> curr_cu_info->depth;
+//	num_partitions = enc_engine->max_cu_size >> curr_cu_info->depth;
 //	num_partitions /= num_pels_in_partition;
 
 	num_partitions = curr_cu_info->size/num_pels_in_partition;
@@ -417,7 +417,7 @@ void deblock_filter_luma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t
 			int tc, beta, side_threshold, threshold_cut;
 			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
 			int pcm_filter = (currslice->sps->pcm_enabled_flag && currslice->sps->pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
-			cu_partition_info_t *sub_cu_info = &ctu->partition_list[et->ed->partition_depth_start[et->ed->max_cu_depth]];//4x4 blocks
+			cu_partition_info_t *sub_cu_info = &ctu->partition_list[et->enc_engine->partition_depth_start[et->enc_engine->max_cu_depth]];//4x4 blocks
 
 			sub_cu_info += bs_abs_idx;
 
@@ -530,19 +530,19 @@ void deblock_filter_chroma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info
 	int partition_p_no_filter = 0;
 	int partition_q_no_filter = 0; 
 	int num_pels_in_partition = (et->max_cu_size>>(et->max_cu_depth+1));
-//	uint8_t *decoded_buff[3]  = {0,WND_POSITION_2D(uint8_t *, *decoded_wnd, U_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width), WND_POSITION_2D(uint8_t *, *decoded_wnd, V_COMP, curr_part_global_x, curr_part_global_y, 0, ed->ctu_width)};
+//	uint8_t *decoded_buff[3]  = {0,WND_POSITION_2D(uint8_t *, *decoded_wnd, U_COMP, curr_part_global_x, curr_part_global_y, 0, enc_engine->ctu_width), WND_POSITION_2D(uint8_t *, *decoded_wnd, V_COMP, curr_part_global_x, curr_part_global_y, 0, enc_engine->ctu_width)};
 	int16_t *aux_decoded_buff;
-//	int	pixels_per_partition = ed->max_cu_size >> ed->max_cu_depth;
+//	int	pixels_per_partition = enc_engine->max_cu_size >> enc_engine->max_cu_depth;
 	int	idx;
 	int num_partitions;
 	int max_cu_width_units = (et->max_cu_size>>2);		
 	int ch_component;
-	int raster_index = et->ed->abs2raster_table[curr_cu_info->abs_index];
+	int raster_index = et->enc_engine->abs2raster_table[curr_cu_info->abs_index];
 	int uiEdgeNumInLCUVert = raster_index % max_cu_width_units + edge;
 	int uiEdgeNumInLCUHor = raster_index / max_cu_width_units + edge;
 
 
-	num_partitions = curr_cu_info->size_chroma/num_pels_in_partition;//ed->max_cu_size >> curr_cu_info->depth;
+	num_partitions = curr_cu_info->size_chroma/num_pels_in_partition;//enc_engine->max_cu_size >> curr_cu_info->depth;
 
 	if ( (num_pels_in_partition < DEBLOCK_SMALLEST_BLOCK) && (( (uiEdgeNumInLCUVert%(DEBLOCK_SMALLEST_BLOCK/num_pels_in_partition))&&(dir==EDGE_VER) ) || ( (uiEdgeNumInLCUHor%(DEBLOCK_SMALLEST_BLOCK/num_pels_in_partition))&& dir==EDGE_HOR ) ))
 	{
@@ -582,7 +582,7 @@ void deblock_filter_chroma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info
 			int tc;//, beta, side_threshold, threshold_cut;
 //			int blocks_in_partition;// = max(num_pels_in_partition>>2, 1);
 			int pcm_filter = (currslice->sps->pcm_enabled_flag && currslice->sps->pcm_loop_filter_disable_flag);//(pcCU->getSlice()->getSPS()->getUsePCM() && pcCU->getSlice()->getSPS()->getPCMFilterDisableFlag())? true : false;
-			cu_partition_info_t *sub_cu_info = &ctu->partition_list[et->ed->partition_depth_start[et->max_cu_depth]];//4x4 blocks
+			cu_partition_info_t *sub_cu_info = &ctu->partition_list[et->enc_engine->partition_depth_start[et->max_cu_depth]];//4x4 blocks
 
 			sub_cu_info += bs_abs_idx;
 
@@ -679,17 +679,17 @@ void deblock_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_parti
 
 		if (et->deblock_edge_filter[dir][part_idx] && bs_check)
 		{
-			get_boundary_strength_single(et, currslice, ctu, curr_cu_info, sub_cu_info, dir);//xGetBoundaryStrengthSingle (ed, ctu, curr_cu_info, sub_cu_info, currslice, dir);
+			get_boundary_strength_single(et, currslice, ctu, curr_cu_info, sub_cu_info, dir);//xGetBoundaryStrengthSingle (enc_engine, ctu, curr_cu_info, sub_cu_info, currslice, dir);
 //							xGetBoundaryStrengthSingle ( pcCU, dir, uiPartIdx );
 		}
 	}
 
 	for(part_idx = 0; part_idx < pu_size_in_deblock_units; part_idx+=deblock_partition_idx_incr)
 	{
-		deblock_filter_luma(et, ctu, curr_cu_info, &et->ed->curr_reference_frame->img, currslice, dir, part_idx);
+		deblock_filter_luma(et, ctu, curr_cu_info, &et->enc_engine->curr_reference_frame->img, currslice, dir, part_idx);
 		if ( (num_pels_in_partition>DEBLOCK_SMALLEST_BLOCK) || (part_idx % ( (DEBLOCK_SMALLEST_BLOCK<<1)/num_pels_in_partition ) ) == 0 )
 		{
-			deblock_filter_chroma(et, ctu, curr_cu_info, &et->ed->curr_reference_frame->img, currslice, dir, part_idx);
+			deblock_filter_chroma(et, ctu, curr_cu_info, &et->enc_engine->curr_reference_frame->img, currslice, dir, part_idx);
 //		  xEdgeFilterChroma   ( pcCU, uiAbsZorderIdx, uiDepth, iDir, iEdge );
 		}
 	}
@@ -820,59 +820,59 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 }
 
 
-void hmr_deblock_filter(hvenc_engine_t* ed, slice_t *currslice)
+void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 	int ctu_num;
 	ctu_info_t* ctu;
 //	int dir;
 
-//	if(ed->debug_file!=NULL)
-//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug
+//	if(enc_engine->debug_file!=NULL)
+//		wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug
 
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 
 /*	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
-		for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
+		for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 		{	
-			ctu = &ed->ctu_info[ctu_num];
+			ctu = &enc_engine->ctu_info[ctu_num];
 
-			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//this call should be removed
+			create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
 
-			hmr_deblock_filter_cu(ed, currslice, ctu, dir);
+			hmr_deblock_filter_cu(enc_engine, currslice, ctu, dir);
 		}
 //		if(dir==EDGE_VER)
-//			wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
+//			wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug 		
 	}
-//	if(ed->debug_file!=NULL)
-//		wnd_write2file(&ed->curr_reference_frame->img, ed->debug_file);//debug 		
+//	if(enc_engine->debug_file!=NULL)
+//		wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug 		
 
 */
 
 //	int current_line=0;
-	for(ctu_num = 0;ctu_num < ed->pict_total_ctu;ctu_num++)
+	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
-		ctu = &ed->ctu_info[ctu_num];
-		ctu->partition_list = ed->thread[0]->deblock_partition_info;
-		create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-		hmr_deblock_filter_cu(ed->thread[0], currslice, ctu, EDGE_VER);
-		if(ctu_num>=1*ed->pict_width_in_ctu)
+		ctu = &enc_engine->ctu_info[ctu_num];
+		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+		hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_VER);
+		if(ctu_num>=1*enc_engine->pict_width_in_ctu)
 		{
-			int ctu_num_horizontal = ctu_num-1*ed->pict_width_in_ctu;
-			ctu = &ed->ctu_info[ctu_num_horizontal];
-			ctu->partition_list = ed->thread[0]->deblock_partition_info;
-			create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-			hmr_deblock_filter_cu(ed->thread[0], currslice, ctu, EDGE_HOR);
+			int ctu_num_horizontal = ctu_num-1*enc_engine->pict_width_in_ctu;
+			ctu = &enc_engine->ctu_info[ctu_num_horizontal];
+			ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+			create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+			hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_HOR);
 		}
 	}
 
 	//finish the remaining ctus of the horizontal filter
-	for(ctu_num = (ed->pict_total_ctu-1*ed->pict_width_in_ctu) ; ctu_num < ed->pict_total_ctu ; ctu_num++)
+	for(ctu_num = (enc_engine->pict_total_ctu-1*enc_engine->pict_width_in_ctu) ; ctu_num < enc_engine->pict_total_ctu ; ctu_num++)
 	{
-		ctu = &ed->ctu_info[ctu_num];
-		ctu->partition_list = ed->thread[0]->deblock_partition_info;
-		create_partition_ctu_neighbours(ed->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
-		hmr_deblock_filter_cu(ed->thread[0], currslice, ctu, EDGE_HOR);		
+		ctu = &enc_engine->ctu_info[ctu_num];
+		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+		hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_HOR);		
 	}
 }
 
@@ -889,7 +889,7 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 
 	if(ctu_num_vertical>=0 && (ctu_num%et->pict_width_in_ctu)>=1)
 	{
-		filter_ctu = &et->ed->ctu_info[ctu_num_vertical];
+		filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
 //		aux_partition_info = filter_ctu->partition_list;
 		filter_ctu->partition_list = et->deblock_partition_info;
 		create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
@@ -901,7 +901,7 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 	if((ctu_num_vertical+1)%et->pict_width_in_ctu == et->pict_width_in_ctu-1)
 	{
 		ctu_num_vertical++;
-		filter_ctu = &et->ed->ctu_info[ctu_num_vertical];
+		filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
 //		aux_partition_info = filter_ctu->partition_list;
 		filter_ctu->partition_list = et->deblock_partition_info;
 		create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
@@ -917,7 +917,7 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 		ctu_num_vertical++;
 		while(ctu_num_vertical<et->pict_total_ctu)
 		{
-			filter_ctu = &et->ed->ctu_info[ctu_num_vertical];
+			filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
 	//		aux_partition_info = filter_ctu->partition_list;
 			filter_ctu->partition_list = et->deblock_partition_info;
 			create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
@@ -932,62 +932,62 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 //	ctu_num--;
 	if(ctu_num_horizontal>=0 && (ctu_num%et->pict_width_in_ctu)>=2)
 	{
-		filter_ctu = &et->ed->ctu_info[ctu_num_horizontal];
+		filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
 		filter_ctu->partition_list = et->deblock_partition_info;
 		create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 		if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 		{
-			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
+			reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 		}
 
 		if(filter_ctu->ctu_number >= 2*et->pict_width_in_ctu+1 && (filter_ctu->ctu_number%et->pict_width_in_ctu)!=0)
 		{
-			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->ed->wfpp_num_threads;
-			SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-			et->ed->dbg_num_posts[thread_idx]++;
-			PRINTF("EDGE_HOR_0, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->enc_engine->wfpp_num_threads;
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[thread_idx]++;
+			PRINTF("EDGE_HOR_0, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 		}
 	}
 
 	if((ctu_num_horizontal+1)%et->pict_width_in_ctu == et->pict_width_in_ctu-2)
 	{
 		ctu_num_horizontal++;
-		filter_ctu = &et->ed->ctu_info[ctu_num_horizontal];
+		filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
 		filter_ctu->partition_list = et->deblock_partition_info;
 		create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 		if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 		{
-			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
+			reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 		}
 		if(filter_ctu->ctu_number >= 2*et->pict_width_in_ctu+1)
 		{
-			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->ed->wfpp_num_threads;
-			SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-			et->ed->dbg_num_posts[thread_idx]++;
-			PRINTF("EDGE_HOR_1, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->enc_engine->wfpp_num_threads;
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[thread_idx]++;
+			PRINTF("EDGE_HOR_1, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 		}
 //		PRINTF("ctu_num:%d, EDGE_HOR: ctu_num_horizontal=%d\r\n", ctu_num-1, ctu_num_horizontal);
 		ctu_num_horizontal++;
-		filter_ctu = &et->ed->ctu_info[ctu_num_horizontal];
+		filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
 		filter_ctu->partition_list = et->deblock_partition_info;
 		create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
-//		reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu);
+//		reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 		if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 		{
-			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
+			reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 		}
 		if(filter_ctu->ctu_number >= 2*et->pict_width_in_ctu+1)
 		{
-			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->ed->wfpp_num_threads;
-			SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-			et->ed->dbg_num_posts[thread_idx]++;
-			PRINTF("EDGE_HOR_2a, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
-			SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-			et->ed->dbg_num_posts[thread_idx]++;
-			PRINTF("EDGE_HOR_2b, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->enc_engine->wfpp_num_threads;
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[thread_idx]++;
+			PRINTF("EDGE_HOR_2a, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[thread_idx]++;
+			PRINTF("EDGE_HOR_2b, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 
 		}
 //		PRINTF("ctu_num:%d, EDGE_HOR: ctu_num_horizontal=%d\r\n", ctu_num-1, ctu_num_horizontal);
@@ -1000,34 +1000,34 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 		ctu_num_horizontal++;
 		while(ctu_num_horizontal<et->pict_total_ctu)
 		{
-			filter_ctu = &et->ed->ctu_info[ctu_num_horizontal];
+			filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
 			filter_ctu->partition_list = et->deblock_partition_info;
 			create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 			hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 
 			if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 			{
-				reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
+				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 			if(filter_ctu->ctu_number >= 2*et->pict_width_in_ctu+1)
 			{
-				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->ed->wfpp_num_threads;
-				SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-				et->ed->dbg_num_posts[thread_idx]++;
-				PRINTF("EDGE_HOR_3, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-2)%et->enc_engine->wfpp_num_threads;
+				SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+				et->enc_engine->dbg_num_posts[thread_idx]++;
+				PRINTF("EDGE_HOR_3, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 			}
 
-			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu);
+			reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 
 			if(filter_ctu->ctu_number >= et->pict_width_in_ctu+1)
 			{
-				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-1)%et->ed->wfpp_num_threads;
-				SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-				et->ed->dbg_num_posts[thread_idx]++;
-				PRINTF("EDGE_HOR_4, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-1)%et->enc_engine->wfpp_num_threads;
+				SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+				et->enc_engine->dbg_num_posts[thread_idx]++;
+				PRINTF("EDGE_HOR_4, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 			}
 
-//			reference_picture_border_padding_ctu(&et->ed->curr_reference_frame->img, filter_ctu);
+//			reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 
 //			PRINTF("ctu_num:%d, EDGE_HOR: ctu_num_horizontal=%d\r\n", ctu_num-1, ctu_num_horizontal);
 			ctu_num_horizontal++;
@@ -1037,23 +1037,23 @@ void hmr_deblock_filter_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* c
 		ctu_num_horizontal-=et->pict_width_in_ctu;
 		while(ctu_num_horizontal<et->pict_total_ctu)
 		{
-			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu)%et->ed->wfpp_num_threads;
-			SEM_POST(et->ed->thread[thread_idx]->synchro_signal[1]);
-			et->ed->dbg_num_posts[thread_idx]++;
-			PRINTF("EDGE_HOR_3, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->ed->dbg_num_posts[thread_idx]);
+			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu)%et->enc_engine->wfpp_num_threads;
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[thread_idx]++;
+			PRINTF("EDGE_HOR_3, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", filter_ctu->ctu_number, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
 			ctu_num_horizontal++;
 		}
-/*		filter_ctu = &et->ed->ctu_info[ctu_num_horizontal];
+/*		filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
 		if(filter_ctu->ctu_number >= 2*et->pict_width_in_ctu+1)
 		{
-			SEM_POST(et->ed->thread[(et->index-2)%et->ed->wfpp_num_threads], synchro_signal[1]);
-			et->ed->dbg_num_posts[(et->index-2)%et->ed->wfpp_num_threads]++;
+			SEM_POST(et->enc_engine->thread[(et->index-2)%et->enc_engine->wfpp_num_threads], synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[(et->index-2)%et->enc_engine->wfpp_num_threads]++;
 		}
 
 		if(filter_ctu->ctu_number >= et->pict_width_in_ctu+1)
 		{
-			SEM_POST(et->ed->thread[(et->index-1)%et->ed->wfpp_num_threads], synchro_signal[1]);
-			et->ed->dbg_num_posts[(et->index-1)%et->ed->wfpp_num_threads]++;
+			SEM_POST(et->enc_engine->thread[(et->index-1)%et->enc_engine->wfpp_num_threads], synchro_signal[1]);
+			et->enc_engine->dbg_num_posts[(et->index-1)%et->enc_engine->wfpp_num_threads]++;
 		}
 */
 	}

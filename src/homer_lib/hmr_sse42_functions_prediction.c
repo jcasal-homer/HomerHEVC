@@ -345,7 +345,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 		int pred_angle = is_Ver_mode ? cu_mode - VER_IDX : is_Hor_mode ? -(cu_mode - HOR_IDX) : 0;
 		int abs_angle = abs(pred_angle);
 		int sign_angle = SIGN(pred_angle);
-		int inv_angle = et->ed->inv_ang_table[abs_angle];
+		int inv_angle = et->enc_engine->inv_ang_table[abs_angle];
 		int bit_depth = 8;//et->bit_depth;
 		int16_t* refMain;
 		int16_t* refSide;
@@ -354,7 +354,7 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 		int invAngleSum;
 		int bFilter = is_luma?(cu_size<=16):0;
 		__m128_i16 shuff_mask = sse_128_load_vector_a(shuffle_mask_predict_16_0);//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
-		abs_angle = et->ed->ang_table[abs_angle];
+		abs_angle = et->enc_engine->ang_table[abs_angle];
 		pred_angle = sign_angle * abs_angle;
 
 		if (pred_angle < 0)
@@ -501,11 +501,11 @@ void sse_create_intra_angular_prediction_nxn(henc_thread_t* et, ctu_info_t* ctu,
 	int abs_angle = abs(pred_angle);
 	int sign_angle = SIGN(pred_angle);
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
-	int inv_angle = et->ed->inv_ang_table[abs_angle];
+	int inv_angle = et->enc_engine->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
 	int16_t *dst;
 	int cu_size = 8; 
-	abs_angle = et->ed->ang_table[abs_angle];
+	abs_angle = et->enc_engine->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
 
 	// dc prediction
@@ -721,11 +721,11 @@ void sse_create_intra_angular_prediction_4x4(henc_thread_t* et, ctu_info_t* ctu,
 	int abs_angle = abs(pred_angle);
 	int sign_angle = SIGN(pred_angle);
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
-	int inv_angle = et->ed->inv_ang_table[abs_angle];
+	int inv_angle = et->enc_engine->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
 	int16_t *dst;
 	int cu_size = 4; 
-	abs_angle = et->ed->ang_table[abs_angle];
+	abs_angle = et->enc_engine->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
 
 	// dc prediction

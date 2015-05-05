@@ -486,10 +486,10 @@ struct sps_t
 	unsigned int sample_adaptive_offset_enabled_flag;//u(1)
 	unsigned int pcm_loop_filter_disable_flag;		//u(1)
 	unsigned int temporal_id_nesting_flag;			//u(1)
-//	unsigned int num_short_term_ref_pic_sets;		//ue(v) - moved to ed
-	//hmr_short_term_ref_pic_set(i)								- moved to ed
-//	unsigned int long_term_ref_pics_present_flag;	//u(1)	- moved to ed
-//	unsigned int num_long_term_ref_pic_sps;			//ue(v)	- moved to ed
+//	unsigned int num_short_term_ref_pic_sets;		//ue(v) - moved to enc_engine
+	//hmr_short_term_ref_pic_set(i)								- moved to enc_engine
+//	unsigned int long_term_ref_pics_present_flag;	//u(1)	- moved to enc_engine
+//	unsigned int num_long_term_ref_pic_sps;			//ue(v)	- moved to enc_engine
 //	unsigned int lt_ref_pic_poc_lsb_sps;			//u(v)
 	unsigned int used_by_curr_pic_lt_sps_flag;		//u(1)
 	unsigned int temporal_mvp_enable_flag;			//u(1)	//mvp = motion vector prediction
@@ -942,7 +942,7 @@ struct low_level_funcs_t
 
 struct henc_thread_t
 {
-	hvenc_engine_t	*ed;
+	hvenc_engine_t	*enc_engine;
 	uint		index;
 	int			wfpp_enable;
 	int			wfpp_num_threads;
@@ -1234,7 +1234,7 @@ struct hvenc_enc_t
 {
 	hvenc_engine_t	*encoder_module[MAX_NUM_ENCODER_CTX];
 	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
-	int				num_encoder_modules;
+	int				num_encoder_engines;
 	hmr_mutex		mutex_start_frame; 
 
 	int				run;

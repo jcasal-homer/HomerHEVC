@@ -489,9 +489,9 @@ void create_intra_angular_prediction(henc_thread_t* et, ctu_info_t* ctu, int16_t
 	int abs_angle = abs(pred_angle);
 	int sign_angle = SIGN(pred_angle);
 	int16_t  *adi_ptr = ADI_POINTER_MIDDLE(adi_pred_buff, adi_size);
-	int inv_angle = et->ed->inv_ang_table[abs_angle];
+	int inv_angle = et->enc_engine->inv_ang_table[abs_angle];
 	int bit_depth = et->bit_depth;
-	abs_angle = et->ed->ang_table[abs_angle];
+	abs_angle = et->enc_engine->ang_table[abs_angle];
 	pred_angle = sign_angle * abs_angle;
 
 	if (is_DC_mode)
@@ -745,11 +745,11 @@ void get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partit
 	//top left
 	top_left_raster_index = (left_raster_index + ctu_partition_top_line_offset) & ctu_partitions_in_ctu_mask;
 
-	curr_partition_info->abs_index_left_partition = et->ed->raster2abs_table[left_raster_index];
-	curr_partition_info->abs_index_left_bottom_partition = et->ed->raster2abs_table[left_bottom_raster_index];
-	curr_partition_info->abs_index_top_partition = et->ed->raster2abs_table[top_raster_index];
-	curr_partition_info->abs_index_top_right_partition = et->ed->raster2abs_table[top_right_raster_index];
-	curr_partition_info->abs_index_top_left_partition = et->ed->raster2abs_table[top_left_raster_index];
+	curr_partition_info->abs_index_left_partition = et->enc_engine->raster2abs_table[left_raster_index];
+	curr_partition_info->abs_index_left_bottom_partition = et->enc_engine->raster2abs_table[left_bottom_raster_index];
+	curr_partition_info->abs_index_top_partition = et->enc_engine->raster2abs_table[top_raster_index];
+	curr_partition_info->abs_index_top_right_partition = et->enc_engine->raster2abs_table[top_right_raster_index];
+	curr_partition_info->abs_index_top_left_partition = et->enc_engine->raster2abs_table[top_left_raster_index];
 }
 
 
@@ -824,7 +824,7 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 			curr_partition_info->size_chroma = curr_part_size>>1;
 			curr_partition_info->depth = curr_depth;
 			curr_partition_info->abs_index = parent_part_info->abs_index+child_cnt*num_part_in_cu;
-			curr_partition_info->raster_index = et->ed->abs2raster_table[curr_partition_info->abs_index];
+			curr_partition_info->raster_index = et->enc_engine->abs2raster_table[curr_partition_info->abs_index];
 			get_partition_neigbours(et, curr_partition_info);
 
 
@@ -1277,7 +1277,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	int cu_mode, best_mode;
 	double distortion = 0.;
 	double cost, best_cost;
-	slice_t *currslice = &et->ed->current_pict.slice;
+	slice_t *currslice = &et->enc_engine->current_pict.slice;
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, decoded_buff_stride;
 	uint8_t *orig_buff;
@@ -1665,9 +1665,9 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 #ifndef COMPUTE_AS_HM
 	if(et->rd_mode != RD_FULL)
 	{
-		double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
+		double correction = calc_mv_correction(curr_partition_info->qp, et->enc_engine->avg_dist);//.25+et->enc_engine->avg_dist*et->enc_engine->avg_dist/5000000.;
 		return (uint32_t)(curr_partition_info->cost+(bitcost_cu_mode)*correction+.5);//curr_partition_info->qp*correction+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
-//		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
+//		return (curr_partition_info->cost+(bitcost_cu_mode)*curr_partition_info->qp/clip((3500000/(et->enc_engine->avg_dist*et->enc_engine->avg_dist)),.35,4.)+.5);//+curr_partition_info->size_chroma*et->rd.lambda+.5;
 	}
 	else
 #endif
@@ -1786,7 +1786,7 @@ uint encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, 
 	else if(part_size_type == SIZE_NxN)
 	{
 		int n;
-		slice_t *currslice = &et->ed->current_pict.slice;
+		slice_t *currslice = &et->enc_engine->current_pict.slice;
 		cu_partition_info_t *curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+position;
 		for(n=0;n<4;n++)
 		{
@@ -1805,7 +1805,7 @@ uint motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *in
 {
 	int gcnt = 0;
 	double cost, cost_luma, cost_chroma, best_cost;
-	slice_t *currslice = &et->ed->current_pict.slice;
+	slice_t *currslice = &et->enc_engine->current_pict.slice;
 	cu_partition_info_t	*parent_part_info = NULL;
 	cu_partition_info_t	*curr_partition_info = init_partition_info;
 	int position = 0, initial_position = 0;

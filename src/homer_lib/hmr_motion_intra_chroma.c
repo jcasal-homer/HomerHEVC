@@ -112,7 +112,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 	int cu_mode, cu_mode_idx;
 	uint32_t distortion = 0, best_distortion=0, bit_cost, cost, best_cost = MAX_COST, best_mode, best_mode_idx;
 	uint sum = 0, best_sum;
-	picture_t *currpict = &et->ed->current_pict;
+	picture_t *currpict = &et->enc_engine->current_pict;
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
@@ -145,7 +145,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 	double weight;
 	int luma_mode;
 	int qp_chroma, per, rem;// = chroma_scale_conversion_table[clip(curr_cu_info->qp,0,57)];
-	int chr_qp_offset = et->ed->chroma_qp_offset;
+	int chr_qp_offset = et->enc_engine->chroma_qp_offset;
 
 	curr_partition_info = &ctu->partition_list[et->partition_depth_start[depth]]+part_position;
 
@@ -431,8 +431,8 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 #ifndef COMPUTE_AS_HM
 		else if(et->rd_mode != RD_FULL && cost<best_cost)
 		{
-			double correction = calc_mv_correction(curr_partition_info->qp, et->ed->avg_dist);//.25+et->ed->avg_dist*et->ed->avg_dist/5000000.;
-			//cost += bit_cost*curr_partition_info->qp/clip((3500000/(et->ed->avg_dist*et->ed->avg_dist)),.35,4.)+.5;
+			double correction = calc_mv_correction(curr_partition_info->qp, et->enc_engine->avg_dist);//.25+et->enc_engine->avg_dist*et->enc_engine->avg_dist/5000000.;
+			//cost += bit_cost*curr_partition_info->qp/clip((3500000/(et->enc_engine->avg_dist*et->enc_engine->avg_dist)),.35,4.)+.5;
 			cost += (uint32_t) (bit_cost*correction+.5);
 		}
 #endif

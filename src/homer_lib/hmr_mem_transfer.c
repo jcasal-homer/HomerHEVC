@@ -154,10 +154,10 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 
 	for(component=Y_COMP;component<=V_COMP;component++)
 	{
-		src = WND_POSITION_2D(byte *, et->ed->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
+		src = WND_POSITION_2D(byte *, et->enc_engine->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
 		dst = WND_POSITION_2D(byte *, *dst_wnd, component, 0, 0, 0, et->ctu_width);
 
-		src_stride =  WND_STRIDE_2D(et->ed->current_pict.img2encode->img, component);
+		src_stride =  WND_STRIDE_2D(et->enc_engine->current_pict.img2encode->img, component);
 		dst_stride =  WND_STRIDE_2D(*dst_wnd, component);
 
 		width = ((i+1)*et->ctu_width[component]<et->pict_width[component])?et->ctu_width[component]:(et->pict_width[component]-(i*et->ctu_width[component]));
@@ -171,7 +171,7 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
 	wnd_t *decoded_src_wnd = et->decoded_mbs_wnd[0];
-	wnd_t *decoded_dst_wnd = &et->ed->curr_reference_frame->img;
+	wnd_t *decoded_dst_wnd = &et->enc_engine->curr_reference_frame->img;
 	int component = Y_COMP;
 	int src_stride;
 	int dst_stride;
@@ -208,7 +208,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 {
 	int l;
-	wnd_t *decoded_src_wnd = &et->ed->curr_reference_frame->img;
+	wnd_t *decoded_src_wnd = &et->enc_engine->curr_reference_frame->img;
 	wnd_t *decoded_dst_wnd = et->decoded_mbs_wnd[0];
 	int component = Y_COMP;
 	int src_stride = et->pict_width[component];

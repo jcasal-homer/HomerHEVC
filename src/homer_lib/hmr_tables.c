@@ -59,7 +59,7 @@ extern uint g_sigLastScanCG32x32[];
 
 
 //scanning buffers: zigzag, horizontal, vertical y diagonal - zigzag is not used anymore
-void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth)
+void init_scan_pyramid(hvenc_enc_t* enc_engine, uint* pBuffZ, uint* pBuffH, uint* pBuffV, uint* pBuffD, int iWidth, int iHeight, int iDepth)
 {
 	const uint  uiNumScanPos  = (uint32_t) iWidth * iWidth;
 	uint        uiNextScanPos = 0;
@@ -99,7 +99,7 @@ void init_scan_pyramid(hvenc_enc_t* ed, uint* pBuffZ, uint* pBuffH, uint* pBuffV
 
 		for( uiBlk = 0; uiBlk < uiNumBlks; uiBlk++ )
 		{
-			uint initBlkPos = ed->scan_pyramid[ DIAG_SCAN ][ log2Blk ][ uiBlk ];
+			uint initBlkPos = enc_engine->scan_pyramid[ DIAG_SCAN ][ log2Blk ][ uiBlk ];
 			uint offsetY, offsetX, offsetD, offsetScan;
 			uint uiScanLine;
 			uiNextScanPos   = 0;
@@ -218,7 +218,7 @@ short* get_default_qtable(int size_mode, int list_index)
   return src;
 }
 
-void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, 
+void init_quant_pyramids(hvenc_enc_t* enc_engine, int* quant_pyramid, int* dequant_pyramid, double* scaling_error_pyramid, 
 						 short* quant_def_table, int width, int height, int ratio, uint sizuNum, uint dc, int inv_depth, int qp)
 {
 	uint quant_scale[6] =		{26214,23302,20560,18396,16384,14564};    
@@ -228,7 +228,7 @@ void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyram
 	int nsqtw = (width < height) ? 4: 1; //width ratio for NSQT
 	int quant_scales = quant_scale[qp]<<4;
 	int iquant_scales = inv_quant_scale[qp];
-	int iTransformShift = MAX_TR_DYNAMIC_RANGE - ed->bit_depth - inv_depth;  // Represents scaling through forward transform
+	int iTransformShift = MAX_TR_DYNAMIC_RANGE - enc_engine->bit_depth - inv_depth;  // Represents scaling through forward transform
 	double dErrScale = ((double)(1<<SCALE_BITS))*pow(2.0,-2.0*iTransformShift); 
 
 
@@ -239,7 +239,7 @@ void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyram
 			quant_pyramid[j*width + i] = quant_scales / quant_def_table[sizuNum * (j * nsqth / ratio) + i * nsqtw /ratio];
 			dequant_pyramid[j*width + i] = iquant_scales * quant_def_table[sizuNum * (j / ratio) + i / ratio];
 
-			scaling_error_pyramid[j*width + i] = dErrScale / quant_pyramid[j*width + i] / quant_pyramid[j*width + i] / (1<<(2*(ed->bit_depth-8)));
+			scaling_error_pyramid[j*width + i] = dErrScale / quant_pyramid[j*width + i] / quant_pyramid[j*width + i] / (1<<(2*(enc_engine->bit_depth-8)));
 		}
 	}
 	if(ratio > 1)
@@ -251,16 +251,16 @@ void init_quant_pyramids(hvenc_enc_t* ed, int* quant_pyramid, int* dequant_pyram
 
 
 //setFlatScalingListen HM
-void init_flat_quant_pyramids( hvenc_engine_t* ed, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp)
+void init_flat_quant_pyramids( hvenc_engine_t* enc_engine, uint* quant_pyramid, uint* dequant_pyramid, double* scaling_error_pyramid, uint size, int inv_depth, int qp)
 {
 	uint quant_scale[6] =		{26214,23302,20560,18396,16384,14564};    
 	uint inv_quant_scale[6] =	{40,45,51,57,64,72};
 	uint i;
 	uint quant = quant_scale[qp];
 	uint inv_quant = inv_quant_scale[qp]<<4;
-	int iTransformShift = MAX_TR_DYNAMIC_RANGE - ed->bit_depth - inv_depth;  // Represents scaling through forward transform
+	int iTransformShift = MAX_TR_DYNAMIC_RANGE - enc_engine->bit_depth - inv_depth;  // Represents scaling through forward transform
 	double dErrScale = ((double)(1<<SCALE_BITS))*pow(2.0,-2.0*iTransformShift); 
-	dErrScale = dErrScale / quant / quant / (1<<(2*(ed->bit_depth-8))); //(1<<DISTORTION_PRECISION_ADJUSTMENT(2*(bitDepth-8)));
+	dErrScale = dErrScale / quant / quant / (1<<(2*(enc_engine->bit_depth-8))); //(1<<DISTORTION_PRECISION_ADJUSTMENT(2*(bitDepth-8)));
 
 	for(i=0;i<size;i++)
 	{ 
@@ -309,26 +309,26 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
-void hmr_rd_init(hvenc_engine_t* ed, slice_t *currslice)
+void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;
 	double	qp_factor = 0.4624;
-	double	qp_temp = (double) ed->current_pict.slice.qp /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
-	double	lambda_scale = 1.0 - clip(0.05*(double)(/*ed->mb_interlaced*/0 ? (ed->gop_size-1)/2 : (ed->gop_size-1)), 0.0, 0.5);
+	double	qp_temp = (double) enc_engine->current_pict.slice.qp /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
+	double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 	double	lambda;
-    int depth, poc = currslice->poc%ed->gop_size;
+    int depth, poc = currslice->poc%enc_engine->gop_size;
 
 	if (poc == 0)
 		depth = 0;
 	else
 	{
 		int i, j;
-		int step = ed->gop_size;
+		int step = enc_engine->gop_size;
 		depth = 0;
 		for(i=step>>1; i>=1; i>>=1)
 		{
-			for (j=i; j<ed->gop_size; j+=step )
+			for (j=i; j<enc_engine->gop_size; j+=step )
 			{
 				if (j == poc)
 				{
@@ -353,10 +353,10 @@ void hmr_rd_init(hvenc_engine_t* ed, slice_t *currslice)
         lambda *= clip((qp_temp / 6.0), 2.00, 4.00); // (j == B_SLICE && p_cur_frm->layer != 0 )
     }
 
-	ed->rd.lambda = lambda;
-	ed->rd.sqrt_lambda = sqrt(lambda);
-	ed->rd.lambda_SAD = (uint32_t)floor(65536.0 * ed->rd.sqrt_lambda);
-	ed->rd.lambda_SSE = (uint32_t)floor(65536.0 * ed->rd.sqrt_lambda);
+	enc_engine->rd.lambda = lambda;
+	enc_engine->rd.sqrt_lambda = sqrt(lambda);
+	enc_engine->rd.lambda_SAD = (uint32_t)floor(65536.0 * enc_engine->rd.sqrt_lambda);
+	enc_engine->rd.lambda_SSE = (uint32_t)floor(65536.0 * enc_engine->rd.sqrt_lambda);
 }
 
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode)//up_left_luma_dir_mode solo vale para la chroma

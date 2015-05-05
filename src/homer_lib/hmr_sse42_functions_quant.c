@@ -34,12 +34,12 @@
 void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem)
 {
 	int16_t *psrc = src, *pdst = dst;
-	picture_t *currpict = &et->ed->current_pict;	//esto y
+	picture_t *currpict = &et->enc_engine->current_pict;	//esto y
 	slice_t *currslice = &currpict->slice;		//esto deberia pasarse como parametro
-	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//ed->max_cu_size_shift
-	uint32_t *scan = et->ed->hvenc->scan_pyramid[scan_mode][inv_depth-1];
+	int inv_depth = (et->max_cu_size_shift - (depth + (comp!=Y_COMP)));//enc_engine->max_cu_size_shift
+	uint32_t *scan = et->enc_engine->hvenc->scan_pyramid[scan_mode][inv_depth-1];
 	int scan_type = (is_intra?0:3) + comp;
-	int32_t *quant_coeff = et->ed->hvenc->quant_pyramid[inv_depth-2][scan_type][rem];
+	int32_t *quant_coeff = et->enc_engine->hvenc->quant_pyramid[inv_depth-2][scan_type][rem];
 	uint bit_depth = et->bit_depth;
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int qbits = QUANT_SHIFT + per + transform_shift;                // Right shift of non-RDOQ quantizer;  level = (coeff*uiQ + offset)>>q_bits
@@ -134,9 +134,9 @@ void sse_aligned_quant(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_m
 
 void sse_aligned_inv_quant(henc_thread_t* et, short *src, short *dst, int depth, int comp, int is_intra, int cu_size, int per, int rem)
 {
-	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));//ed->max_cu_size_shift
+	int inv_depth = (et->max_cu_size_shift - (depth+(comp!=Y_COMP)));//enc_engine->max_cu_size_shift
 	int scan_type = is_intra?0:3 + comp;
-	int32_t *dequant_coeff = et->ed->hvenc->dequant_pyramid[inv_depth-2][scan_type][rem];
+	int32_t *dequant_coeff = et->enc_engine->hvenc->dequant_pyramid[inv_depth-2][scan_type][rem];
 	uint bit_depth = et->bit_depth;
 	uint transform_shift = MAX_TR_DYNAMIC_RANGE - et->bit_depth - inv_depth;
 	int iq_shift = QUANT_IQUANT_SHIFT - QUANT_SHIFT - transform_shift + 4;
