@@ -293,7 +293,7 @@ int main (int argc, char **argv)
 	int bytes_read = 0;
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
 	int num_frames = 4000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
@@ -325,9 +325,9 @@ int main (int argc, char **argv)
 	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.num_enc_engines = 2;
+	HmrCfg.num_enc_engines = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 8;
+	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
@@ -418,20 +418,11 @@ int main (int argc, char **argv)
 			int bEndOfFile = bytes_read!=frame_size;
 			if(!bEndOfFile)//if EOF is reached don´t try to encode
 			{
-				if(frames_read==3)
-				{
-					int iiiii=0;
-				}
 				num_nalus = 8;
 				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
 //				encoder_engine_thread(pEncoder);
 				frames_read++;			
 			}
-			else
-			{
-				int iiiii=0;
-			}
-
 
 			HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
 

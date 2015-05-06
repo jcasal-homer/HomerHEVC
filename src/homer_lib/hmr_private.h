@@ -72,8 +72,8 @@
 
 #define     MAX_NUM_PARTITIONS		256							//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
 
-#define     MOTION_SEARCH_RANGE_X		64						//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
-#define     MOTION_SEARCH_RANGE_Y		64						//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
+#define     MOTION_SEARCH_RANGE_X		(64)
+#define     MOTION_SEARCH_RANGE_Y		(64)
 
 #define QUANT_DEFAULT_DC	16
 
