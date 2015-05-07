@@ -87,7 +87,7 @@ void print_help()
 	printf("-widthxheight: \t\t\t\t default = 1280x720\r\n");
 	printf("-frame_rate: \t\t\t\t default = 25 fps\r\n");	
 	printf("-cu_size: \t\t\t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_period: \t\t\t\t [1-....], default = 100 \r\n");
+	printf("-intra_period: \t\t\t\t [0-....], 0=infinite, default = 100 \r\n");
 	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
 	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
@@ -101,7 +101,7 @@ void print_help()
 	printf("-sign_hiding: \t\t\t\t 0=off, 1=on, default = 1\r\n");
 	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate), default = VBR\r\n");
 	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR, default = 1250\r\n");
-	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = .5*bitrate\r\n");
+	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = 1.*bitrate\r\n");
 	printf("-vbv_init: \t\t\t\t in kbps when bitrate_mode=CBR, default = .25*vbv_size\r\n");
 	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change, default = 1\r\n");
 	printf("-performance_mode: \t\t\t 0=full computation, 1=fast , 2= ultra fast, default = ufast\r\n");
