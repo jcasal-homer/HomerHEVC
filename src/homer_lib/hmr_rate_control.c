@@ -138,6 +138,8 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	int consumed_ctus = 0;
 	int avg_qp = 0;
 	int ithreads, imods;
+	int avg_rate_period = enc_engine->intra_period==0?100:enc_engine->intra_period;
+
 	for(ithreads=0;ithreads<enc_engine->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = enc_engine->thread[ithreads];
@@ -167,15 +169,9 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 			enc_engine->rc.acc_rate += consumed_bitrate-bits_to_apply;// - 2*enc_engine->rc.average_pict_size;
 			consumed_bitrate = bits_to_apply;///=2;// 2*enc_engine->rc.average_pict_size;			
 		}
-		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/enc_engine->intra_period;
+		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/avg_rate_period;
 		enc_engine->rc.vbv_fullness -= consumed_bitrate+enc_engine->rc.acc_avg;	
 		enc_engine->rc.acc_rate -= enc_engine->rc.acc_avg;
-
-//		enc_engine->rc.acc_rate += consumed_bitrate - enc_engine->rc.average_pict_size;
-//		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/enc_engine->intra_period;
-//		consumed_bitrate = enc_engine->rc.average_pict_size;
-//		enc_engine->rc.vbv_fullness -= consumed_bitrate+enc_engine->rc.acc_avg;
-//		enc_engine->rc.acc_rate -= enc_engine->rc.acc_avg;
 	}
 	else if((enc_engine->is_scene_change) && enc_engine->intra_period!=1)// && )
 	{
@@ -189,7 +185,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 			enc_engine->rc.acc_rate += consumed_bitrate/2;// - 2*enc_engine->rc.average_pict_size;
 			consumed_bitrate /=2;// 2*enc_engine->rc.average_pict_size;			
 		}
-		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/enc_engine->intra_period;
+		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/avg_rate_period;
 		enc_engine->rc.vbv_fullness -= consumed_bitrate+enc_engine->rc.acc_avg;	
 		enc_engine->rc.acc_rate -= enc_engine->rc.acc_avg;
 	}
@@ -214,7 +210,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 		//			enc_engine->rc.acc_rate += consumed_bitrate;
 		//			consumed_bitrate = 0;//;
-					enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/enc_engine->intra_period;
+					enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/avg_rate_period;
 				}
 				else if(consumed_bitrate>1.55*enc_engine->rc.target_pict_size && enc_engine->rc.vbv_fullness>.1*enc_engine->rc.vbv_size)// && enc_engine->rc.vbv_fullness<.75*enc_engine->rc.vbv_size)// && enc_engine->rc.acc_rate>0)
 				{
@@ -223,7 +219,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 		//			enc_engine->rc.acc_rate += consumed_bitrate;
 		//			consumed_bitrate = 0;//;
-					enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/enc_engine->intra_period;
+					enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/avg_rate_period;
 				}
 			}
 		}

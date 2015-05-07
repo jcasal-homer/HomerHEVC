@@ -1039,10 +1039,6 @@ struct henc_thread_t
 	mv_candiate_list_t	amvp_candidates[2];
 	mv_candiate_list_t	merge_mvp_candidates[2];
 	mv_candiate_list_t	mv_search_candidates;//non normative candidate list for motion_search
-//	motion_vector_t		*mv_ref0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-//	motion_vector_t		*mv_ref1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-//	uint8_t				*ref_idx0[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
-//	uint8_t				*ref_idx1[NUM_PICT_COMPONENTS][NUM_CBF_BUFFS];
 
 	//rd
 	ctu_info_t			*ctu_rd;//[MAX_MB_GROUP_SIZE];
@@ -1077,24 +1073,14 @@ struct hvenc_engine_t
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
-	int				dbg_num_posts[MAX_NUM_THREADS];
-//	int				run;
+//	int				dbg_num_posts[MAX_NUM_THREADS];
 
-	//nalus
-//	nalu_t		vps_nalu;
-//	nalu_t		sps_nalu;
-//	nalu_t		pps_nalu;
 	nalu_t		slice_nalu_list[NUM_OUTPUT_NALUS];//slice
 	nalu_t		*slice_nalu;//slice
 	bitstream_t	slice_bs;//slice information previous to nalu_ebsp conversion
 	bitstream_t	*aux_bs;//list of bitstreams for coef wfpp encoding
 	int			num_sub_streams;
 	uint		*sub_streams_entry_point_list;
-
-	//header info
-//	vps_t		vps;
-//	sps_t		sps;
-//	pps_t		pps;
 
 	//Encoder Cfg	
 	//Encoding layer
@@ -1104,8 +1090,6 @@ struct hvenc_engine_t
 	int				gop_size;
 	int				gop_reinit_on_scene_change;
 	int				num_b;
-//	img_pool_t		img_list;
-//	int				pic_interlaced, mb_interlaced;
 	uint			conformance_mode;
 	uint			pad_left, pad_right;
 	uint			pad_top, pad_bottom;
@@ -1113,7 +1097,7 @@ struct hvenc_engine_t
 	int				pict_width_in_ctu, pict_height_in_ctu;
 	int				pict_total_ctu;
 	int				ctu_width[3], ctu_height[3];
-//	int				ctu_group_size;
+
 	//statistics for scene change detection
 	double			avg_dist;
 	int				is_scene_change;
@@ -1142,31 +1126,18 @@ struct hvenc_engine_t
 
 	int				partition_depth_start[MAX_PARTITION_DEPTH];//start of depths in the partition_info list
 
-//	int				profile;
 	int				bit_depth;
 	int				max_sublayers;
 	int				max_layers;
 		
-//	profile_tier_level_t	ptl;
-
 	//current picture_t Config
 	picture_t		current_pict;
 	video_frame_t	*curr_reference_frame;
-//	video_frame_t	ref_wnds[MAX_NUM_REF*2];
 
-//	void			*cont_empty_reference_wnds;//for decoding and reference frames
-//	video_frame_t	*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
-//	int				reference_list_index;
 	int				last_poc, last_idr;//, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
 	int				num_ref_frames;
-
-	//deblock filter
-//	uint8_t			*deblock_edge_filter[2];
-//	uint8_t			*deblock_filter_strength_bs[2];
-
-//	int				slice_type;
 
 	//intra predicition
 	ctu_info_t			*ctu_info;//[MAX_MB_GROUP_SIZE];
@@ -1187,16 +1158,6 @@ struct hvenc_engine_t
 	//--------------------------------------------------------------
 	const uint16_t		*ang_table;//for angular intra prediction    
 	const uint16_t		*inv_ang_table;//for angular intra prediction
-//	uint32_t			*scan_pyramid[NUM_SCAN_MODES][MAX_CU_DEPTHS];//[4][7]
-//	int32_t				*quant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-//	int32_t				*dequant_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]
-//	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
-
-	//reference pictures
-//	int					ref_pic_set_index;//moved to slice_t
-//	int					num_short_term_ref_pic_sets;
-//	ref_pic_set_t		*ref_pic_set_list;//[MAX_REF_PIC_SETS];
-//	int					num_long_term_ref_pic_sets;
 
 	//arithmetic coding
 	int					num_ee;
@@ -1209,13 +1170,7 @@ struct hvenc_engine_t
 	//rate control
 	rate_control_t		rc;
 
-//	low_level_funcs_t	funcs;
-
 	//input and output
-//	video_frame_t	input_frames[NUM_INPUT_FRAMES];
-//	void			*input_hmr_container;
-//	output_set_t	output_sets[NUM_OUTPUT_NALUS];
-//	void			*output_hmr_container;
 	hmr_sem_t		output_sem;// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	hmr_sem_ptr		output_signal;// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	hmr_sem_ptr		output_wait;// 0 for intra_frame synchronization, 1 for inter frame synchronization
