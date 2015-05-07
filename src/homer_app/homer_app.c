@@ -124,12 +124,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
