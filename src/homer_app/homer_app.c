@@ -330,7 +330,7 @@ int main (int argc, char **argv)
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 11;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.sample_adaptive_offset = 1;
+	HmrCfg.sample_adaptive_offset = 0;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 1250;//in kbps

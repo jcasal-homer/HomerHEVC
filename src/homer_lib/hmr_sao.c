@@ -1289,7 +1289,7 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 	width  = (x_pos + max_cu_size > pic_width)?(pic_width - x_pos):max_cu_size;
 
 
-	if(ctu->ctu_number == 6)
+	if(ctu->ctu_number == 3)
 	{
 		int iiiii=0;
 	}
@@ -1305,8 +1305,8 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 
 			int  blkWidth   = (width  >> formatShift);
 			int  blkHeight  = (height >> formatShift);
-			int  blkYPos    = (y_pos   >> formatShift);
-			int  blkXPos    = (x_pos   >> formatShift);
+			//int  blkYPos    = (y_pos   >> formatShift);
+			//int  blkXPos    = (x_pos   >> formatShift);
 
 			int decoded_buff_stride = WND_STRIDE_2D(enc_engine->curr_reference_frame->img, component);
 			int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, enc_engine->ctu_width);
@@ -1330,7 +1330,7 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 				);
 */
 
-			offset_block(component, ctb_offset->typeIdc, ctb_offset->offset, src_buff, decoded_buff, src_buff_stride,  decoded_buff_stride, width, height,
+			offset_block(component, ctb_offset->typeIdc, ctb_offset->offset, src_buff, decoded_buff, src_buff_stride,  decoded_buff_stride, blkWidth, blkHeight,
 				l_available,  r_available, t_available, b_available, tl_available, tr_available, bl_available, br_available, enc_engine->bit_depth);
 		}
 	} //component
@@ -1421,7 +1421,7 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 		} //mode
 //		m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[ SAO_CABACSTATE_BLK_NEXT ]);
 
-		if(ctu_idx==6)
+		if(ctu_idx==3)
 		{
 			int iiiii=0;
 		}
@@ -1474,14 +1474,6 @@ void hmr_sao(hvenc_engine_t *enc_engine, slice_t *currslice)
 	memset(num_lcu_sao_off, 0, sizeof(num_lcu_sao_off));
 	memset(sao_disabled_rate, 0, sizeof(sao_disabled_rate));
 
-	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
-	{
-		ctu = &enc_engine->ctu_info[ctu_num];
-		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
-
-		get_ctu_stats(enc_engine, currslice, ctu, stat_data);	
-	}
 
 	//slice on/off 
 	decide_pic_params(slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
@@ -1491,6 +1483,15 @@ void hmr_sao(hvenc_engine_t *enc_engine, slice_t *currslice)
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
 		ctu = &enc_engine->ctu_info[ctu_num];
+		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
+
+		get_ctu_stats(enc_engine, currslice, ctu, stat_data);	
+//	}
+
+//	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
+//	{
+//		ctu = &enc_engine->ctu_info[ctu_num];
 		decide_blk_params(enc_engine, currslice, ctu, stat_data, slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu);
 	}
@@ -1501,7 +1502,7 @@ void hmr_sao(hvenc_engine_t *enc_engine, slice_t *currslice)
 	{
 		for(ctu_num=0; ctu_num< enc_engine->pict_total_ctu; ctu_num++)
 		{
-			if( recon_params->offsetParam[component].modeIdc == SAO_MODE_OFF)
+			if( recon_params[ctu_num].offsetParam[component].modeIdc == SAO_MODE_OFF)
 			{
 				num_lcus_for_sao_off[component]++;
 			}
