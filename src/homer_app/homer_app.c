@@ -317,7 +317,7 @@ int main (int argc, char **argv)
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
 	HmrCfg.intra_period = 100;//1;
-	HmrCfg.gop_size = 1;//1;//0;
+	HmrCfg.gop_size = 1;//1;
 	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
 	HmrCfg.frame_rate = FPS;

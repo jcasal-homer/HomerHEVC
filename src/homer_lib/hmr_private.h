@@ -1194,7 +1194,7 @@ struct hvenc_enc_t
 
 	int				run;
 	int				num_encoded_frames;
-	int				last_idr, last_gop_reinit;
+	int				last_idr, last_intra, last_gop_reinit;
 	double			avg_dist;
 	uint32_t		poc;
 	int				max_sublayers, max_layers;
