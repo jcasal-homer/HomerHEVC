@@ -316,7 +316,7 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 0;//1;
+	HmrCfg.intra_period = 100;//1;
 	HmrCfg.gop_size = 1;//1;//0;
 	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
