@@ -79,9 +79,9 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 //	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
 
 	//2d -> 1D buffer
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);
 
 	curr_cu_info->inter_cbf[Y_COMP] = (( *curr_sum ? 1 : 0 ) << (curr_depth - depth));// + (part_size_type == SIZE_NxN)));
 	curr_cu_info->inter_tr_idx = (curr_depth - depth);// + (part_size_type == SIZE_NxN));
@@ -181,9 +181,9 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
 
 	//2d -> 1D buffer
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);
 
 
 	curr_cu_info->inter_cbf[component] = (( *curr_sum ? 1 : 0 ) << (original_depth-depth));//+(part_size_type==SIZE_NxN)));
@@ -259,7 +259,7 @@ const int16_t chroma_filter_coeffs[8][NTAPS_CHROMA] =
 };
 
 
-//TComInterpolationFilter::filterCopy(Int bitDepth, const Pel *src, Int srcStride, Short *dst, Int dstStride, Int width, Int height, Bool isFirst, Bool isLast)
+//TComInterpolationFilter::filterCopy(Int bit_depth, const Pel *src, Int srcStride, Short *dst, Int dstStride, Int width, Int height, Bool isFirst, Bool isLast)
 void filter_copy(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	int bit_depth = 8;
@@ -1187,6 +1187,11 @@ uint32_t hmr_motion_estimation_HM(henc_thread_t* et, ctu_info_t* ctu, cu_partiti
 			int curr_y = s_acMvRefineH_HM[i][1]*2;
 			int src_stride;
 			int16_t *src;
+
+			if(s_acMvRefineH_HM[i][0]==1 && s_acMvRefineH_HM[i][1]==0)
+			{
+				int iiiiii=0;
+			}
 
 			src_stride = WND_STRIDE_2D(et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP);
 			src = WND_POSITION_2D(int16_t *, et->filtered_block_wnd[curr_y&3][curr_x&3], Y_COMP, curr_part_x, curr_part_y, 0, et->ctu_width);
@@ -2884,6 +2889,10 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 		position = curr_cu_info->list_index - et->partition_depth_start[curr_depth];
 
+		if(ctu->ctu_number==0 && curr_cu_info->abs_index == 17)
+		{
+			int iiiiii=0;
+		}
 		//rc
 		if(currslice->slice_type != I_SLICE && curr_depth<=et->enc_engine->qp_depth)
 		{
@@ -2925,6 +2934,11 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 #endif
 //				merge_cost = MAX_COST;
 //				put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+
+				if(ctu->ctu_number == 3 && curr_cu_info->abs_index == 80)
+				{
+					int iiiiiii=0;
+				}
 
 				if(!is_skipped)
 					sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N, 2*curr_cu_info->size*curr_cu_info->size, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);

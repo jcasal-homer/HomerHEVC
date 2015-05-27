@@ -290,8 +290,8 @@ void hmr_put_pic_header(hvenc_enc_t* hvenc)
 	hmr_bitstream_write_bits(bs, pps->sign_data_hiding_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cabac_init_present_flag,1);
 
-	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_module[0]->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
-	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_module[0]->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_engines[0]->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_engines[0]->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
 	
 	hmr_bitstream_write_bits_svlc(bs, pps->pic_init_qp_minus26);
 
@@ -404,7 +404,8 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 		}
 		if(sps->sample_adaptive_offset_enabled_flag)
 		{
-		
+			hmr_bitstream_write_bits(bs, 1, 1);//slice_sao_luma_flag
+			hmr_bitstream_write_bits(bs, 1, 1);//slice_sao_chroma_flag
 		}
 
 		if(!idr_pic_flag(currslice->nalu_type))//K0251

@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE				1
 //#define COMPUTE_METRICS			1
 
@@ -928,8 +928,8 @@ struct low_level_funcs_t
 	void (*quant)(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
 	void (*inv_quant)(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
 
-	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
-	void (*itransform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
+	void (*transform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
+	void (*itransform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
 };
 
 
@@ -968,8 +968,8 @@ struct henc_thread_t
 
 	//cfg
 	int				max_cu_size;
-	int				max_cu_size_shift;//log2 del tama�o del CU maximo
-	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
+	int				max_cu_size_shift;//log2 of max cu size
+	int				max_cu_size_shift_chroma;
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
@@ -1075,12 +1075,12 @@ struct hvenc_engine_t
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 //	int				dbg_num_posts[MAX_NUM_THREADS];
 
-	nalu_t		slice_nalu_list[NUM_OUTPUT_NALUS];//slice
-	nalu_t		*slice_nalu;//slice
-	bitstream_t	slice_bs;//slice information previous to nalu_ebsp conversion
-	bitstream_t	*aux_bs;//list of bitstreams for coef wfpp encoding
-	int			num_sub_streams;
-	uint		*sub_streams_entry_point_list;
+	nalu_t			slice_nalu_list[NUM_OUTPUT_NALUS];//slice
+	nalu_t			*slice_nalu;//slice
+	bitstream_t		slice_bs;//slice information previous to nalu_ebsp conversion
+	bitstream_t		*aux_bs;//list of bitstreams for coef wfpp encoding
+	int				num_sub_streams;
+	uint			*sub_streams_entry_point_list;
 
 	//Encoder Cfg	
 	//Encoding layer
@@ -1133,6 +1133,7 @@ struct hvenc_engine_t
 	//current picture_t Config
 	picture_t		current_pict;
 	video_frame_t	*curr_reference_frame;
+	wnd_t			sao_aux_wnd;
 
 	int				last_poc, last_idr;//, num_pictures;
 	int				num_ref_lists;
@@ -1167,6 +1168,7 @@ struct hvenc_engine_t
 
 	//rate distortion
 	rate_distortion_t	rd;
+	double				lambdas[NUM_PICT_COMPONENTS];
 	//rate control
 	rate_control_t		rc;
 
@@ -1187,7 +1189,7 @@ struct hvenc_engine_t
 #define MAX_NUM_ENCODER_CTX	8
 struct hvenc_enc_t
 {
-	hvenc_engine_t	*encoder_module[MAX_NUM_ENCODER_CTX];
+	hvenc_engine_t	*encoder_engines[MAX_NUM_ENCODER_CTX];
 	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
 	int				num_encoder_engines;
 	hmr_mutex		mutex_start_frame; 

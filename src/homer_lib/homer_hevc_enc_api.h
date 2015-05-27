@@ -153,6 +153,7 @@ struct HVENC_Cfg{
 	int32_t  wfpp_enable;
 	int32_t  wfpp_num_threads;
 	int32_t  sign_hiding;
+	int32_t  sample_adaptive_offset;
 	int32_t  bitrate_mode;//0=BR_FIXED_QP, 1 = BR_CBR (constant bit rate)
 	int32_t  bitrate;//in kbps
 	int32_t  vbv_size;//in kbps

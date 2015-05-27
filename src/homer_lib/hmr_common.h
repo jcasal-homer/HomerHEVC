@@ -171,6 +171,7 @@ void hmr_aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
+void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst);
 void wnd_write2file(wnd_t *wnd_t, FILE* file);
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
@@ -249,8 +250,8 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 
 
 //hmr_transform.c
-void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
-void itransform(int bitDepth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
+void transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
+void itransform(int bit_depth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
 
 //hmr_quant.c
 void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU, int width, int height );
@@ -261,6 +262,11 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 //hmr_deblocking_filter.c
 void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, int dir);
+
+
+//hmr_sao.c
+void hmr_sao(hvenc_engine_t* enc_engine, slice_t *currslice);
+
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);

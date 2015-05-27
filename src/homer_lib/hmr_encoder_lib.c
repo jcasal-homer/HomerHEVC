@@ -234,7 +234,7 @@ int get_frame_to_encode(hvenc_enc_t* venc, video_frame_t **picture)
 	return (*picture)!=NULL;
 }
 
-void put_avaliable_frame(hvenc_enc_t * venc, video_frame_t *picture)
+void put_available_frame(hvenc_enc_t * venc, video_frame_t *picture)
 {
 	sync_cont_put_empty(venc->input_hmr_container, picture);
 }
@@ -249,7 +249,7 @@ void HOMER_enc_close(void* h)
 	int i,j;
 	int ithreads;
 	int size_index;
-	int imods;
+	int engine;
 	if(hvenc->run==TRUE)
 	{
 		hvenc->run = FALSE;
@@ -266,9 +266,9 @@ void HOMER_enc_close(void* h)
 	HMR_FREE(hvenc->ref_pic_set_list)
 
 	//for all encoding_modules
-	for(imods = 0;imods<hvenc->num_encoder_engines;imods++)
+	for(engine = 0;engine<hvenc->num_encoder_engines;engine++)
 	{
-		hvenc_engine_t* phvenc_engine = hvenc->encoder_module[imods];
+		hvenc_engine_t* phvenc_engine = hvenc->encoder_engines[engine];
 		for(ithreads=0;ithreads<phvenc_engine->wfpp_num_threads;ithreads++)
 		{
 			henc_thread_t* henc_th = phvenc_engine->thread[ithreads];
@@ -398,6 +398,8 @@ void HOMER_enc_close(void* h)
 		if(phvenc_engine->output_signal)
 			SEM_DESTROY(phvenc_engine->output_signal);
 
+		wnd_delete(&phvenc_engine->sao_aux_wnd);
+
 	//	HMR_FREE(phvenc_engine->ang_table)
 	//	HMR_FREE(phvenc_engine->inv_ang_table)
 
@@ -488,7 +490,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
 				cfg->reinit_gop_on_scene_change = 0;
 				cfg->chroma_qp_offset = 0;
-				//cfg->wfpp_num_threads = 1;
+				cfg->wfpp_num_threads = 1;
 				cfg->intra_period = 20;
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 				cfg->num_enc_engines = 1;
@@ -573,7 +575,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine = (hvenc_engine_t*)calloc(1, sizeof(hvenc_engine_t));
 				phvenc_engine->hvenc = hvenc;
 				phvenc_engine->index = n_enc_engines;
-				hvenc->encoder_module[n_enc_engines] = phvenc_engine;
+				hvenc->encoder_engines[n_enc_engines] = phvenc_engine;
 
 				phvenc_engine->frame_rate = cfg->frame_rate;
 
@@ -799,8 +801,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				phvenc_engine->bit_depth = hvenc->bit_depth;
 
-				phvenc_engine->pict_width_in_ctu = (phvenc_engine->pict_width[0]>>phvenc_engine->max_cu_size_shift) + ((phvenc_engine->pict_width[0]%phvenc_engine->max_cu_size)!=0);
-				phvenc_engine->pict_height_in_ctu = (phvenc_engine->pict_height[0]>>phvenc_engine->max_cu_size_shift) + ((phvenc_engine->pict_height[0]%phvenc_engine->max_cu_size)!=0);
+				phvenc_engine->pict_width_in_ctu = (phvenc_engine->pict_width[Y_COMP]>>phvenc_engine->max_cu_size_shift) + ((phvenc_engine->pict_width[Y_COMP]%phvenc_engine->max_cu_size)!=0);
+				phvenc_engine->pict_height_in_ctu = (phvenc_engine->pict_height[Y_COMP]>>phvenc_engine->max_cu_size_shift) + ((phvenc_engine->pict_height[Y_COMP]%phvenc_engine->max_cu_size)!=0);
 
 				phvenc_engine->pict_total_ctu = phvenc_engine->pict_width_in_ctu*phvenc_engine->pict_height_in_ctu;
 
@@ -1074,12 +1076,17 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				hmr_rc_init(phvenc_engine);
 			}// end for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
 
+			hvenc->pict_width[0] = phvenc_engine->pict_width[0];
+			hvenc->pict_height[0] = phvenc_engine->pict_height[0];
+			hvenc->pict_width[1] = hvenc->pict_width[2] = phvenc_engine->pict_width[1];
+			hvenc->pict_height[1] = hvenc->pict_height[2] = phvenc_engine->pict_height[1];
+
 
 			//copy sincronization between enc_mods
 			for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
 			{
-				hvenc_engine_t*  phvenc_signal_mod = hvenc->encoder_module[(n_enc_engines+hvenc->num_encoder_engines-1)%hvenc->num_encoder_engines];
-				hvenc_engine_t*  phvenc_wait_mod = hvenc->encoder_module[n_enc_engines];
+				hvenc_engine_t*  phvenc_signal_mod = hvenc->encoder_engines[(n_enc_engines+hvenc->num_encoder_engines-1)%hvenc->num_encoder_engines];
+				hvenc_engine_t*  phvenc_wait_mod = hvenc->encoder_engines[n_enc_engines];
 
 				SEM_COPY(phvenc_wait_mod->output_wait, phvenc_signal_mod->output_sem);
 				for(i=0;i<phvenc_wait_mod->wfpp_num_threads;i++)
@@ -1090,13 +1097,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					else
 						phvenc_wait_mod->thread[i]->num_wait_sem = 2;
 				}
+				wnd_realloc(&hvenc->encoder_engines[n_enc_engines]->sao_aux_wnd, hvenc->pict_width[0], hvenc->pict_height[0], hvenc->ctu_width[Y_COMP]+16, hvenc->ctu_height[Y_COMP]+16, sizeof(int16_t));
 			}
-
-						
-			hvenc->pict_width[0] = phvenc_engine->pict_width[0];
-			hvenc->pict_height[0] = phvenc_engine->pict_height[0];
-			hvenc->pict_width[1] = hvenc->pict_width[2] = phvenc_engine->pict_width[1];
-			hvenc->pict_height[1] = hvenc->pict_height[2] = phvenc_engine->pict_height[1];
 
 			sync_cont_reset(hvenc->input_hmr_container);
 			for(i=0;i<NUM_INPUT_FRAMES;i++)
@@ -1182,7 +1184,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->sps.scaling_list_data_present_flag = 0;
 
 			hvenc->sps.amp_enabled_flag = 0;
-			hvenc->sps.sample_adaptive_offset_enabled_flag = 0;//cfg->UseSAO;
+			hvenc->sps.sample_adaptive_offset_enabled_flag = cfg->sample_adaptive_offset;
 			hvenc->sps.temporal_id_nesting_flag = (hvenc->max_sublayers == 1);
 			hvenc->num_long_term_ref_pic_sets = 0;
 			hvenc->sps.temporal_mvp_enable_flag = 0;
@@ -1242,7 +1244,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			//----------------- end pps ------------------
 			hvenc->run = 1;
 			for(i=0;i<hvenc->num_encoder_engines;i++)
-				CREATE_THREAD(hvenc->encoder_mod_thread[i], encoder_engine_thread, hvenc->encoder_module[i]);
+				CREATE_THREAD(hvenc->encoder_mod_thread[i], encoder_engine_thread, hvenc->encoder_engines[i]);
 
 		}	
 		break;
@@ -1676,6 +1678,8 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 		}
 	}
 
+
+
 	if(ctu_num_horizontal>=0 && (ctu_num%et->pict_width_in_ctu)>=2)//(ctu_num_horizontal%et->pict_width_in_ctu)>=search_window_in_ctus_x) //
 	{
 		filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
@@ -2003,7 +2007,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 {
 //	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
-//	hvenc_engine_t* enc_engine = (hvenc_engine_t*)hvenc->encoder_module[0];
+//	hvenc_engine_t* enc_engine = (hvenc_engine_t*)hvenc->encoder_engines[0];
 	hvenc_engine_t* enc_engine = (hvenc_engine_t*)h;
 	picture_t *currpict = &enc_engine->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -2015,7 +2019,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		int		output_nalu_cnt = 0;
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
-		int		imods;
+		int		engine;
 		MUTEX_LOCK(enc_engine->hvenc->mutex_start_frame); 
 
 		//get next image
@@ -2126,9 +2130,9 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		enc_engine->is_scene_change = 0;
 
 		//sync to other modules
-		for(imods = 0;imods<enc_engine->hvenc->num_encoder_engines;imods++)
+		for(engine = 0;engine<enc_engine->hvenc->num_encoder_engines;engine++)
 		{
-			hvenc_engine_t* phvenc_engine = enc_engine->hvenc->encoder_module[imods];
+			hvenc_engine_t* phvenc_engine = enc_engine->hvenc->encoder_engines[engine];
 			if(phvenc_engine->current_pict.slice.poc>enc_engine->current_pict.slice.poc)
 			{
 				phvenc_engine->rc.vbv_fullness = enc_engine->rc.vbv_fullness;
@@ -2203,11 +2207,12 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 //		enc_engine->reference_picture_buffer[enc_engine->reference_list_index] = enc_engine->curr_reference_frame;
 //		enc_engine->reference_list_index = (enc_engine->reference_list_index+1)&MAX_NUM_REF_MASK;
 //		enc_engine->last_poc++;
-
+	
+		hmr_sao(enc_engine, currslice);
 
 		ouput_sets->pts = enc_engine->current_pict.img2encode->temp_info.pts;
 		ouput_sets->image_type = enc_engine->current_pict.img2encode->img_type;
-		put_avaliable_frame(enc_engine->hvenc, enc_engine->current_pict.img2encode);
+		put_available_frame(enc_engine->hvenc, enc_engine->current_pict.img2encode);
 
 		ouput_sets->num_nalus = output_nalu_cnt;
 		ouput_sets->frame = enc_engine->curr_reference_frame;

@@ -49,6 +49,7 @@
 #include	"hmr_os_primitives.h"
 #include 	"homer_hevc_enc_api.h"
 #include 	"hmr_common.h"
+#include	"hmr_private.h"
 #include	"hmr_tables.h"
 #include	"hmr_profiler.h"
 #include	"hmr_sse42_functions.h"
@@ -260,7 +261,7 @@ void init_flat_quant_pyramids( hvenc_engine_t* enc_engine, uint* quant_pyramid, 
 	uint inv_quant = inv_quant_scale[qp]<<4;
 	int iTransformShift = MAX_TR_DYNAMIC_RANGE - enc_engine->bit_depth - inv_depth;  // Represents scaling through forward transform
 	double dErrScale = ((double)(1<<SCALE_BITS))*pow(2.0,-2.0*iTransformShift); 
-	dErrScale = dErrScale / quant / quant / (1<<(2*(enc_engine->bit_depth-8))); //(1<<DISTORTION_PRECISION_ADJUSTMENT(2*(bitDepth-8)));
+	dErrScale = dErrScale / quant / quant / (1<<(2*(enc_engine->bit_depth-8))); //(1<<DISTORTION_PRECISION_ADJUSTMENT(2*(bit_depth-8)));
 
 	for(i=0;i<size;i++)
 	{ 
@@ -309,6 +310,8 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 }
 
 
+extern const uint8_t chroma_scale_conversion_table[];
+
 void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 #define SHIFT_QP	12
@@ -318,6 +321,7 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 	double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 	double	lambda;
     int depth, poc = currslice->poc%enc_engine->gop_size;
+	double  weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
 
 	if (poc == 0)
 		depth = 0;
@@ -341,7 +345,8 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 		}
 	}
 
-//	if(currslice->slice_type==I_SLICE)
+	qp_factor=0.4624;//this comes from the cfg file of HM
+	if(currslice->slice_type == I_SLICE)
 	{
 		qp_factor=0.57*lambda_scale;
 	}
@@ -353,10 +358,20 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
         lambda *= clip((qp_temp / 6.0), 2.00, 4.00); // (j == B_SLICE && p_cur_frm->layer != 0 )
     }
 
+	if(currslice->slice_type != I_SLICE)
+	{
+		lambda *= .95;		
+	}
+
 	enc_engine->rd.lambda = lambda;
 	enc_engine->rd.sqrt_lambda = sqrt(lambda);
 	enc_engine->rd.lambda_SAD = (uint32_t)floor(65536.0 * enc_engine->rd.sqrt_lambda);
 	enc_engine->rd.lambda_SSE = (uint32_t)floor(65536.0 * enc_engine->rd.sqrt_lambda);
+
+	enc_engine->rd.lambda = lambda;
+
+	enc_engine->lambdas[0] = lambda;
+	enc_engine->lambdas[1] = enc_engine->lambdas[2] = lambda/weight;
 }
 
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode)//up_left_luma_dir_mode solo vale para la chroma

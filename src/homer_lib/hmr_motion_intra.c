@@ -1067,11 +1067,11 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 
 	//2D -> 1D buffer
 	PROFILER_RESET(intra_luma_tr)
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 	PROFILER_ACCUMULATE(intra_luma_tr)
 
 	PROFILER_RESET(intra_luma_q)
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size, per, rem);
 	curr_partition_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(intra_luma_q)
 

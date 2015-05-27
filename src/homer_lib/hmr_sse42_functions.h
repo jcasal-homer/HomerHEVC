@@ -81,8 +81,8 @@ void sse_aligned_reconst_32x32(int16_t* pred, int pred_stride, int16_t * residua
 void sse_aligned_reconst_64x64(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride);
 
 //------------------------------------------------------transform -------------------------------------------------------------------------
-void sse_transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
-void sse_itransform(int bitDepth, short *block,short *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, short *aux);
+void sse_transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
+void sse_itransform(int bit_depth, short *block,short *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, short *aux);
 
 void sse_aligned_dst_4x4(int16_t *src, int16_t *dst, int stride);
 void sse_aligned_inv_dst_4x4(int16_t *src, int16_t *dst, int stride);

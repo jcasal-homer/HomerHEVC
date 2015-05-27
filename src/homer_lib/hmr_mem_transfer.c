@@ -98,6 +98,31 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 	wnd_alloc(wnd, size_x, size_y, offset_x, offset_y, pix_size);
 }
 
+void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
+	{
+		int src_wnd_size = wnd_src->window_size_x[comp]*wnd_src->window_size_y[comp];
+//		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
+		int16_t * buff_src = (int16_t *)wnd_src->palloc[comp];//WND_POSITION_2D(int16_t *, *wnd_src, comp, 0, 0, gcnt, et->ctu_width);
+		int16_t * buff_dst = (int16_t *)wnd_dst->palloc[comp];//WND_POSITION_2D(int16_t *, *wnd_dst, comp, 0, 0, gcnt, et->ctu_width);
+
+		memcpy(buff_dst, buff_src, src_wnd_size*sizeof(buff_src[0]));
+/*		for(j=0;j<size;j++)
+		{
+			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
+			buff_src += src_buff_stride;
+			buff_dst += dst_buff_stride;
+		}
+*/
+	}
+}
+
+
 //#ifdef WRITE_REF_FRAMES
 void wnd_write2file(wnd_t *wnd, FILE *file)
 {
