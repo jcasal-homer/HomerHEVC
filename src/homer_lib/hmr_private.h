@@ -1162,9 +1162,9 @@ struct hvenc_engine_t
 
 	//arithmetic coding
 	int					num_ee;
-	enc_env_t			**ee_list;//encoding enviroment list hmr_container 
+	enc_env_t			**ee_list;//encoding enviroment list 
 	int					num_ec;
-	enc_env_t			*ec_list;//encoding enviroment list
+	enc_env_t			*ec_list;//enconding context list
 
 	//rate distortion
 	rate_distortion_t	rd;
@@ -1196,7 +1196,7 @@ struct hvenc_enc_t
 
 	int				run;
 	int				num_encoded_frames;
-	int				last_idr, last_gop_reinit;
+	int				last_idr, last_intra, last_gop_reinit;
 	double			avg_dist;
 	uint32_t		poc;
 	int				max_sublayers, max_layers;

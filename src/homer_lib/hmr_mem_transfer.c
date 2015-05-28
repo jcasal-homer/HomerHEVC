@@ -100,11 +100,9 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 
 void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 {
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
+	int component;
 
-	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
+/*	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
 	{
 		int src_wnd_size = wnd_src->window_size_x[comp]*wnd_src->window_size_y[comp];
 //		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
@@ -112,13 +110,24 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 		int16_t * buff_dst = (int16_t *)wnd_dst->palloc[comp];//WND_POSITION_2D(int16_t *, *wnd_dst, comp, 0, 0, gcnt, et->ctu_width);
 
 		memcpy(buff_dst, buff_src, src_wnd_size*sizeof(buff_src[0]));
-/*		for(j=0;j<size;j++)
-		{
-			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
-			buff_src += src_buff_stride;
-			buff_dst += dst_buff_stride;
-		}
+	}
 */
+	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
+	{
+		int16_t * buff_src = WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int16_t * buff_dst = WND_DATA_PTR(int16_t *, *wnd_dst, component);
+		int src_stride =  WND_STRIDE_2D(*wnd_src, component);
+		int dst_stride =  WND_STRIDE_2D(*wnd_dst, component);
+		int height = WND_HEIGHT_2D(*wnd_src, component);
+		int width = WND_WIDTH_2D(*wnd_src, component);
+		int j;
+
+		for(j=0;j<height;j++)
+		{
+			memcpy(buff_dst, buff_src, width*sizeof(buff_src[0]));
+			buff_dst += dst_stride;
+			buff_src += src_stride;
+		}
 	}
 }
 
