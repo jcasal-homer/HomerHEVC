@@ -345,7 +345,7 @@ ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition
 void write_unary_max_simbol(enc_env_t* ee, context_model_t *cm, uint symbol, int offset, uint max_symbol )
 {
 
-	int bCodeLast = ( max_symbol > symbol );
+	int code_last = ( max_symbol > symbol );
 	if (max_symbol == 0)
 	{
 		return;
@@ -365,7 +365,7 @@ void write_unary_max_simbol(enc_env_t* ee, context_model_t *cm, uint symbol, int
 		ee->ee_encode_bin(ee, cm, 1);
 		//    m_pcBinIf->encodeBin( 1, pcSCModel[ iOffset ] );
 	}
-	if( bCodeLast )
+	if( code_last )
 	{
 		ee->ee_encode_bin(ee, cm, 0);
 		//    m_pcBinIf->encodeBin( 0, pcSCModel[ iOffset ] );
@@ -1770,6 +1770,230 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 	encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 }
 
+//------------------------ sao arithmetic encoding ---------------------------------
+extern sao_blk_param_t coded_params[12];
+extern int slice_enabled[NUM_PICT_COMPONENTS];
+extern uint g_saoMaxOffsetQVal[NUM_PICT_COMPONENTS];
+extern uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
+
+//Void TEncSbac::codeSAOOffsetParam(Int compIdx, SAOOffset& ctbParam, Bool sliceEnabled)
+void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, int sliceEnabled)
+{
+  uint uiSymbol;
+  if(!sliceEnabled)
+  {
+//    assert(ctbParam.modeIdc == SAO_MODE_OFF);
+    return;
+  }
+
+  //type
+  if(compIdx == Y_COMP || compIdx == U_COMP)
+  {
+	  context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->sao_type_model, 0, 0, 0); 
+    //sao_type_idx_luma or sao_type_idx_chroma
+    if(ctbParam->modeIdc == SAO_MODE_OFF)
+    {
+      uiSymbol =0;
+    }
+    else if(ctbParam->typeIdc == SAO_TYPE_BO) //BO
+    {
+      uiSymbol = 1;
+    }
+    else
+    {
+//      assert(ctbParam->typeIdc < SAO_TYPE_START_BO); //EO
+      uiSymbol = 2;
+    }
+//    codeSaoTypeIdx(uiSymbol); 
+	if (uiSymbol == 0)
+	{
+//		m_pcBinIf->encodeBin( 0, m_cSaoTypeIdxSCModel.get( 0, 0, 0 ) );
+		ee->ee_encode_bin(ee, cm, 0);
+	}
+	else
+	{
+//		m_pcBinIf->encodeBin( 1, m_cSaoTypeIdxSCModel.get( 0, 0, 0 ) );
+		//m_pcBinIf->encodeBinEP( uiSymbol == 1 ? 0 : 1 );
+		ee->ee_encode_bin(ee, cm, 1);
+		ee->ee_encode_bin_EP(ee, uiSymbol == 1 ? 0 : 1 );
+	}
+
+  }
+
+  if(ctbParam->modeIdc == SAO_MODE_NEW)
+  {
+    int numClasses = (ctbParam->typeIdc == SAO_TYPE_BO)?4:NUM_SAO_EO_CLASSES; 
+    int offset[4];
+    int k=0;
+	int i;
+    for(i=0; i< numClasses; i++)
+    {
+		int classIdx;
+
+		if(ctbParam->typeIdc != SAO_TYPE_BO && i == SAO_CLASS_EO_PLAIN)
+		{
+			continue;
+		}
+		classIdx = (ctbParam->typeIdc == SAO_TYPE_BO)?(  (ctbParam->typeAuxInfo+i)% NUM_SAO_BO_CLASSES   ):i;
+		offset[k] = ctbParam->offset[classIdx];
+		k++;
+    }
+
+    for(i=0; i< 4; i++)
+    {
+		int j;
+		int code_last;
+		uint code = (offset[i]<0)?(-offset[i]):(offset[i]);
+		uint max_symbol = g_saoMaxOffsetQVal[compIdx];
+//      codeSaoMaxUvlc((offset[i]<0)?(-offset[i]):(offset[i]),  g_saoMaxOffsetQVal[compIdx] ); //sao_offset_abs
+		if (max_symbol == 0)
+		{
+			continue;
+		}
+
+		
+		code_last = ( max_symbol > code );
+
+		if ( code == 0 )
+		{
+//			m_pcBinIf->encodeBinEP( 0 );
+			ee->ee_encode_bin_EP(ee, 0);
+		}
+		else
+		{
+//			m_pcBinIf->encodeBinEP( 1 );
+			ee->ee_encode_bin_EP(ee, 1);
+			for ( j=0; j<code-1; j++ )
+			{
+//				m_pcBinIf->encodeBinEP( 1 );
+				ee->ee_encode_bin_EP(ee, 1);
+			}
+			if( code_last )
+			{
+				//m_pcBinIf->encodeBinEP( 0 );
+				ee->ee_encode_bin_EP(ee, 0);
+			}
+		}
+
+	}
+
+
+    if(ctbParam->typeIdc == SAO_TYPE_BO)
+    {
+
+      for(i=0; i< 4; i++)
+      {
+        if(offset[i] != 0)
+        {
+//          codeSAOSign((offset[i]< 0)?1:0);
+			ee->ee_encode_bin_EP(ee, (offset[i]< 0)?1:0 );
+        }
+      }
+
+//      codeSaoUflc(NUM_SAO_BO_CLASSES_LOG2, ctbParam.typeAuxInfo ); //sao_band_position
+	    ee->ee_encode_bins_EP(ee, ctbParam->typeAuxInfo, NUM_SAO_BO_CLASSES_LOG2);
+    }
+    else //EO
+    {
+      if(compIdx == Y_COMP || compIdx == U_COMP)
+      {
+//        assert(ctbParam.typeIdc - SAO_TYPE_START_EO >=0);
+//        codeSaoUflc(NUM_SAO_EO_TYPES_LOG2, ctbParam.typeIdc - SAO_TYPE_START_EO ); //sao_eo_class_luma or sao_eo_class_chroma
+		  ee->ee_encode_bins_EP(ee, ctbParam->typeIdc - SAO_TYPE_START_EO, NUM_SAO_EO_TYPES_LOG2);
+      }
+    }
+
+  }
+}
+
+
+//Void TEncSbac::codeSaoMerge       ( UInt uiCode )
+void code_sao_merge(enc_env_t *ee, uint code)
+{
+	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->sao_merge_model, 0, 0, 0); 
+	if (code == 0)
+	{
+		//m_pcBinIf->encodeBin(0,  m_cSaoMergeSCModel.get( 0, 0, 0 ));
+		ee->ee_encode_bin(ee, cm, code);
+	}
+	else
+	{
+		//m_pcBinIf->encodeBin(1,  m_cSaoMergeSCModel.get( 0, 0, 0 ));
+		ee->ee_encode_bin(ee, cm, code);
+	}
+}
+
+
+//Void TEncSbac::codeSAOBlkParam(SAOBlkParam& saoBlkParam
+void code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
+{
+	int isLeftMerge = FALSE;
+	int isAboveMerge= FALSE;
+	int component;
+
+	if(leftMergeAvail)
+	{
+		isLeftMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_LEFT));
+		code_sao_merge(ee, isLeftMerge?1:0);
+//		codeSaoMerge( isLeftMerge?1:0  ); //sao_merge_left_flag
+	}
+
+	if( aboveMergeAvail && !isLeftMerge)
+	{
+		isAboveMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_ABOVE)); 
+		code_sao_merge(ee, isLeftMerge?1:0);
+//		codeSaoMerge( isAboveMerge?1:0  ); //sao_merge_left_flag
+	}
+
+	if(onlyEstMergeInfo)
+	{
+		return; //only for RDO
+	}
+
+	if(!isLeftMerge && !isAboveMerge) //not merge mode
+	{
+		for(component=0; component < NUM_PICT_COMPONENTS; component++)
+		{
+			code_sao_offset_param(ee, component, &saoBlkParam->offsetParam[component], sliceEnabled[component]);
+//			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
+		}
+	}
+}
+
+
+void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu)
+{
+	int ctu_idx = ctu->ctu_number;
+	int pic_width_in_ctu = et->pict_width_in_ctu;
+
+	if (currslice->sao_luma_flag || currslice->sao_chroma_flag)
+	{
+		//
+		sao_blk_param_t* sao_blk_param = &coded_params[ctu_idx];
+
+		int left_merge_avail = FALSE;
+		int above_merge_avail= FALSE;
+		//merge left condition
+		int rx = (ctu_idx%pic_width_in_ctu);
+		int ry = (ctu_idx/pic_width_in_ctu);
+
+		if(rx > 0)
+		{
+			left_merge_avail = TRUE;//rpcPic->getSAOMergeAvailability(ctu_idx, ctu_idx-1);
+		}
+
+		//merge up condition
+		
+		if(ry > 0)
+		{
+			above_merge_avail = TRUE;//rpcPic->getSAOMergeAvailability(ctu_idx, ctu_idx-pic_width_in_ctu);
+		}	
+
+//		code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
+		code_sao_blk_param(ee, sao_blk_param, slice_enabled, left_merge_avail, above_merge_avail, FALSE);
+	}
+}
+//------------------------ end sao arithmetic encoding ---------------------------------
 
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu, int gcnt)
 {
@@ -1867,6 +2091,7 @@ void ee_end_slice(enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu)
 	ee->ee_finish(ee);
 	hmr_bitstream_rbsp_trailing_bits(ee->bs);
 }
+
 
 
 //--------------------------------- rd estimation ------------------------------------------------

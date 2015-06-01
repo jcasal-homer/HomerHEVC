@@ -1497,6 +1497,8 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	currslice->num_ref_idx[REF_PIC_LIST_1] = enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
 	currslice->slice_temporal_mvp_enable_flag = enc_engine->hvenc->sps.temporal_mvp_enable_flag;
 	currslice->deblocking_filter_disabled_flag = 0;//enabled
+	currslice->sao_luma_flag = currslice->sps->sample_adaptive_offset_enabled_flag;
+	currslice->sao_chroma_flag = currslice->sps->sample_adaptive_offset_enabled_flag;
 	currslice->slice_loop_filter_across_slices_enabled_flag = 1;//disabled
 	currslice->slice_beta_offset_div2 = currslice->pps->beta_offset_div2;
 	currslice->slice_beta_offset_div2 = currslice->pps->beta_offset_div2;
@@ -2102,7 +2104,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 }
 
 
-void hmr_encoder_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
+void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 	henc_thread_t *et = enc_engine->thread[0];
 	int ctu_num;
@@ -2117,6 +2119,10 @@ void hmr_encoder_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
 		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 
+		if(ctu_num == 10)
+		{
+			int iiiii=0;
+		}
 
 		if(cu_current_x==0 && et->wfpp_enable)
 		{
@@ -2132,6 +2138,8 @@ void hmr_encoder_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 			et->ee->ee_start(et->ee->b_ctx);
 			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
 		}
+
+		ee_encode_sao(et, et->ee, currslice, ctu);
 
 		ee_encode_ctu(et, et->ee, currslice, ctu, 0);
 //		et->num_encoded_ctus++;
@@ -2293,12 +2301,22 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 #ifdef COMPUTE_AS_HM
 		if(enc_engine->intra_period>1)
-		{
 			hmr_deblock_filter(enc_engine, currslice);
-
-			hmr_encoder_ctus_hm(enc_engine, currslice);
-			reference_picture_border_padding(&enc_engine->curr_reference_frame->img);
+			
+		if(currslice->sps->sample_adaptive_offset_enabled_flag)
+		{
+			if(currslice->sps->sample_adaptive_offset_enabled_flag)
+			{
+				wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
+				reference_picture_border_padding(&enc_engine->sao_aux_wnd);
+				hmr_sao_hm(enc_engine, currslice);
+			}
 		}
+
+		hmr_encode_ctus_hm(enc_engine, currslice);
+
+		if(enc_engine->intra_period>1)
+			reference_picture_border_padding(&enc_engine->curr_reference_frame->img);
 #endif
 
 		//sync to other modules
@@ -2382,8 +2400,6 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 //		enc_engine->reference_picture_buffer[enc_engine->reference_list_index] = enc_engine->curr_reference_frame;
 //		enc_engine->reference_list_index = (enc_engine->reference_list_index+1)&MAX_NUM_REF_MASK;
 //		enc_engine->last_poc++;
-	
-//		hmr_sao(enc_engine, currslice);
 
 		ouput_sets->pts = enc_engine->current_pict.img2encode->temp_info.pts;
 		ouput_sets->image_type = enc_engine->current_pict.img2encode->img_type;

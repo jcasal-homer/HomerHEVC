@@ -220,6 +220,7 @@ typedef unsigned long	uint64;
 #define INTRA_MODE				1	
 #define NONE_MODE				2	
 
+
 // partition types
 typedef enum 
 {
@@ -379,6 +380,109 @@ static const uint8_t scan_interlaced[16][2] =
   {2,0},{2,1},{2,2},{2,3},
   {3,0},{3,1},{3,2},{3,3}
 };
+
+
+//-------------------------------------------------- sao ------------------------------------------------------
+#define MAX_SAO_TRUNCATED_BITDEPTH     10 
+
+#define FULL_NBIT 0 ///< When enabled, compute costs using full sample bitdepth.  When disabled, compute costs as if it is 8-bit source video.
+#if FULL_NBIT
+# define DISTORTION_PRECISION_ADJUSTMENT(x) 0
+#else
+# define DISTORTION_PRECISION_ADJUSTMENT(x) (x)
+#endif
+
+enum SAOModeNewTypes 
+{
+	SAO_TYPE_START_EO =0,
+	SAO_TYPE_EO_0 = SAO_TYPE_START_EO,
+	SAO_TYPE_EO_90,
+	SAO_TYPE_EO_135,
+	SAO_TYPE_EO_45,
+
+	SAO_TYPE_START_BO,
+	SAO_TYPE_BO = SAO_TYPE_START_BO,
+
+	NUM_SAO_NEW_TYPES
+};
+#define NUM_SAO_EO_TYPES_LOG2 2
+
+enum SAOEOClasses 
+{
+	SAO_CLASS_EO_FULL_VALLEY = 0,
+	SAO_CLASS_EO_HALF_VALLEY = 1,
+	SAO_CLASS_EO_PLAIN       = 2,
+	SAO_CLASS_EO_HALF_PEAK   = 3,
+	SAO_CLASS_EO_FULL_PEAK   = 4,
+	NUM_SAO_EO_CLASSES,
+};
+#define NUM_SAO_EO_TYPES_LOG2 2
+
+
+enum SAOMode //mode
+{
+  SAO_MODE_OFF = 0,
+  SAO_MODE_NEW,
+  SAO_MODE_MERGE,
+  NUM_SAO_MODES
+};
+
+enum SAOModeMergeTypes 
+{
+  SAO_MERGE_LEFT =0,
+  SAO_MERGE_ABOVE,
+  NUM_SAO_MERGE_TYPES
+};
+
+#define NUM_SAO_BO_CLASSES_LOG2  5
+enum SAOBOClasses
+{
+	//SAO_CLASS_BO_BAND0 = 0,
+	//SAO_CLASS_BO_BAND1,
+	//SAO_CLASS_BO_BAND2,
+	//...
+	//SAO_CLASS_BO_BAND31,
+
+	NUM_SAO_BO_CLASSES = (1<<NUM_SAO_BO_CLASSES_LOG2),
+};
+#define MAX_NUM_SAO_CLASSES  32  //(NUM_SAO_EO_GROUPS > NUM_SAO_BO_GROUPS)?NUM_SAO_EO_GROUPS:NUM_SAO_BO_GROUPS
+
+
+typedef struct sao_stat_data_t sao_stat_data_t;
+struct sao_stat_data_t //data structure for SAO statistics
+{
+	int64_t diff[MAX_NUM_SAO_CLASSES];
+	int64_t count[MAX_NUM_SAO_CLASSES];
+};
+
+
+typedef struct sao_offset sao_offset_t;
+struct sao_offset
+{
+  int modeIdc; //NEW, MERGE, OFF
+  int typeIdc; //NEW: EO_0, EO_90, EO_135, EO_45, BO. MERGE: left, above
+  int typeAuxInfo; //BO: starting band index
+  int offset[MAX_NUM_SAO_CLASSES];
+
+//  SAOOffset();
+//  ~SAOOffset();
+//  Void reset();
+
+//  const SAOOffset& operator= (const SAOOffset& src);
+};
+
+typedef struct sao_blk_param sao_blk_param_t;
+struct sao_blk_param
+{
+//  SAOBlkParam();
+//  ~SAOBlkParam();
+//  Void reset();
+//  const SAOBlkParam& operator= (const SAOBlkParam& src);
+//  SAOOffset& operator[](int compIdx){ return offsetParam[compIdx];}
+//private:
+  sao_offset_t offsetParam[NUM_PICT_COMPONENTS];
+};
+
 
 
 
@@ -706,6 +810,10 @@ struct ctu_info_t
 	int				top;
 	int				left;
 	
+	//sao
+	sao_stat_data_t stat_data[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];
+	sao_blk_param_t recon_params;
+	sao_blk_param_t coded_params;
 	//quant
 //	int				/*qp, */qp_chroma;/*, prev_qp, prev_dqp*/
 //    int				per;//, per_chroma;
@@ -874,6 +982,8 @@ struct slice_t
 	uint32_t slice_temporal_layer_non_reference_flag;//
 	uint32_t slice_temporal_mvp_enable_flag;
 	uint32_t deblocking_filter_disabled_flag;
+	uint32_t sao_luma_flag;
+	uint32_t sao_chroma_flag;
 	uint32_t slice_loop_filter_across_slices_enabled_flag;
 	uint32_t slice_beta_offset_div2;
 	uint32_t slice_tc_offset_div2;

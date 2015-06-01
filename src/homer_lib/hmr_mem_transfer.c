@@ -112,6 +112,18 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 		memcpy(buff_dst, buff_src, src_wnd_size*sizeof(buff_src[0]));
 	}
 */
+	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])
+	{
+		printf("wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
+		return;
+	}
+
+	memcpy(wnd_dst->data_width, wnd_src->data_width, sizeof(wnd_src->data_width));
+	memcpy(wnd_dst->data_height, wnd_src->data_height, sizeof(wnd_src->data_height));
+	memcpy(wnd_dst->data_padding_x, wnd_src->data_padding_x, sizeof(wnd_src->data_padding_x));
+	memcpy(wnd_dst->data_padding_y, wnd_src->data_padding_y, sizeof(wnd_src->data_padding_y));
+	wnd_dst->pix_size = wnd_src->pix_size;
+
 	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
 	{
 		int16_t * buff_src = WND_DATA_PTR(int16_t *, *wnd_src, component);

@@ -402,11 +402,6 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 		{
 			
 		}
-		if(sps->sample_adaptive_offset_enabled_flag)
-		{
-			hmr_bitstream_write_bits(bs, 1, 1);//slice_sao_luma_flag
-			hmr_bitstream_write_bits(bs, 1, 1);//slice_sao_chroma_flag
-		}
 
 		if(!idr_pic_flag(currslice->nalu_type))//K0251
 		{	
@@ -451,8 +446,11 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 		}
 
 
-		//if(use_sao)
-		//.....
+		if(sps->sample_adaptive_offset_enabled_flag)
+		{
+			hmr_bitstream_write_bits(bs, currslice->sao_luma_flag, 1);//slice_sao_luma_flag
+			hmr_bitstream_write_bits(bs, currslice->sao_chroma_flag, 1);//slice_sao_chroma_flag
+		}
 
 		if(!isIntra(currslice->slice_type))
 		{
@@ -537,7 +535,7 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 			}
 			//............
 */		}
-		if(pps->loop_filter_across_slices_enabled_flag && ( /*slice_sao_luma_flag || slice_sao_chroma_flag ||*/ !currslice->deblocking_filter_disabled_flag))
+		if(pps->loop_filter_across_slices_enabled_flag && ( /*sao_luma_flag || sao_chroma_flag ||*/ !currslice->deblocking_filter_disabled_flag))
 		{
 			hmr_bitstream_write_bits(bs, currslice->slice_loop_filter_across_slices_enabled_flag, 1);
 		}

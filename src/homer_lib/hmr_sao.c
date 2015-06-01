@@ -25,124 +25,34 @@
 #include "hmr_common.h"
 #include "hmr_private.h"
 
-#define MAX_SAO_TRUNCATED_BITDEPTH     10 
-
-#define FULL_NBIT 0 ///< When enabled, compute costs using full sample bitdepth.  When disabled, compute costs as if it is 8-bit source video.
-#if FULL_NBIT
-# define DISTORTION_PRECISION_ADJUSTMENT(x) 0
-#else
-# define DISTORTION_PRECISION_ADJUSTMENT(x) (x)
-#endif
-
-enum SAOModeNewTypes 
-{
-	SAO_TYPE_START_EO =0,
-	SAO_TYPE_EO_0 = SAO_TYPE_START_EO,
-	SAO_TYPE_EO_90,
-	SAO_TYPE_EO_135,
-	SAO_TYPE_EO_45,
-
-	SAO_TYPE_START_BO,
-	SAO_TYPE_BO = SAO_TYPE_START_BO,
-
-	NUM_SAO_NEW_TYPES
-};
-#define NUM_SAO_EO_TYPES_LOG2 2
-
-enum SAOEOClasses 
-{
-	SAO_CLASS_EO_FULL_VALLEY = 0,
-	SAO_CLASS_EO_HALF_VALLEY = 1,
-	SAO_CLASS_EO_PLAIN       = 2,
-	SAO_CLASS_EO_HALF_PEAK   = 3,
-	SAO_CLASS_EO_FULL_PEAK   = 4,
-	NUM_SAO_EO_CLASSES,
-};
-
-enum SAOMode //mode
-{
-  SAO_MODE_OFF = 0,
-  SAO_MODE_NEW,
-  SAO_MODE_MERGE,
-  NUM_SAO_MODES
-};
-
-enum SAOModeMergeTypes 
-{
-  SAO_MERGE_LEFT =0,
-  SAO_MERGE_ABOVE,
-  NUM_SAO_MERGE_TYPES
-};
-
-#define NUM_SAO_BO_CLASSES_LOG2  5
-enum SAOBOClasses
-{
-	//SAO_CLASS_BO_BAND0 = 0,
-	//SAO_CLASS_BO_BAND1,
-	//SAO_CLASS_BO_BAND2,
-	//...
-	//SAO_CLASS_BO_BAND31,
-
-	NUM_SAO_BO_CLASSES = (1<<NUM_SAO_BO_CLASSES_LOG2),
-};
-#define MAX_NUM_SAO_CLASSES  32  //(NUM_SAO_EO_GROUPS > NUM_SAO_BO_GROUPS)?NUM_SAO_EO_GROUPS:NUM_SAO_BO_GROUPS
 
 
-typedef struct sao_stat_data_t sao_stat_data_t;
-struct sao_stat_data_t //data structure for SAO statistics
-{
-	int64_t diff[MAX_NUM_SAO_CLASSES];
-	int64_t count[MAX_NUM_SAO_CLASSES];
-};
 
-
-typedef struct sao_offset sao_offset_t;
-struct sao_offset
-{
-  int modeIdc; //NEW, MERGE, OFF
-  int typeIdc; //NEW: EO_0, EO_90, EO_135, EO_45, BO. MERGE: left, above
-  int typeAuxInfo; //BO: starting band index
-  int offset[MAX_NUM_SAO_CLASSES];
-
-//  SAOOffset();
-//  ~SAOOffset();
-//  Void reset();
-
-//  const SAOOffset& operator= (const SAOOffset& src);
-};
-
-typedef struct sao_blk_param sao_blk_param_t;
-struct sao_blk_param
-{
-//  SAOBlkParam();
-//  ~SAOBlkParam();
-//  Void reset();
-//  const SAOBlkParam& operator= (const SAOBlkParam& src);
-//  SAOOffset& operator[](int compIdx){ return offsetParam[compIdx];}
-//private:
-  sao_offset_t offsetParam[NUM_PICT_COMPONENTS];
-};
 
 uint g_saoMaxOffsetQVal[NUM_PICT_COMPONENTS];
 uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
 
 //para alojar
-sao_stat_data_t stat_data[12][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];
-int8_t m_signLineBuf1[64+1]; 
-int8_t m_signLineBuf2[64+1]; 
+sao_stat_data_t stat_data[12][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
+sao_blk_param_t recon_params[12];//enc_engine
+sao_blk_param_t coded_params[12];//enc_engine
 
-int calculate_preblock_stats = FALSE;
+
+int8_t m_signLineBuf1[64+1]; //en thread
+int8_t m_signLineBuf2[64+1]; //en thread
+
+int calculate_preblock_stats = FALSE;//esto no se si deberia ser siempre false
 
 static int skiped_lines_r[NUM_PICT_COMPONENTS] = {5,3,3};
 static int skiped_lines_b[NUM_PICT_COMPONENTS] = {4,2,2};
 
-static int num_lcu_sao_off[NUM_PICT_COMPONENTS];
-static int sao_disabled_rate[NUM_PICT_COMPONENTS];;//[NUM_TEMP_LAYERS]
+static int num_lcu_sao_off[NUM_PICT_COMPONENTS];//not used ¿?
+static int sao_disabled_rate[NUM_PICT_COMPONENTS];//[NUM_TEMP_LAYERS];//slice
+
+int slice_enabled[NUM_PICT_COMPONENTS];//slice
 
 
-sao_blk_param_t recon_params[12];
-sao_blk_param_t coded_params[12];
 
 //double m_lambda[3] = {57.908390375799925, 45.961919900164979, 45.961919900164979};
 
@@ -1459,15 +1369,12 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 }
 
 
-void hmr_sao(hvenc_engine_t *enc_engine, slice_t *currslice)
+void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 {
 	int ctu_num;
 	ctu_info_t* ctu;	
-	int slice_enabled[NUM_PICT_COMPONENTS];
 	int num_lcus_for_sao_off[NUM_PICT_COMPONENTS];
 	int component;
-
-	wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
 
 	sao_init(enc_engine->bit_depth);
 

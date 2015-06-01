@@ -226,7 +226,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 uint32_t encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
 uint32_t motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
-//void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
 void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
 void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 
@@ -265,7 +264,7 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 
 
 //hmr_sao.c
-void hmr_sao(hvenc_engine_t* enc_engine, slice_t *currslice);
+void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
 
 
 //hmr_arithmetic_encoding.c
@@ -284,6 +283,7 @@ ctu_info_t *get_pu_left_bottom(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary);
 ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
+void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
 
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);

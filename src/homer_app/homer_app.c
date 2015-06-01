@@ -39,18 +39,18 @@
 
 
 //#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
-#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-//#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
+#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	1280//248//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//184//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	248//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	184//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -295,7 +295,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 11;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 10;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -328,9 +328,9 @@ int main (int argc, char **argv)
 	HmrCfg.max_inter_tr_depth = 1;
 	HmrCfg.num_enc_engines = 1;
 	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
+	HmrCfg.wfpp_num_threads = 11;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.sample_adaptive_offset = 0;
+	HmrCfg.sample_adaptive_offset = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 1250;//in kbps
