@@ -1941,7 +1941,7 @@ void code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceE
 	if( aboveMergeAvail && !isLeftMerge)
 	{
 		isAboveMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_ABOVE)); 
-		code_sao_merge(ee, isLeftMerge?1:0);
+		code_sao_merge(ee, isAboveMerge?1:0);
 //		codeSaoMerge( isAboveMerge?1:0  ); //sao_merge_left_flag
 	}
 

@@ -34,9 +34,9 @@ uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
 
 //para alojar
-sao_stat_data_t stat_data[12][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
-sao_blk_param_t recon_params[12];//enc_engine
-sao_blk_param_t coded_params[12];//enc_engine
+sao_stat_data_t stat_data[600][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
+sao_blk_param_t recon_params[600];//enc_engine
+sao_blk_param_t coded_params[600];//enc_engine
 
 
 int8_t m_signLineBuf1[64+1]; //en thread
@@ -88,7 +88,7 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 
 	memset(&stats[ctu_idx][0][0], 0, sizeof(stats[ctu_idx]));
 
-	if(ctu->ctu_number==6)
+	if(enc_engine->num_encoded_frames == 6 && ctu->ctu_number==10)
 	{
 		int iiiiii=0;
 	}
@@ -361,13 +361,14 @@ void decide_pic_params(int *slice_enable)
 }
 
 
-int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk_params, sao_blk_param_t* merge_list[])
+int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk_params, sao_blk_param_t* merge_list[], int *merge_list_size)
 {
 	int ctuX = ctu_idx % enc_engine->pict_width_in_ctu;
 	int ctuY = ctu_idx / enc_engine->pict_width_in_ctu;
 	int mergedCTUPos;
 	int numValidMergeCandidates = 0;
 	int merge_type;
+	int merge_idx = 0;
 
 	for(merge_type=0; merge_type< NUM_SAO_MERGE_TYPES; merge_type++)
 	{
@@ -408,15 +409,16 @@ int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk
 		}
 
 //		mergeList.push_back(mergeCandidate);
+		merge_list[merge_idx++] = mergeCandidate;
 		if (mergeCandidate != NULL)
 		{
-			merge_list[numValidMergeCandidates] = mergeCandidate;
 			numValidMergeCandidates++;
 		}
 	}
 
-	return numValidMergeCandidates;
+	*merge_list_size = merge_idx;
 
+	return numValidMergeCandidates;
 }
 
 __inline double xRoundIbdi2(int bit_depth, double x)
@@ -816,13 +818,13 @@ void derive_mode_merge_rdo(hvenc_engine_t *enc_engine, sao_blk_param_t** merge_l
   double cost;
   sao_blk_param_t test_blk_param;
   int merge_type;
-    double norm_dist=0;
 	int component;
 //  int mergeListSize = (Int)mergeList.size();
   *mode_cost = MAX_COST;
 
   for(merge_type=0; merge_type< merge_list_size; merge_type++)
   {
+    double norm_dist=0;
     if(merge_list[merge_type] == NULL)
     {
       continue;
@@ -896,7 +898,7 @@ void reconstruct_blk_sao_param(sao_blk_param_t *rec_param, sao_blk_param_t* merg
         sao_blk_param_t* merge_target = merge_list[offset_param->typeIdc];
 //        assert(mergeTarget != NULL);
 
-        offset_param = &(*merge_target).offsetParam[component];
+        *offset_param = (*merge_target).offsetParam[component];
       }
       break;
     default:
@@ -1199,7 +1201,7 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 	width  = (x_pos + max_cu_size > pic_width)?(pic_width - x_pos):max_cu_size;
 
 
-	if(ctu->ctu_number == 3)
+	if(enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 10)
 	{
 		int iiiii=0;
 	}
@@ -1282,13 +1284,13 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 			return;
 		}
 
-		merge_list_size = get_merge_list(enc_engine, ctu_idx, recon_params, merge_list);
-
-		if(ctu_idx == 6)
+		if(enc_engine->num_encoded_frames == 3 && ctu->ctu_number == 8)
 		{
 			int iiiii=0;
 		}
 
+
+		get_merge_list(enc_engine, ctu_idx, recon_params, merge_list, &merge_list_size);
 
 		minCost = MAX_COST;
 		for(mode=0; mode < NUM_SAO_MODES; mode++)
@@ -1302,6 +1304,11 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 				break;
 			case SAO_MODE_NEW:
 				{
+					if(enc_engine->num_encoded_frames == 7 && ctu_idx == 6)
+					{
+						int iiiii=0;
+					}
+
 					//deriveModeNewRDO(ctu, mergeList, sliceEnabled, blkStats, mode_param, modeCost, m_pppcRDSbacCoder, SAO_CABACSTATE_BLK_CUR);
 //					derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, int slice_enabled[] )
 					derive_mode_new_rdo(enc_engine, stats[ctu_idx], &mode_param, &modeCost, slice_enable);
@@ -1394,11 +1401,11 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
 
 		get_ctu_stats(enc_engine, currslice, ctu, stat_data);	
-//	}
+	}
 
-//	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
-//	{
-//		ctu = &enc_engine->ctu_info[ctu_num];
+	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
+	{
+		ctu = &enc_engine->ctu_info[ctu_num];
 		decide_blk_params(enc_engine, currslice, ctu, stat_data, slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu);
 	}

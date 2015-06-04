@@ -2119,11 +2119,6 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
 		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 
-		if(ctu_num == 10)
-		{
-			int iiiii=0;
-		}
-
 		if(cu_current_x==0 && et->wfpp_enable)
 		{
 			if(cu_current_y > 0)
@@ -2137,6 +2132,12 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 			hmr_bitstream_init(et->ee->bs);
 			et->ee->ee_start(et->ee->b_ctx);
 			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
+		}
+
+
+		if(enc_engine->num_encoded_frames == 3 &&  ctu_num == 8)
+		{
+			int iiiii=0;
 		}
 
 		ee_encode_sao(et, et->ee, currslice, ctu);

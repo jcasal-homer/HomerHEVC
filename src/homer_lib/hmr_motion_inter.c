@@ -3032,6 +3032,13 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 					uint intra_dist;
 					if(!curr_cu_info->merge_flag)
 						put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
+
+					if(et->enc_engine->num_encoded_frames == 7 && ctu->ctu_number==6 && curr_cu_info->abs_index == 64 && curr_depth==2)
+					{
+						int iiiiii=0;
+					}
+
+
 					intra_dist = encode_intra(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 #ifdef COMPUTE_AS_HM
 					intra_cost = intra_dist+5*curr_depth;
