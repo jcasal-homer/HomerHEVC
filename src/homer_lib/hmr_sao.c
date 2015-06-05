@@ -19,6 +19,30 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
 *****************************************************************************/
+/*
+* some of the work below is derived from HM HEVC reference code where 
+* the following license applies
+*****************************************************************************
+* The copyright in this software is being made available under the BSD
+* License, included below. This software may be subject to other third party
+* and contributor rights, including patent rights, and no such rights are
+* granted under this license.  
+*
+* Copyright (c) 2010-2014, ITU/ISO/IEC
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*
+*  * Redistributions of source code must retain the above copyright notice,
+*    this list of conditions and the following disclaimer.
+*  * Redistributions in binary form must reproduce the above copyright notice,
+*    this list of conditions and the following disclaimer in the documentation
+*    and/or other materials provided with the distribution.
+*  * Neither the name of the ITU/ISO/IEC nor the names of its contributors may
+*    be used to endorse or promote products derived from this software without
+*    specific prior written permission.
+*****************************************************************************/
 
 #include <math.h>
 #include <memory.h>
@@ -47,8 +71,8 @@ int calculate_preblock_stats = FALSE;//esto no se si deberia ser siempre false
 static int skiped_lines_r[NUM_PICT_COMPONENTS] = {5,3,3};
 static int skiped_lines_b[NUM_PICT_COMPONENTS] = {4,2,2};
 
-static int num_lcu_sao_off[NUM_PICT_COMPONENTS];//not used ¿?
-static int sao_disabled_rate[NUM_PICT_COMPONENTS];//[NUM_TEMP_LAYERS];//slice
+//static int num_lcu_sao_off[NUM_PICT_COMPONENTS];//not used ¿?
+//static int sao_disabled_rate[NUM_PICT_COMPONENTS];//[NUM_TEMP_LAYERS];//needed when more that one slice or tyle avaliable
 
 int slice_enabled[NUM_PICT_COMPONENTS];//slice
 
@@ -674,6 +698,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 	int component;
 	int invQuantOffset[MAX_NUM_SAO_CLASSES];
 	int type_idc;
+	double *lambdas = enc_engine->lambdas;
 
 	modeDist[Y_COMP]= modeDist[U_COMP] = modeDist[V_COMP] = 0;
 
@@ -691,6 +716,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 //	m_pcRDGoOnSbacCoder->codeSAOOffsetParam(component, mode_param[component], sliceEnabled[component]);
 	modeDist[component] = 0;
 	minCost = MAX_COST;
+	minCost = 2.5*lambdas[component];//MAX_COST;
 //	minCost= m_lambda[component]*((Double)m_pcRDGoOnSbacCoder->getNumberOfWrittenBits());
 //	m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
 	if(slice_enabled[component])
@@ -720,6 +746,11 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 //			m_pcRDGoOnSbacCoder->codeSAOOffsetParam(component, testOffset[component], sliceEnabled[component]);
 //			rate = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 			cost = (double)dist[component];// + m_lambda[component]*((Double)rate);
+			if(type_idc==SAO_TYPE_BO)
+				cost += lambdas[component]*11;
+			else
+				cost += lambdas[component]*8;
+
 			if(cost < minCost)
 			{
 				minCost = cost;
@@ -751,6 +782,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 
 	minCost = cost;
 	minCost = MAX_COST;
+	minCost = 2.5*lambdas[U_COMP];//MAX_COST;
 	//doesn't need to store cabac status here since the whole CTU parameters will be re-encoded at the end of this function
 
 	for(type_idc=0; type_idc< NUM_SAO_NEW_TYPES; type_idc++)
@@ -785,6 +817,11 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 
 //			const UInt currentWrittenBits = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 			cost += dist[component];// + (m_lambda[component] * (currentWrittenBits - previousWrittenBits));
+			if(type_idc==SAO_TYPE_BO)
+				cost += lambdas[component]*11;
+			else
+				cost += lambdas[component]*8;
+
 //			previousWrittenBits = currentWrittenBits;
 		}
 
@@ -1385,8 +1422,8 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 
 	sao_init(enc_engine->bit_depth);
 
-	memset(num_lcu_sao_off, 0, sizeof(num_lcu_sao_off));
-	memset(sao_disabled_rate, 0, sizeof(sao_disabled_rate));
+//	memset(num_lcu_sao_off, 0, sizeof(num_lcu_sao_off));
+//	memset(sao_disabled_rate, 0, sizeof(sao_disabled_rate));
 
 
 	//slice on/off 
@@ -1423,9 +1460,10 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 		}
 	}
 //#if SAO_ENCODING_CHOICE_CHROMA
-	for (component=Y_COMP; component<NUM_PICT_COMPONENTS; component++)
+/*	for (component=Y_COMP; component<NUM_PICT_COMPONENTS; component++)
 	{
 		sao_disabled_rate[component] = (double)num_lcus_for_sao_off[component]/(double)enc_engine->pict_total_ctu;
 	}
+*/
 
 }
