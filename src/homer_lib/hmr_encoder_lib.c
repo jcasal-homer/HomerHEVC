@@ -92,7 +92,6 @@ void *HOMER_enc_init()
 	hvenc->abs2raster_table = aux_ptr;
 	create_raster2abs_tables( hvenc->abs2raster_table, hvenc->raster2abs_table, hvenc->ctu_width[0], hvenc->ctu_height[0], 5);
 
-
 	size=2;
 	for ( i=0; i<MAX_CU_DEPTHS; i++ ) //scan block size (2x2, ....., 128x128)
 	{
@@ -307,6 +306,9 @@ void HOMER_enc_close(void* h)
 				}
 			}		
 
+			HMR_ALIGNED_FREE(henc_th->sao_sign_line_buff1);
+			HMR_ALIGNED_FREE(henc_th->sao_sign_line_buff2);
+
 			HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_HOR])
 			HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_VER])
 			HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_HOR])
@@ -471,6 +473,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 	int err=0;
 	int i, aux;
 	unsigned short* aux_ptr;
+	int calculate_preblock_stats = TRUE;
 //	int cpu_info[4];
 
 	switch (cmd)
@@ -494,6 +497,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->intra_period = 20;
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 				cfg->num_enc_engines = 1;
+				calculate_preblock_stats = FALSE;
 #endif
 
 			if(hvenc->run==TRUE)
@@ -524,6 +528,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
 			hvenc->num_encoder_engines = cfg->num_enc_engines;
 
+			//sao
+			sao_init(hvenc->bit_depth);
 
 			//bitstreams
 			hmr_bitstream_free(&hvenc->aux_bs);
@@ -582,6 +588,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->wfpp_enable = 0;
 				phvenc_engine->num_sub_streams = 0;
 				phvenc_engine->wfpp_num_threads = 0;
+				phvenc_engine->calculate_preblock_stats = calculate_preblock_stats;
 
 				if(phvenc_engine->output_signal!=NULL)
 					SEM_DESTROY(phvenc_engine->output_signal);
@@ -692,6 +699,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->gop_size = hvenc->gop_size;
 				phvenc_engine->num_b = hvenc->num_b;
 				phvenc_engine->num_ref_frames = hvenc->num_ref_frames;
+
 				//conformance wnd
 				phvenc_engine->pad_left = 0;
 				if ((cfg->width & min_cu_size_mask) != 0)
@@ -1001,6 +1009,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->deblock_edge_filter[EDGE_VER] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->deblock_edge_filter[EDGE_HOR] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
+
+					henc_th->sao_sign_line_buff1 = (int8_t*) hmr_aligned_alloc (MAX_CU_SIZE+1, sizeof(uint8_t));
+					henc_th->sao_sign_line_buff2 = (int8_t*) hmr_aligned_alloc (MAX_CU_SIZE+1, sizeof(uint8_t));
 
 					//quarter pel interpolation
 					filter_buff_width = MAX_CU_SIZE	+ 16;

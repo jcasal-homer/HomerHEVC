@@ -1771,8 +1771,8 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 }
 
 //------------------------ sao arithmetic encoding ---------------------------------
-extern sao_blk_param_t coded_params[12];
-extern int slice_enabled[NUM_PICT_COMPONENTS];
+//extern sao_blk_param_t coded_params[12];
+//extern int slice_enabled[NUM_PICT_COMPONENTS];
 extern uint g_saoMaxOffsetQVal[NUM_PICT_COMPONENTS];
 extern uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
@@ -1969,7 +1969,7 @@ void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	if (currslice->sao_luma_flag || currslice->sao_chroma_flag)
 	{
 		//
-		sao_blk_param_t* sao_blk_param = &coded_params[ctu_idx];
+		sao_blk_param_t* sao_blk_param = &ctu->coded_params;
 
 		int left_merge_avail = FALSE;
 		int above_merge_avail= FALSE;
@@ -1990,7 +1990,7 @@ void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 		}	
 
 //		code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
-		code_sao_blk_param(ee, sao_blk_param, slice_enabled, left_merge_avail, above_merge_avail, FALSE);
+		code_sao_blk_param(ee, sao_blk_param, et->enc_engine->slice_enabled, left_merge_avail, above_merge_avail, FALSE);
 	}
 }
 //------------------------ end sao arithmetic encoding ---------------------------------

@@ -58,15 +58,15 @@ uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
 
 //para alojar
-sao_stat_data_t stat_data[600][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
-sao_blk_param_t recon_params[600];//enc_engine
-sao_blk_param_t coded_params[600];//enc_engine
+//sao_stat_data_t stat_data[600][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
+//sao_blk_param_t recon_params[600];//holds reconstruction parameters
+//sao_blk_param_t coded_params[600];//holds encoding paramenters
 
 
-int8_t m_signLineBuf1[64+1]; //en thread
-int8_t m_signLineBuf2[64+1]; //en thread
+//int8_t m_signLineBuf1[64+1]; //en thread
+//int8_t m_signLineBuf2[64+1]; //en thread
 
-int calculate_preblock_stats = FALSE;//esto no se si deberia ser siempre false
+//int calculate_preblock_stats = FALSE;//esto no se si deberia ser siempre false
 
 static int skiped_lines_r[NUM_PICT_COMPONENTS] = {5,3,3};
 static int skiped_lines_b[NUM_PICT_COMPONENTS] = {4,2,2};
@@ -74,7 +74,7 @@ static int skiped_lines_b[NUM_PICT_COMPONENTS] = {4,2,2};
 //static int num_lcu_sao_off[NUM_PICT_COMPONENTS];//not used ¿?
 //static int sao_disabled_rate[NUM_PICT_COMPONENTS];//[NUM_TEMP_LAYERS];//needed when more that one slice or tyle avaliable
 
-int slice_enabled[NUM_PICT_COMPONENTS];//slice
+//int slice_enabled[NUM_PICT_COMPONENTS];//slice
 
 
 
@@ -93,26 +93,27 @@ void sao_init(int bit_depth)
 }
 
 
-void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES])	
+void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES])	
 {
 	int component;
 	int l_available, r_available, t_available, b_available, tl_available, bl_available, tr_available, br_available;
 	int ctu_idx = ctu->ctu_number;
-	int height_luma = (ctu->y[Y_COMP] + ctu->size > enc_engine->pict_height[Y_COMP])?(enc_engine->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;
-	int width_luma = (ctu->x[Y_COMP] + ctu->size > enc_engine->pict_width[Y_COMP])?(enc_engine->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;
+	int height_luma = (ctu->y[Y_COMP] + ctu->size > wpp_thread->pict_height[Y_COMP])?(wpp_thread->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;
+	int width_luma = (ctu->x[Y_COMP] + ctu->size > wpp_thread->pict_width[Y_COMP])?(wpp_thread->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;
+	int calculate_preblock_stats = wpp_thread->enc_engine->calculate_preblock_stats;
 
 	l_available = (ctu->x[Y_COMP]> 0);
 	t_available = (ctu->y[Y_COMP]> 0);
-	r_available = ((ctu->x[Y_COMP] + ctu->size) < enc_engine->pict_width[Y_COMP]);
-	b_available = ((ctu->y[Y_COMP] + ctu->size) < enc_engine->pict_height[Y_COMP]);
+	r_available = ((ctu->x[Y_COMP] + ctu->size) < wpp_thread->pict_width[Y_COMP]);
+	b_available = ((ctu->y[Y_COMP] + ctu->size) < wpp_thread->pict_height[Y_COMP]);
 	tl_available = t_available & l_available;
 	tr_available = t_available & r_available;
 	bl_available = b_available & l_available;
 	br_available = b_available & r_available;
 
-	memset(&stats[ctu_idx][0][0], 0, sizeof(stats[ctu_idx]));
+//	memset(&stats[0][0], 0, NUM_PICT_COMPONENTS*sizeof(stats[0]));
 
-	if(enc_engine->num_encoded_frames == 6 && ctu->ctu_number==10)
+	if(wpp_thread->enc_engine->num_encoded_frames == 6 && ctu->ctu_number==10)
 	{
 		int iiiiii=0;
 	}
@@ -121,10 +122,10 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 	{
 		int skip_lines_r = skiped_lines_r[component];
 		int skip_lines_b = skiped_lines_b[component];
-		int decoded_buff_stride = WND_STRIDE_2D(enc_engine->curr_reference_frame->img, component);
-		int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, enc_engine->ctu_width);
-		int orig_buff_stride = WND_STRIDE_2D(enc_engine->current_pict.img2encode->img, component);
-		uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, enc_engine->ctu_width);
+		int decoded_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->curr_reference_frame->img, component);
+		int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
+		int orig_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->current_pict.img2encode->img, component);
+		uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, wpp_thread->enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 		int type_idx;
 		int chroma_shift = (component==Y_COMP)?0:1;
 		int height = height_luma>>chroma_shift;
@@ -133,7 +134,7 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 		//getBlkStats
 		for(type_idx=0; type_idx< NUM_SAO_NEW_TYPES; type_idx++)
 		{
-			sao_stat_data_t *curr_stat_data = &stats[ctu_idx][component][type_idx];
+			sao_stat_data_t *curr_stat_data = &stats[component][type_idx];
 			int64_t *diff = curr_stat_data->diff;
 			int64_t *count = curr_stat_data->count;
 			int x,y, start_x, start_y, end_x, end_y, edge_type, first_line_start_x, first_line_end_x;
@@ -174,7 +175,7 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 				break;
 			case SAO_TYPE_EO_90:
 				{
-					int8_t *signUpLine = m_signLineBuf1;
+					int8_t *signUpLine = wpp_thread->sao_sign_line_buff1;//m_signLineBuf1;
 					int16_t* srcLineAbove, *srcLineBelow;
 					diff +=2;
 					count+=2;
@@ -223,8 +224,8 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 					diff +=2;
 					count+=2;
 					
-					signUpLine = m_signLineBuf1;
-					signDownLine = m_signLineBuf2;
+					signUpLine = wpp_thread->sao_sign_line_buff1;//m_signLineBuf1;
+					signDownLine = wpp_thread->sao_sign_line_buff2;//m_signLineBuf2;
 
 					start_x = (!calculate_preblock_stats) ? (l_available ? 0 : 1) : (r_available ? (width - skip_lines_r) : (width - 1));
 
@@ -286,7 +287,7 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 				break;
 			case SAO_TYPE_EO_45:
 				{
-					int8_t *signUpLine = m_signLineBuf1+1;
+					int8_t *signUpLine = wpp_thread->sao_sign_line_buff1+1;//m_signLineBuf1+1;
 					int16_t *srcLineBelow, *srcLineAbove;
 					diff +=2;
 					count+=2;
@@ -344,7 +345,7 @@ void get_ctu_stats(hvenc_engine_t* enc_engine, slice_t *currslice, ctu_info_t* c
 				break;
 			case SAO_TYPE_BO:
 				{
-					int shiftBits = enc_engine->bit_depth - NUM_SAO_BO_CLASSES_LOG2;
+					int shiftBits = wpp_thread->bit_depth - NUM_SAO_BO_CLASSES_LOG2;
 					start_x = (!calculate_preblock_stats) ? 0:( r_available?(width- skip_lines_r):width);
 					end_x = (!calculate_preblock_stats) ? (r_available ? (width - skip_lines_r) : (width)) : width;
 					end_y = b_available ? (height - skip_lines_b) : height;
@@ -385,14 +386,17 @@ void decide_pic_params(int *slice_enable)
 }
 
 
-int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk_params, sao_blk_param_t* merge_list[], int *merge_list_size)
+//int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk_params, sao_blk_param_t* merge_list[], int *merge_list_size)
+int get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* merge_list[], int *merge_list_size)
 {
-	int ctuX = ctu_idx % enc_engine->pict_width_in_ctu;
-	int ctuY = ctu_idx / enc_engine->pict_width_in_ctu;
+	int ctu_idx = ctu->ctu_number;
+	int ctuX = ctu_idx % wpp_thread->pict_width_in_ctu;
+	int ctuY = ctu_idx / wpp_thread->pict_width_in_ctu;
 	int mergedCTUPos;
 	int numValidMergeCandidates = 0;
 	int merge_type;
 	int merge_idx = 0;
+
 
 	for(merge_type=0; merge_type< NUM_SAO_MERGE_TYPES; merge_type++)
 	{
@@ -404,10 +408,11 @@ int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk
 			{
 				if(ctuY > 0)
 				{
-					mergedCTUPos = ctu_idx - enc_engine->pict_width_in_ctu;
+					ctu_info_t *ctu_aux = ctu - wpp_thread->pict_width_in_ctu;
+					//mergedCTUPos = ctu_idx - enc_engine->pict_width_in_ctu;
 //					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )
 					{
-						mergeCandidate = &(blk_params[mergedCTUPos]);
+						mergeCandidate = &(ctu_aux->recon_params);
 					}
 				}
 			}
@@ -416,10 +421,11 @@ int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk
 			{
 				if(ctuX > 0)
 				{
-					mergedCTUPos = ctu_idx - 1;
+					ctu_info_t *ctu_aux = ctu - 1;
+//					mergedCTUPos = ctu_idx - 1;
 //					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )
 					{
-						mergeCandidate = &(blk_params[mergedCTUPos]);
+						mergeCandidate = &(ctu_aux->recon_params);
 					}
 				}
 			}
@@ -498,13 +504,13 @@ int est_iter_offset(int type_idx, int class_idx, double lambda, int offset_input
 
 
 //Void TEncSampleAdaptiveOffset::deriveOffsets(int ctu, int compIdx, int typeIdc, SAOStatData& statData, int* quant_offsets, int& typeAuxInfo)
-void derive_offsets(hvenc_engine_t *enc_engine, int component, int type_idc, sao_stat_data_t *stats, int* quant_offsets, int* type_aux_info)
+void derive_offsets(henc_thread_t *wpp_thread, int component, int type_idc, sao_stat_data_t *stats, int* quant_offsets, int* type_aux_info)
 {
-	int bit_depth = enc_engine->bit_depth;//(component== Y_COMP) ? g_bitDepthY : g_bitDepthC;
+	int bit_depth = wpp_thread->bit_depth;//(component== Y_COMP) ? g_bitDepthY : g_bitDepthC;
 	int shift = 2 * DISTORTION_PRECISION_ADJUSTMENT(bit_depth-8);
 	int offset_thrshld = g_saoMaxOffsetQVal[component];  //inclusive
 	int num_classes, class_idx;
-	double *lambdas = enc_engine->lambdas;
+	double *lambdas = wpp_thread->enc_engine->lambdas;
 
 	memset(quant_offsets, 0, sizeof(int)*MAX_NUM_SAO_CLASSES);
 
@@ -688,7 +694,7 @@ int64_t get_distortion(int typeIdc, int typeAuxInfo, int* invQuantOffset, sao_st
 
 
 //Void TEncSampleAdaptiveOffset::deriveModeNewRDO(int ctu, std::vector<SAOBlkParam*>& mergeList, Bool* sliceEnabled, SAOStatData*** blkStats, SAOBlkParam& mode_param, Double& modeNormCost, TEncSbac** cabacCoderRDO, int inCabacLabel)
-void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, double *mode_cost, int slice_enabled[] )
+void derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, double *mode_cost, int slice_enabled[] )
 {
 	double minCost, cost;
 	int rate;
@@ -698,7 +704,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 	int component;
 	int invQuantOffset[MAX_NUM_SAO_CLASSES];
 	int type_idc;
-	double *lambdas = enc_engine->lambdas;
+	double *lambdas = wpp_thread->enc_engine->lambdas;
 
 	modeDist[Y_COMP]= modeDist[U_COMP] = modeDist[V_COMP] = 0;
 
@@ -730,7 +736,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 			//derive coded offset
 //			deriveOffsets(ctu, component, type_idc, blkStats[ctu][component][type_idc], testOffset[component].offset, testOffset[component].typeAuxInfo);
 			
-			derive_offsets(enc_engine, component, type_idc, &stats[component][type_idc], testOffset[component].offset, &testOffset[component].typeAuxInfo);
+			derive_offsets(wpp_thread, component, type_idc, &stats[component][type_idc], testOffset[component].offset, &testOffset[component].typeAuxInfo);
 
 			//inversed quantized offsets
 			//invertQuantOffsets(component, type_idc, testOffset[component].typeAuxInfo, invQuantOffset, testOffset[component].offset);
@@ -738,7 +744,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 
 			//get distortion
 			//dist[component] = getDistortion(ctu, component, testOffset[component].type_idc, testOffset[component].typeAuxInfo, invQuantOffset, blkStats[ctu][component][type_idc]);
-			dist[component] = get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);
+			dist[component] = get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], wpp_thread->enc_engine->bit_depth);
 //				int64_t get_distortion(int typeIdc, int typeAuxInfo, int* invQuantOffset, sao_stat_data_t *stats, int bit_depth)
 			//get rate
 //			m_pcRDGoOnSbacCoder->load(cabacCoderRDO[SAO_CABACSTATE_BLK_MID]);
@@ -805,13 +811,13 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 
 			//derive offset & get distortion
 //			deriveOffsets(ctu, component, typeIdc, blkStats[ctu][component][typeIdc], testOffset[component].offset, testOffset[component].typeAuxInfo);
-			derive_offsets(enc_engine, component, type_idc, &stats[component][type_idc], testOffset[component].offset, &testOffset[component].typeAuxInfo);
+			derive_offsets(wpp_thread, component, type_idc, &stats[component][type_idc], testOffset[component].offset, &testOffset[component].typeAuxInfo);
 
 //			invertQuantOffsets(component, typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, testOffset[component].offset);
 			invert_quant_offsets(component, type_idc, testOffset[component].typeAuxInfo, invQuantOffset, testOffset[component].offset);
 
 //			dist[component]= getDistortion(ctu, component, typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, blkStats[ctu][component][typeIdc]);
-			dist[component] = get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);
+			dist[component] = get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], wpp_thread->bit_depth);
 
 //			m_pcRDGoOnSbacCoder->codeSAOOffsetParam(component, testOffset[component], sliceEnabled[component]);
 
@@ -850,7 +856,7 @@ void derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[NUM_P
 }
 
 //Void TEncSampleAdaptiveOffset::deriveModeMergeRDO(Int ctu, std::vector<SAOBlkParam*>& mergeList, Bool* sliceEnabled, SAOStatData*** blkStats, SAOBlkParam& modeParam, Double& modeNormCost, TEncSbac** cabacCoderRDO, Int inCabacLabel)
-void derive_mode_merge_rdo(hvenc_engine_t *enc_engine, sao_blk_param_t** merge_list, int merge_list_size, int* slice_enable, sao_stat_data_t stats[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], sao_blk_param_t* mode_param, double *mode_cost)//, TEncSbac** cabacCoderRDO, Int inCabacLabel)
+void derive_mode_merge_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_list, int merge_list_size, int* slice_enable, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], sao_blk_param_t* mode_param, double *mode_cost)//, TEncSbac** cabacCoderRDO, Int inCabacLabel)
 {
   double cost;
   sao_blk_param_t test_blk_param;
@@ -882,7 +888,7 @@ void derive_mode_merge_rdo(hvenc_engine_t *enc_engine, sao_blk_param_t** merge_l
       {
         //offsets have been reconstructed. Don't call inversed quantization function.
 		  //get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);        
-		  norm_dist += (((double)get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], enc_engine->bit_depth)))/enc_engine->lambdas[component];///m_lambda[component]);
+		  norm_dist += (((double)get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], wpp_thread->bit_depth)))/wpp_thread->enc_engine->lambdas[component];///m_lambda[component]);
       }
     }
 
@@ -951,7 +957,7 @@ void reconstruct_blk_sao_param(sao_blk_param_t *rec_param, sao_blk_param_t* merg
 //Void TComSampleAdaptiveOffset::offsetBlock(Int component, Int typeIdx, Int* offset  
 //										   , Pel* srcBlk, Pel* resBlk, Int srcStride, Int resStride,  Int width, Int height
 //										   , Bool isLeftAvail,  Bool isRightAvail, Bool isAboveAvail, Bool isBelowAvail, Bool isAboveLeftAvail, Bool isAboveRightAvail, Bool isBelowLeftAvail, Bool isBelowRightAvail)
-void offset_block(int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_t* resBlk, int srcStride, int resStride,  int width, int height,
+void offset_block(henc_thread_t *wpp_thread, int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_t* resBlk, int srcStride, int resStride,  int width, int height,
 				int isLeftAvail,  int isRightAvail, int isAboveAvail, int isBelowAvail, int isAboveLeftAvail, int isAboveRightAvail, int isBelowLeftAvail, int isBelowRightAvail, int bit_depth)
 {
 
@@ -1003,7 +1009,7 @@ void offset_block(int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_
 		break;
 	case SAO_TYPE_EO_90:
 		{
-			int8_t* signUpLine = m_signLineBuf1;
+			int8_t* signUpLine = wpp_thread->sao_sign_line_buff1;//m_signLineBuf1;
 			int16_t* srcLineAbove, *srcLineBelow;
 			offset += 2;
 
@@ -1048,8 +1054,8 @@ void offset_block(int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_
 			int16_t *srcLineBelow, *srcLineAbove;
 
 			offset += 2;
-			signUpLine  = m_signLineBuf1;
-			signDownLine= m_signLineBuf2;
+			signUpLine  = wpp_thread->sao_sign_line_buff1;//m_signLineBuf1;
+			signDownLine= wpp_thread->sao_sign_line_buff2;//m_signLineBuf2;
 
 			startX = isLeftAvail ? 0 : 1 ;
 			endX   = isRightAvail ? width : (width-1);
@@ -1116,7 +1122,7 @@ void offset_block(int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_
 		break;
 	case SAO_TYPE_EO_45:
 		{
-			int8_t *signUpLine = m_signLineBuf1+1;
+			int8_t *signUpLine = wpp_thread->sao_sign_line_buff1+1;//m_signLineBuf1+1;
 			int16_t *srcLineBelow, *srcLineAbove;
 
 			offset += 2;
@@ -1201,12 +1207,12 @@ void offset_block(int compIdx, int typeIdx, int* offset, int16_t* srcBlk, int16_
 }
 
 //Void TComSampleAdaptiveOffset::offsetCTU(Int ctu, TComPicYuv* srcYuv, TComPicYuv* resYuv, SAOBlkParam& saoblkParam, TComPic* pPic)
-void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param)
+void offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param)
 {
 	int y_pos, x_pos, height, width;
-	int pic_height = enc_engine->pict_height[Y_COMP];
-	int pic_width = enc_engine->pict_width[Y_COMP];
-	int max_cu_size = enc_engine->max_cu_size;
+	int pic_height = wpp_thread->pict_height[Y_COMP];
+	int pic_width = wpp_thread->pict_width[Y_COMP];
+	int max_cu_size = wpp_thread->max_cu_size;
 	//int isLeftAvail,isRightAvail,isAboveAvail,isBelowAvail,isAboveLeftAvail,isAboveRightAvail,isBelowLeftAvail,isBelowRightAvail;
 	int l_available, r_available, t_available, b_available, tl_available, bl_available, tr_available, br_available;
 	int component;
@@ -1214,8 +1220,8 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 
 	l_available = (ctu->x[Y_COMP]> 0);
 	t_available = (ctu->y[Y_COMP]> 0);
-	r_available = ((ctu->x[Y_COMP] + ctu->size) < enc_engine->pict_width[Y_COMP]);
-	b_available = ((ctu->y[Y_COMP] + ctu->size) < enc_engine->pict_height[Y_COMP]);
+	r_available = ((ctu->x[Y_COMP] + ctu->size) < wpp_thread->pict_width[Y_COMP]);
+	b_available = ((ctu->y[Y_COMP] + ctu->size) < wpp_thread->pict_height[Y_COMP]);
 	tl_available = t_available & l_available;
 	tr_available = t_available & r_available;
 	bl_available = b_available & l_available;
@@ -1238,7 +1244,7 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 	width  = (x_pos + max_cu_size > pic_width)?(pic_width - x_pos):max_cu_size;
 
 
-	if(enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 10)
+	if(wpp_thread->enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 10)
 	{
 		int iiiii=0;
 	}
@@ -1257,10 +1263,10 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 			//int  blkYPos    = (y_pos   >> formatShift);
 			//int  blkXPos    = (x_pos   >> formatShift);
 
-			int decoded_buff_stride = WND_STRIDE_2D(enc_engine->curr_reference_frame->img, component);
-			int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, enc_engine->ctu_width);
-			int src_buff_stride = WND_STRIDE_2D(enc_engine->sao_aux_wnd, component);
-			int16_t *src_buff = WND_POSITION_2D(int16_t *, enc_engine->sao_aux_wnd, component, ctu->x[component], ctu->y[component], 0, enc_engine->ctu_width);
+			int decoded_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->curr_reference_frame->img, component);
+			int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
+			int src_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->sao_aux_wnd, component);
+			int16_t *src_buff = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->sao_aux_wnd, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 
 //			int  srcStride = isLuma?srcYuv->getStride():srcYuv->getCStride();
 //			uint8_t* srcBlk    = getPicBuf(srcYuv, compIdx)+ (yPos >> formatShift)*srcStride+ (xPos >> formatShift);
@@ -1279,15 +1285,15 @@ void offset_ctu(hvenc_engine_t *enc_engine, ctu_info_t *ctu, sao_blk_param_t* sa
 				);
 */
 
-			offset_block(component, ctb_offset->typeIdc, ctb_offset->offset, src_buff, decoded_buff, src_buff_stride,  decoded_buff_stride, blkWidth, blkHeight,
-				l_available,  r_available, t_available, b_available, tl_available, tr_available, bl_available, br_available, enc_engine->bit_depth);
+			offset_block(wpp_thread, component, ctb_offset->typeIdc, ctb_offset->offset, src_buff, decoded_buff, src_buff_stride,  decoded_buff_stride, blkWidth, blkHeight,
+				l_available,  r_available, t_available, b_available, tl_available, tr_available, bl_available, br_available, wpp_thread->bit_depth);
 		}
 	} //component
 
 }
 
 
-void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], int *slice_enable)	
+void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable)	
 {
 	sao_blk_param_t* merge_list[12]; 
 	int is_all_blks_disabled = FALSE;
@@ -1296,6 +1302,8 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 	int ctu_idx = ctu->ctu_number;
 	int component;
 	int num_lcus_for_sao_off[NUM_PICT_COMPONENTS];
+	sao_blk_param_t *coded_params = &ctu->coded_params;
+	sao_blk_param_t *recon_params = &ctu->recon_params;
 
 	if(!slice_enable[Y_COMP] && !slice_enable[U_COMP] && !slice_enable[V_COMP])
 	{
@@ -1310,7 +1318,7 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 		int merge_list_size;
 		if(is_all_blks_disabled)
 		{
-			sao_blk_param_t *cp = &coded_params[ctu_idx];
+			sao_blk_param_t *cp = coded_params;
 			for(component=0; component< 3; component++)
 			{
 				cp->offsetParam[component].modeIdc = SAO_MODE_OFF;
@@ -1321,13 +1329,14 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 			return;
 		}
 
-		if(enc_engine->num_encoded_frames == 3 && ctu->ctu_number == 8)
+		if(wpp_thread->enc_engine->num_encoded_frames == 3 && ctu->ctu_number == 8)
 		{
 			int iiiii=0;
 		}
 
 
-		get_merge_list(enc_engine, ctu_idx, recon_params, merge_list, &merge_list_size);
+//		get_merge_list(enc_engine, ctu_idx, recon_params, merge_list, &merge_list_size);
+		get_merge_list(wpp_thread, ctu, merge_list, &merge_list_size);
 
 		minCost = MAX_COST;
 		for(mode=0; mode < NUM_SAO_MODES; mode++)
@@ -1341,20 +1350,20 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 				break;
 			case SAO_MODE_NEW:
 				{
-					if(enc_engine->num_encoded_frames == 7 && ctu_idx == 6)
+					if(wpp_thread->enc_engine->num_encoded_frames == 7 && ctu_idx == 6)
 					{
 						int iiiii=0;
 					}
 
 					//deriveModeNewRDO(ctu, mergeList, sliceEnabled, blkStats, mode_param, modeCost, m_pppcRDSbacCoder, SAO_CABACSTATE_BLK_CUR);
 //					derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, int slice_enabled[] )
-					derive_mode_new_rdo(enc_engine, stats[ctu_idx], &mode_param, &modeCost, slice_enable);
+					derive_mode_new_rdo(wpp_thread, stats, &mode_param, &modeCost, slice_enable);
 				}
 				break;
 			case SAO_MODE_MERGE:
 				{
 //					deriveModeMergeRDO(ctu, mergeList, sliceEnabled, blkStats , mode_param, modeCost, m_pppcRDSbacCoder, SAO_CABACSTATE_BLK_CUR);
-					derive_mode_merge_rdo(enc_engine, merge_list, merge_list_size, slice_enable, stats[ctu_idx], &mode_param, &modeCost);//, TEncSbac** cabacCoderRDO, Int inCabacLabel)
+					derive_mode_merge_rdo(wpp_thread, merge_list, merge_list_size, slice_enable, stats, &mode_param, &modeCost);//, TEncSbac** cabacCoderRDO, Int inCabacLabel)
 				}
 				break;
 			default:
@@ -1368,7 +1377,7 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 			if(modeCost < minCost)
 			{
 				minCost = modeCost;
-				coded_params[ctu_idx] = mode_param;
+				*coded_params = mode_param;
 //				m_pcRDGoOnSbacCoder->store(m_pppcRDSbacCoder[ SAO_CABACSTATE_BLK_NEXT ]);
 
 			}
@@ -1380,13 +1389,13 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 			int iiiii=0;
 		}
 		//apply reconstructed offsets
-		recon_params[ctu_idx] = coded_params[ctu_idx];
+		*recon_params = *coded_params;
 
 		//reconstructBlkSAOParam(reconParams[ctu], mergeList);
-		reconstruct_blk_sao_param(&recon_params[ctu_idx], merge_list, merge_list_size);
+		reconstruct_blk_sao_param(recon_params, merge_list, merge_list_size);
 
 //		offsetCTU(ctu, srcYuv, resYuv, reconParams[ctu], pic);
-		offset_ctu(enc_engine, ctu, &recon_params[ctu_idx]);
+		offset_ctu(wpp_thread, ctu, recon_params);
 	} //ctu
 
 //#if SAO_ENCODING_CHOICE 
@@ -1416,34 +1425,35 @@ void decide_blk_params(hvenc_engine_t *enc_engine, slice_t *currslice, ctu_info_
 void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 {
 	int ctu_num;
-	ctu_info_t* ctu;	
 	int num_lcus_for_sao_off[NUM_PICT_COMPONENTS];
 	int component;
 
-	sao_init(enc_engine->bit_depth);
+//	sao_init(enc_engine->bit_depth);
 
 //	memset(num_lcu_sao_off, 0, sizeof(num_lcu_sao_off));
 //	memset(sao_disabled_rate, 0, sizeof(sao_disabled_rate));
 
 
 	//slice on/off 
-	decide_pic_params(slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 
-	memset(recon_params, 0, sizeof(recon_params));
+//	memset(recon_params, 0, sizeof(recon_params));
 
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
-		ctu = &enc_engine->ctu_info[ctu_num];
+		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
+		memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
+		memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
 		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
 		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
 
-		get_ctu_stats(enc_engine, currslice, ctu, stat_data);	
+		get_ctu_stats(enc_engine->thread[0], currslice, ctu, ctu->stat_data);	
 	}
 
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
-		ctu = &enc_engine->ctu_info[ctu_num];
-		decide_blk_params(enc_engine, currslice, ctu, stat_data, slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
+		decide_blk_params(enc_engine->thread[0], currslice, ctu, ctu->stat_data, enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu);
 	}
 
@@ -1453,7 +1463,8 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 	{
 		for(ctu_num=0; ctu_num< enc_engine->pict_total_ctu; ctu_num++)
 		{
-			if( recon_params[ctu_num].offsetParam[component].modeIdc == SAO_MODE_OFF)
+			ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
+			if( ctu->recon_params.offsetParam[component].modeIdc == SAO_MODE_OFF)
 			{
 				num_lcus_for_sao_off[component]++;
 			}

@@ -264,6 +264,7 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 
 
 //hmr_sao.c
+void sao_init(int bit_depth);
 void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
 
 

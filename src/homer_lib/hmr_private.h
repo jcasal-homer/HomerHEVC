@@ -811,7 +811,8 @@ struct ctu_info_t
 	int				left;
 	
 	//sao
-	sao_stat_data_t stat_data[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];
+//	sao_stat_data_t (*stat_data)[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//to save memory this can be allocated in a wpp thread basis when processing is distributed (COMPUTE_AS_HM undefined)
+	sao_stat_data_t stat_data[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//to save memory this can be allocated in a wpp thread basis when processing is distributed (COMPUTE_AS_HM undefined)
 	sao_blk_param_t recon_params;
 	sao_blk_param_t coded_params;
 	//quant
@@ -1122,6 +1123,10 @@ struct henc_thread_t
 	uint8_t			*deblock_edge_filter[2];
 	uint8_t			*deblock_filter_strength_bs[2];
 
+	//sao
+	int8_t			*sao_sign_line_buff1;//m_signLineBuf1;
+	int8_t			*sao_sign_line_buff2; //m_signLineBuf2;
+
 	//quarter precission buffers
 	wnd_t			filtered_block_wnd[4][4];
 	wnd_t			filtered_block_temp_wnd[4];
@@ -1239,7 +1244,10 @@ struct hvenc_engine_t
 	int				bit_depth;
 	int				max_sublayers;
 	int				max_layers;
-		
+
+	//sao cfg
+	int 			calculate_preblock_stats;
+	int				slice_enabled[NUM_PICT_COMPONENTS];
 	//current picture_t Config
 	picture_t		current_pict;
 	video_frame_t	*curr_reference_frame;
