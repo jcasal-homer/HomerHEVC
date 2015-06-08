@@ -56,7 +56,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 		double pic_size_new;
 		if(et->enc_engine->gop_reinit_on_scene_change && enc_engine->rc.vbv_fullness<.5*enc_engine->rc.vbv_size)
 		{
-			enc_engine->rc.target_pict_size = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			pic_size_new = (1.5-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}

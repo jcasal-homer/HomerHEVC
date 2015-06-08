@@ -608,8 +608,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->bitrate = cfg->bitrate;
 				if(phvenc_engine->bitrate_mode == BR_VBR)
 				{
-					phvenc_engine->vbv_size = 40*phvenc_engine->bitrate;
-					phvenc_engine->vbv_init = .5*phvenc_engine->vbv_size;
+					phvenc_engine->vbv_size = phvenc_engine->bitrate*20;//phvenc_engine->bitrate*20;//*40;
+					phvenc_engine->vbv_init = ((double)cfg->vbv_init/(double)cfg->vbv_size)*phvenc_engine->vbv_size;
+//					phvenc_engine->vbv_init = .35*phvenc_engine->vbv_size;
 					phvenc_engine->qp_min = 15;
 				}
 				else
@@ -1717,7 +1718,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 	//WPP syncchronization
 	//notify first synchronization as this line must go two ctus ahead from next line in wfpp
-	if(et->cu_current_x+1==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
+/*	if(et->cu_current_x+1==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 	{
 //		if(et->wfpp_enable)
 //			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
@@ -1735,7 +1736,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	{
 		SEM_POST(et->synchro_signal[0]);
 	}
-
+*/
 #ifndef COMPUTE_AS_HM
 	//deblocking filter - padding - INTER-FRAME synchronization
 	if(ctu_num_vertical>=0 && (ctu_num%et->pict_width_in_ctu)>=1 && et->enc_engine->intra_period != 1)
@@ -2006,12 +2007,12 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		mem_transfer_decoded_blocks(et, ctu);
 
-/*		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_signal[0]);
 		}
-*/
-		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
+
+//		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
 		{
 			hmr_deblock_pad_sync_ctu(et, currslice, ctu);
 		}
@@ -2035,13 +2036,13 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		{
 			if(et->wfpp_enable)
 				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
-//			SEM_POST(et->synchro_signal[0]);
+			SEM_POST(et->synchro_signal[0]);
 		}
 #endif
 		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
 		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
-//			SEM_POST(et->synchro_signal[0]);
+			SEM_POST(et->synchro_signal[0]);
 		}
 
 		if(et->cu_current_x==et->pict_width_in_ctu)
