@@ -608,7 +608,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->bitrate = cfg->bitrate;
 				if(phvenc_engine->bitrate_mode == BR_VBR)
 				{
-					phvenc_engine->vbv_size = phvenc_engine->bitrate*20;//phvenc_engine->bitrate*20;//*40;
+					phvenc_engine->vbv_size = cfg->vbv_size*20;//phvenc_engine->bitrate*20;//*40;
 					phvenc_engine->vbv_init = ((double)cfg->vbv_init/(double)cfg->vbv_size)*phvenc_engine->vbv_size;
 //					phvenc_engine->vbv_init = .35*phvenc_engine->vbv_size;
 					phvenc_engine->qp_min = 15;
@@ -2007,7 +2007,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		mem_transfer_decoded_blocks(et, ctu);
 
-		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
 		{
 			SEM_POST(et->synchro_signal[0]);
 		}
@@ -2021,14 +2021,12 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 #ifdef COMPUTE_AS_HM
 		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
 		et->acc_dist += ctu->partition_list[0].distortion;
-		et->num_encoded_ctus++;
-		et->cu_current_x++;
-
 #else
 		ctu->coeff_wnd = et->transform_quant_wnd[0];
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 		et->acc_dist += ctu->partition_list[0].distortion;
+#endif
 		et->num_encoded_ctus++;
 		et->cu_current_x++;
 		//sync entrophy contexts between wpp
@@ -2038,7 +2036,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
 			SEM_POST(et->synchro_signal[0]);
 		}
-#endif
+
 		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
 		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
