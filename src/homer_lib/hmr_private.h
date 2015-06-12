@@ -392,7 +392,7 @@ static const uint8_t scan_interlaced[16][2] =
 # define DISTORTION_PRECISION_ADJUSTMENT(x) (x)
 #endif
 
-enum SAOModeNewTypes 
+typedef enum
 {
 	SAO_TYPE_START_EO =0,
 	SAO_TYPE_EO_0 = SAO_TYPE_START_EO,
@@ -404,10 +404,10 @@ enum SAOModeNewTypes
 	SAO_TYPE_BO = SAO_TYPE_START_BO,
 
 	NUM_SAO_NEW_TYPES
-};
+}SAOModeNewTypes;
 #define NUM_SAO_EO_TYPES_LOG2 2
 
-enum SAOEOClasses 
+typedef enum
 {
 	SAO_CLASS_EO_FULL_VALLEY = 0,
 	SAO_CLASS_EO_HALF_VALLEY = 1,
@@ -415,27 +415,27 @@ enum SAOEOClasses
 	SAO_CLASS_EO_HALF_PEAK   = 3,
 	SAO_CLASS_EO_FULL_PEAK   = 4,
 	NUM_SAO_EO_CLASSES,
-};
+}SAOEOClasses;
 #define NUM_SAO_EO_TYPES_LOG2 2
 
 
-enum SAOMode //mode
+typedef enum
 {
   SAO_MODE_OFF = 0,
   SAO_MODE_NEW,
   SAO_MODE_MERGE,
   NUM_SAO_MODES
-};
+}SAOMode;
 
-enum SAOModeMergeTypes 
+typedef enum
 {
   SAO_MERGE_LEFT =0,
   SAO_MERGE_ABOVE,
   NUM_SAO_MERGE_TYPES
-};
+}SAOModeMergeTypes;
 
 #define NUM_SAO_BO_CLASSES_LOG2  5
-enum SAOBOClasses
+typedef enum
 {
 	//SAO_CLASS_BO_BAND0 = 0,
 	//SAO_CLASS_BO_BAND1,
@@ -444,7 +444,7 @@ enum SAOBOClasses
 	//SAO_CLASS_BO_BAND31,
 
 	NUM_SAO_BO_CLASSES = (1<<NUM_SAO_BO_CLASSES_LOG2),
-};
+}SAOBOClasses;
 #define MAX_NUM_SAO_CLASSES  32  //(NUM_SAO_EO_GROUPS > NUM_SAO_BO_GROUPS)?NUM_SAO_EO_GROUPS:NUM_SAO_BO_GROUPS
 
 

@@ -143,6 +143,77 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 	}
 }
 
+void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu)
+{
+	int component;
+
+
+	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
+	{
+		int16_t *buff_src = WND_POSITION_2D(int16_t *, *wnd_src, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);//WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int16_t *buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);//WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int src_stride =  WND_STRIDE_2D(*wnd_src, component);
+		int dst_stride =  WND_STRIDE_2D(*wnd_dst, component);
+		int height = et->ctu_height[component];
+		int width = et->ctu_width[component];
+		int j;
+
+		for(j=0;j<height;j++)
+		{
+			memcpy(buff_dst, buff_src, width*sizeof(buff_src[0]));
+			buff_dst += dst_stride;
+			buff_src += src_stride;
+		}
+	}
+}
+
+
+void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
+	{
+		int num_partitions = comp==Y_COMP?(curr_part->abs_index<<et->num_partitions_in_cu_shift):(curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2;
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, num_partitions);
+
+		for(j=0;j<size;j++)
+		{
+			memset(buff_dst, 0, size*sizeof(buff_dst[0]));
+			buff_dst += size;
+		}
+	}
+}
+
+void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
+	{
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
+		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
+		int src_buff_stride = WND_STRIDE_2D(*wnd_src, comp);
+		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
+		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, et->ctu_width);
+		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, et->ctu_width);
+
+		for(j=0;j<size;j++)
+		{
+			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
+			buff_src += src_buff_stride;
+			buff_dst += dst_buff_stride;
+		}
+	}
+}
+
+
 
 //#ifdef WRITE_REF_FRAMES
 void wnd_write2file(wnd_t *wnd, FILE *file)

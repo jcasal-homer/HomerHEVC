@@ -99,6 +99,7 @@ void print_help()
 	printf("-max_intra_tr_depth: \t\t\t [0-4], default = 2\r\n");
 	printf("-max_inter_tr_depth: \t\t\t [0-4], default = 1\r\n");
 	printf("-sign_hiding: \t\t\t\t 0=off, 1=on, default = 1\r\n");
+	printf("-sao: \t\t\t\t 0=off, 1=on, default = 1\r\n");
 	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate), default = VBR\r\n");
 	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR, default = 1250\r\n");
 	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = 1.*bitrate\r\n");
@@ -231,6 +232,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->sign_hiding);
 		}
+		else if(strcmp(argv[args_parsed], "-sao")==0 && args_parsed+1<argc)//sign_hiding, default 1
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->sample_adaptive_offset);
+		}
 		else if(strcmp(argv[args_parsed], "-bitrate_mode")==0 && args_parsed+1<argc)//bitrate_mode: 0=BR_FIXED_QP, 1 = BR_CBR (vbv based constant bit rate)
 		{
 			args_parsed++;
@@ -295,7 +301,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1500;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -330,12 +336,12 @@ int main (int argc, char **argv)
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
-	HmrCfg.sample_adaptive_offset = 0;
+	HmrCfg.sample_adaptive_offset = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	HmrCfg.bitrate = 1250;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - Only used for CBR
-	HmrCfg.vbv_init = HmrCfg.vbv_size*0.35;//in kbps
+	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - used for cbr and vbr
+	HmrCfg.vbv_init = HmrCfg.vbv_size*0.5;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 	HmrCfg.reinit_gop_on_scene_change = 1;
 	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)

@@ -861,50 +861,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 }
 
 
-void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd)
-{
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
-
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
-	{
-		int num_partitions = comp==Y_COMP?(curr_part->abs_index<<et->num_partitions_in_cu_shift):(curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2;
-		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
-		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, num_partitions);
-
-		for(j=0;j<size;j++)
-		{
-			memset(buff_dst, 0, size*sizeof(buff_dst[0]));
-			buff_dst += size;
-		}
-	}
-}
-
-void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
-{
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
-
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
-	{
-		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
-		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
-		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
-		int src_buff_stride = WND_STRIDE_2D(*wnd_src, comp);
-		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
-		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, et->ctu_width);
-		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, et->ctu_width);
-
-		for(j=0;j<size;j++)
-		{
-			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
-			buff_src += src_buff_stride;
-			buff_dst += dst_buff_stride;
-		}
-	}
-}
 
 //this function is used to consolidate buffers from bottom to top
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)

@@ -172,6 +172,9 @@ void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y,
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu);
+void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 void wnd_write2file(wnd_t *wnd_t, FILE* file);
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
@@ -226,8 +229,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 uint32_t encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
 uint32_t motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
-void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
-void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 
 
 //hmr_motion_intra_chroma.c
@@ -265,7 +266,12 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 
 //hmr_sao.c
 void sao_init(int bit_depth);
+void decide_pic_params(int *slice_enable);
 void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
+void hmr_sao_wpp_get_ctu_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
+void offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
+//void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
+//void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable)	;
 
 
 //hmr_arithmetic_encoding.c

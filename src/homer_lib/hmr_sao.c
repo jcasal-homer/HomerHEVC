@@ -57,29 +57,8 @@ uint g_saoMaxOffsetQVal[NUM_PICT_COMPONENTS];
 uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
 
-//para alojar
-//sao_stat_data_t stat_data[600][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//enc_engine or ctu
-//sao_blk_param_t recon_params[600];//holds reconstruction parameters
-//sao_blk_param_t coded_params[600];//holds encoding paramenters
-
-
-//int8_t m_signLineBuf1[64+1]; //en thread
-//int8_t m_signLineBuf2[64+1]; //en thread
-
-//int calculate_preblock_stats = FALSE;//esto no se si deberia ser siempre false
-
 static int skiped_lines_r[NUM_PICT_COMPONENTS] = {5,3,3};
 static int skiped_lines_b[NUM_PICT_COMPONENTS] = {4,2,2};
-
-//static int num_lcu_sao_off[NUM_PICT_COMPONENTS];//not used ¿?
-//static int sao_disabled_rate[NUM_PICT_COMPONENTS];//[NUM_TEMP_LAYERS];//needed when more that one slice or tyle avaliable
-
-//int slice_enabled[NUM_PICT_COMPONENTS];//slice
-
-
-
-//double m_lambda[3] = {57.908390375799925, 45.961919900164979, 45.961919900164979};
-
 
 
 void sao_init(int bit_depth)
@@ -97,7 +76,6 @@ void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ct
 {
 	int component;
 	int l_available, r_available, t_available, b_available, tl_available, bl_available, tr_available, br_available;
-	int ctu_idx = ctu->ctu_number;
 	int height_luma = (ctu->y[Y_COMP] + ctu->size > wpp_thread->pict_height[Y_COMP])?(wpp_thread->pict_height[Y_COMP]-ctu->y[Y_COMP]):ctu->size;
 	int width_luma = (ctu->x[Y_COMP] + ctu->size > wpp_thread->pict_width[Y_COMP])?(wpp_thread->pict_width[Y_COMP]-ctu->x[Y_COMP]):ctu->size;
 	int calculate_preblock_stats = wpp_thread->enc_engine->calculate_preblock_stats;
@@ -110,13 +88,6 @@ void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ct
 	tr_available = t_available & r_available;
 	bl_available = b_available & l_available;
 	br_available = b_available & r_available;
-
-//	memset(&stats[0][0], 0, NUM_PICT_COMPONENTS*sizeof(stats[0]));
-
-	if(wpp_thread->enc_engine->num_encoded_frames == 6 && ctu->ctu_number==10)
-	{
-		int iiiiii=0;
-	}
 
 	for(component=Y_COMP; component < NUM_PICT_COMPONENTS; component++)
 	{
@@ -1395,7 +1366,9 @@ void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t
 		reconstruct_blk_sao_param(recon_params, merge_list, merge_list_size);
 
 //		offsetCTU(ctu, srcYuv, resYuv, reconParams[ctu], pic);
-		offset_ctu(wpp_thread, ctu, recon_params);
+//#ifdef COMPUTE_AS_HM
+//		offset_ctu(wpp_thread, ctu, recon_params);
+//#endif
 	} //ctu
 
 //#if SAO_ENCODING_CHOICE 
@@ -1421,6 +1394,19 @@ void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t
 
 }
 
+void hmr_sao_wpp_get_ctu_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu)
+{
+		memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
+		memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
+		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
+		wnd_copy_ctu(wpp_thread, &wpp_thread->enc_engine->curr_reference_frame->img, &wpp_thread->enc_engine->sao_aux_wnd, ctu);
+		reference_picture_border_padding_ctu(&wpp_thread->enc_engine->sao_aux_wnd, ctu);
+
+		get_ctu_stats(wpp_thread, currslice, ctu, ctu->stat_data);	
+		decide_blk_params(wpp_thread, currslice, ctu, ctu->stat_data, wpp_thread->enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+}
+
 
 void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 {
@@ -1435,7 +1421,7 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 
 
 	//slice on/off 
-	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+//	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 
 //	memset(recon_params, 0, sizeof(recon_params));
 
@@ -1446,6 +1432,9 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 		memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
 		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
 		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
+		wnd_copy_ctu(enc_engine->thread[0], &enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd, ctu);
+		reference_picture_border_padding_ctu(&enc_engine->sao_aux_wnd, ctu);
+
 
 		get_ctu_stats(enc_engine->thread[0], currslice, ctu, ctu->stat_data);	
 	}
@@ -1454,6 +1443,7 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 	{
 		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
 		decide_blk_params(enc_engine->thread[0], currslice, ctu, ctu->stat_data, enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+		offset_ctu(enc_engine->thread[0], ctu, &ctu->recon_params);
 		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu);
 	}
 

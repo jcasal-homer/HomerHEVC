@@ -1565,6 +1565,9 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		}
 		break;
 	}
+
+	//init sao slice flags
+	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 }
 
 
@@ -1715,7 +1718,6 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	int ctu_num_vertical = ctu_num - (et->pict_width_in_ctu+1);//- et->pict_total_ctu;//take into account that intra prediction is done previous to deblocking the references
 	int ctu_num_horizontal = ctu_num - (et->pict_width_in_ctu+2);//  (1*et->pict_width_in_ctu+2);
 
-
 	//WPP syncchronization
 	//notify first synchronization as this line must go two ctus ahead from next line in wfpp
 /*	if(et->cu_current_x+1==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
@@ -1738,6 +1740,11 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	}
 */
 #ifndef COMPUTE_AS_HM
+	if(currslice->sps->sample_adaptive_offset_enabled_flag)
+	{
+		hmr_sao_wpp_get_ctu_params(et, currslice, ctu);
+	}
+
 	//deblocking filter - padding - INTER-FRAME synchronization
 	if(ctu_num_vertical>=0 && (ctu_num%et->pict_width_in_ctu)>=1 && et->enc_engine->intra_period != 1)
 	{
@@ -1782,6 +1789,11 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 			hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 			if(filter_ctu->ctu_number >= et->pict_width_in_ctu)//we can do padding 1 level above the filter
 			{
+				ctu_info_t *ctu_padding = filter_ctu - et->pict_width_in_ctu;
+				if(currslice->sps->sample_adaptive_offset_enabled_flag)
+				{
+					offset_ctu(et, ctu_padding, &ctu_padding->recon_params);
+				}
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
@@ -1805,6 +1817,11 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 			hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 			if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 			{
+				ctu_info_t *ctu_padding = filter_ctu - et->pict_width_in_ctu;
+				if(currslice->sps->sample_adaptive_offset_enabled_flag)
+				{
+					offset_ctu(et, ctu_padding, &ctu_padding->recon_params);
+				}
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
@@ -1825,6 +1842,11 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 			if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 			{
+				ctu_info_t *ctu_padding = filter_ctu - et->pict_width_in_ctu;
+				if(currslice->sps->sample_adaptive_offset_enabled_flag)
+				{
+					offset_ctu(et, ctu_padding, &ctu_padding->recon_params);
+				}
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
@@ -1856,6 +1878,11 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 				if(filter_ctu->ctu_number >= et->pict_width_in_ctu)
 				{
+					ctu_info_t *ctu_padding = filter_ctu - et->pict_width_in_ctu;
+					if(currslice->sps->sample_adaptive_offset_enabled_flag)
+					{
+						offset_ctu(et, ctu_padding, &ctu_padding->recon_params);
+					}
 					reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 				}
 			}
@@ -1869,6 +1896,12 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 			if(et->enc_engine->intra_period != 1)
 			{
+				ctu_info_t *ctu_padding = filter_ctu;
+				if(currslice->sps->sample_adaptive_offset_enabled_flag)
+				{
+					offset_ctu(et, ctu_padding, &ctu_padding->recon_params);
+				}
+
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 			}
 
@@ -2023,6 +2056,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		et->acc_dist += ctu->partition_list[0].distortion;
 #else
 		ctu->coeff_wnd = et->transform_quant_wnd[0];
+		ee_encode_sao(et, et->ee, currslice, ctu);
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 		et->acc_dist += ctu->partition_list[0].distortion;
@@ -2318,8 +2352,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		{
 			if(currslice->sps->sample_adaptive_offset_enabled_flag)
 			{
-				wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
-				reference_picture_border_padding(&enc_engine->sao_aux_wnd);
+//				wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
+//				reference_picture_border_padding(&enc_engine->sao_aux_wnd);
 				hmr_sao_hm(enc_engine, currslice);
 			}
 		}
