@@ -779,6 +779,7 @@ struct ctu_info_t
 	int				size;
 	int				num_part_in_ctu;
 	int				last_valid_partition;
+	uint32_t		distortion;
 	cu_partition_info_t	*partition_list;
 
 	uint8_t			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];
@@ -1061,7 +1062,7 @@ struct henc_thread_t
 	hmr_sem_ptr	synchro_signal[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	hmr_sem_ptr	synchro_wait[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	int			num_wait_sem;
-
+	int			dbg_sem_post_cnt;
 	bitstream_t	*bs;
 
 	//header info
@@ -1163,7 +1164,7 @@ struct henc_thread_t
 
 	//rate distortion
 	rate_distortion_t	rd;
-	uint				acc_dist;
+	uint32_t			acc_dist;
 
 	//rate control
 	uint				num_encoded_ctus;
@@ -1188,7 +1189,7 @@ struct hvenc_engine_t
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
-//	int				dbg_num_posts[MAX_NUM_THREADS];
+	int				dbg_num_posts[MAX_NUM_THREADS];
 
 	nalu_t			slice_nalu_list[NUM_OUTPUT_NALUS];//slice
 	nalu_t			*slice_nalu;//slice
@@ -1301,6 +1302,7 @@ struct hvenc_engine_t
 //	FILE			*f_psnr;
 #endif
 //	FILE			*debug_file;
+	int				sao_debug_stats[5];
 };
 
 

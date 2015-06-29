@@ -149,7 +149,7 @@ void *HOMER_enc_init()
 #endif
 	if(cpu_info[2] & 0x100000)////
 	{
-		printf("SSE42 avaliable!!");
+		printf("SSE42 avaliable!!\r\n");
 
 		hvenc->funcs.sad = sse_aligned_sad;
 		hvenc->funcs.ssd = sse_aligned_ssd;
@@ -879,10 +879,10 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0] = (uint8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_1] = phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 
-#ifdef COMPUTE_AS_HM
+//#ifdef COMPUTE_AS_HM
 					phvenc_engine->ctu_info[i].coeff_wnd = (wnd_t*)calloc(1, sizeof(wnd_t));		
 					wnd_realloc(phvenc_engine->ctu_info[i].coeff_wnd, (phvenc_engine->ctu_width[0]), phvenc_engine->ctu_height[0], 0, 0, sizeof(int16_t));		
-#endif
+//#endif
 				}
 
 
@@ -1567,7 +1567,8 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	}
 
 	//init sao slice flags
-	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+	decide_pic_params(enc_engine->slice_enabled, currslice->sao_luma_flag, currslice->sao_chroma_flag);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+	memset(enc_engine->sao_debug_stats, 0, sizeof(enc_engine->sao_debug_stats));
 }
 
 
@@ -1706,15 +1707,569 @@ ctu_info_t* init_ctu(henc_thread_t* et)
 }
 
 #define PRINTF //printf 
+#define PRINTF_POST	//printf 
+#define PRINTF_DEBLOCK //printf
+#define PRINTF_SAO //printf
+#define PRINTF_CTU_ENCODE //printf
+
+void wfpp_encode_ctu(henc_thread_t* et, ctu_info_t *ctu)
+{
+	int gcnt = 0;
+	int bits_allocated;
+	int ctu_num = ctu->ctu_number;
+	int ctu_x = ctu_num%et->pict_width_in_ctu;
+	int ctu_y = ctu_num/et->pict_width_in_ctu;
+	int ee_index = (ctu_y)%et->enc_engine->wfpp_num_threads;
+	picture_t *currpict = &et->enc_engine->current_pict;
+	slice_t *currslice = &currpict->slice;
+
+	if(ctu_num==0)
+	{
+		PRINTF_CTU_ENCODE("ee_get0, ctu_num:%d, ee_index:%d - ", ctu_num, (2*ee_index));
+		et->ec = &et->enc_engine->ec_list[ee_index];
+		et->ee = et->enc_engine->ee_list[2*ee_index];
+		et->ee->bs = &et->enc_engine->aux_bs[ctu_y];
+		hmr_bitstream_init(et->ee->bs);
+
+		//resetEntropy
+		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp, et->pps->cabac_init_flag);//Init CABAC contexts
+		//cabac - reset binary encoder and entropy
+		et->ee->ee_start(et->ee->b_ctx);
+		et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
+	}
+	else if(et->wfpp_enable)
+	{
+		if(ctu_y>0 && ctu_x==0)
+		{
+			ptrswap(enc_env_t*, et->enc_engine->ee_list[(2*ee_index)], et->enc_engine->ee_list[(2*ee_index+et->enc_engine->num_ee-1)%et->enc_engine->num_ee]);//get inherited enviroment, leave current as avaliable for the previous thread of the list
+			PRINTF_CTU_ENCODE("ptrswap, ctu_num:%d, ee_index_a:%d, ee_index_b:%d\r\n", ctu_num, (2*ee_index), (2*ee_index+et->enc_engine->num_ee-1)%et->enc_engine->num_ee);
+		}
+		PRINTF_CTU_ENCODE("ee_get1, ctu_num:%d, ee_index:%d - ", ctu_num, (2*ee_index));
+
+		et->ec = &et->enc_engine->ec_list[ee_index];
+		et->ee = et->enc_engine->ee_list[(2*ee_index)];
+		et->ee->bs = &et->enc_engine->aux_bs[ctu_y];
+		if(ctu_x==0)
+		{
+			hmr_bitstream_init(et->ee->bs);
+			et->ee->ee_start(et->ee->b_ctx);
+			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
+		}
+	}
+
+	bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+
+	if(currslice->sps->sample_adaptive_offset_enabled_flag)
+		ee_encode_sao(et, et->ee, currslice, ctu);
+
+	ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
+	PRINTF_CTU_ENCODE("ee_encode_ctu, ctu_num:%d\r\n", ctu_num);
+
+	et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
+
+	if(ctu_x==1 && ctu_y+1 != et->pict_height_in_ctu)
+	{
+		if(et->wfpp_enable)
+			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
+		PRINTF_CTU_ENCODE("ee_copy, ctu_num:%d, ee_index_dst:%d\r\n", ctu_num, (2*ee_index+1)%et->enc_engine->num_ee);			
+	}
+
+	if((et->wfpp_enable && ctu_x+1==et->pict_width_in_ctu) || !et->wfpp_enable && ctu_x+1==et->pict_total_ctu)
+	{
+		ee_end_slice(et->ee, currslice, ctu);
+		PRINTF_CTU_ENCODE("ee_end_slice, ctu_num:%d\r\n", ctu_num);
+	}
+}
+
 
 void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu)
 {
 	int ctu_num = ctu->ctu_number;
 	cu_partition_info_t* aux_partition_info;
 	ctu_info_t* filter_ctu;
+	int is_inter_gop = (et->enc_engine->intra_period != 1)?1:0;
+	int sao_enabled = currslice->sps->sample_adaptive_offset_enabled_flag;
 	int search_window_in_ctus_x = (MOTION_SEARCH_RANGE_X+et->max_cu_size-1)>>et->max_cu_size_shift;
 	int search_window_in_ctus_y = (MOTION_SEARCH_RANGE_Y+et->max_cu_size-1)>>et->max_cu_size_shift;
-	int sem_post_ctu_limit = (1+search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x;
+//borrar - Creo que en la sincronizacion, el eje y de la ventana de movimiento podria ser de tamaño (search_window_in_ctus_y) en vez de (1+search_window_in_ctus_y). De esto depende tambien un limite de mas abajo en esta funcion
+	int sem_post_ref_wnd_limit = (search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x+1;//(1+search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x;
+	int ctu_num_index = ctu_num%et->pict_width_in_ctu;
+	int ctu_num_vertical = ctu_num - (et->pict_width_in_ctu+1);//- et->pict_total_ctu;//take into account that intra prediction is done previous to deblocking the references
+	int ctu_num_vertical_index = ctu_num_vertical%et->pict_width_in_ctu;
+	int ctu_num_horizontal = ctu_num_vertical-1;//ctu_num - (et->pict_width_in_ctu+2);//  (1*et->pict_width_in_ctu+2);
+	int ctu_num_padding = sao_enabled?(ctu_num_horizontal - (et->pict_width_in_ctu+1)):(ctu_num_horizontal - et->pict_width_in_ctu);//  (1*et->pict_width_in_ctu+2);
+	int ctu_num_sao = ctu_num_padding;//only used if sao is enabled
+	int ctu_num_sao_offset = ctu_num_sao - (et->pict_width_in_ctu+1);
+	int ctu_num_post_semaphore = sao_enabled?(ctu_num_sao_offset - sem_post_ref_wnd_limit):(ctu_num_padding - sem_post_ref_wnd_limit);
+	//WPP syncchronization
+	//notify first synchronization as this line must go two ctus ahead from next line in wfpp
+/*	if(et->cu_current_x+1==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
+	{
+//		if(et->wfpp_enable)
+//			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
+		SEM_POST(et->synchro_signal[0]);
+	}
+
+	//wpp synchronization (take into account that intra prediction is done previous to deblocking the references)
+	if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+	{
+		SEM_POST(et->synchro_signal[0]);
+	}
+
+	//notify last synchronization as this line goes two ctus ahead from next line in wfpp
+	if(et->cu_current_x+1==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
+	{
+		SEM_POST(et->synchro_signal[0]);
+	}
+*/
+
+#ifndef COMPUTE_AS_HM
+	if(is_inter_gop)
+	{
+		if(sao_enabled)
+		{
+			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
+			{
+				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
+				filter_ctu->partition_list = et->deblock_partition_info;
+				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+					if(ctu_num_sao>=0 && (ctu_num_index)>=3)
+					{
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_sao];
+						hmr_wpp_sao_ctu(et, currslice, filter_ctu);				
+						wfpp_encode_ctu(et, filter_ctu);
+						PRINTF_SAO("SAO_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+						if(ctu_num_sao_offset>=0 && (ctu_num_index)>=4)
+						{
+							filter_ctu = &et->enc_engine->ctu_info[ctu_num_sao_offset];
+							offset_ctu(et, filter_ctu, &filter_ctu->recon_params);
+							reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
+							PRINTF_SAO("SAO_OFFSET_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+							if(ctu_num_post_semaphore>=0 && (ctu_num_index)>=5+search_window_in_ctus_x)
+							{
+								int thread_idx = (ctu_num_post_semaphore/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+								SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+								et->enc_engine->dbg_num_posts[thread_idx]++;
+								PRINTF_POST("SEM_POST_0, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_post_semaphore, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+							}
+						}
+					}
+				}
+			}
+
+
+			if((ctu_num_vertical_index+1) == et->pict_width_in_ctu-1 && (ctu_num+1) != et->pict_total_ctu && is_inter_gop)
+			{
+				int ctu_num_aux;
+				int max_filter = ((ctu_num_vertical/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_sao>0)
+				{
+					max_filter-=et->pict_width_in_ctu;
+					for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
+					{
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+						filter_ctu->partition_list = et->deblock_partition_info;
+						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
+						wfpp_encode_ctu(et, filter_ctu);
+						PRINTF_SAO("SAO_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+					}
+
+					if(ctu_num_sao_offset>0)
+					{
+						max_filter-=et->pict_width_in_ctu;
+						for(ctu_num_aux=ctu_num_sao_offset+1; ctu_num_aux<max_filter;ctu_num_aux++)
+						{
+							filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+							offset_ctu(et, filter_ctu, &filter_ctu->recon_params);
+							reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
+							PRINTF_SAO("SAO_OFFSET_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+						}
+
+						if(ctu_num_post_semaphore>0)
+						{
+							max_filter-=(search_window_in_ctus_y)*et->pict_width_in_ctu;//(1+search_window_in_ctus_y)*et->pict_width_in_ctu;
+							for(ctu_num_aux=ctu_num_post_semaphore+1; ctu_num_aux<max_filter;ctu_num_aux++)
+							{
+								int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+								SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);			
+								et->enc_engine->dbg_num_posts[thread_idx]++;
+								PRINTF_POST("SEM_POST_1, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+							}
+						}
+					}
+				}
+			}
+
+
+			if((ctu_num+1) == et->pict_total_ctu && is_inter_gop)
+			{
+				int ctu_num_aux;
+				int max_filter = et->pict_total_ctu;//((ctu_num_vertical_index/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+
+				if(ctu_num_vertical<0)
+					ctu_num_vertical=-1;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_horizontal<0)
+					ctu_num_horizontal=-1;
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_sao<0)
+					ctu_num_sao=-1;
+				for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_wpp_sao_ctu(et, currslice, filter_ctu);
+					wfpp_encode_ctu(et, filter_ctu);
+					PRINTF_SAO("SAO_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_sao_offset<0)
+					ctu_num_sao_offset=-1;
+				for(ctu_num_aux=ctu_num_sao_offset+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					offset_ctu(et, filter_ctu, &filter_ctu->recon_params);
+					reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
+					PRINTF_SAO("SAO_OFFSET_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_post_semaphore<0)
+					ctu_num_post_semaphore=-1;
+				for(ctu_num_aux=ctu_num_post_semaphore+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+					SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+					et->enc_engine->dbg_num_posts[thread_idx]++;
+					PRINTF_POST("SEM_POST_2, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+				}
+			}
+		}
+		else//if(!sao_enabled)
+		{
+			wfpp_encode_ctu(et, ctu);
+			if(ctu_num_vertical>=0 && (ctu_num_index)>=1 && is_inter_gop)
+			{
+				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
+				filter_ctu->partition_list = et->deblock_partition_info;
+				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+					if(ctu_num_padding>=0 && (ctu_num_index)>=2)
+					{
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_padding];
+						reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
+						PRINTF_SAO("PADDING_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+						if(ctu_num_post_semaphore>=0 && (ctu_num_index)>=3+search_window_in_ctus_x)
+						{
+							int thread_idx = (ctu_num_post_semaphore/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+							SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+							et->enc_engine->dbg_num_posts[thread_idx]++;
+							PRINTF_POST("SEM_POST_0, thread:%d, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", et->index, ctu_num_post_semaphore, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+						}
+					}
+				}
+			}
+
+
+			if((ctu_num_vertical_index+1) == et->pict_width_in_ctu-1 && (ctu_num+1) != et->pict_total_ctu && is_inter_gop)
+			{
+				int ctu_num_aux;
+				int max_filter = ((ctu_num_vertical/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_padding>0)
+				{
+					max_filter-=et->pict_width_in_ctu;
+					for(ctu_num_aux=ctu_num_padding+1; ctu_num_aux<max_filter;ctu_num_aux++)
+					{
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+						filter_ctu->partition_list = et->deblock_partition_info;
+						reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
+						PRINTF_SAO("PADDING_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+					}
+
+					if(ctu_num_post_semaphore>0)
+					{
+						max_filter-=(search_window_in_ctus_y)*et->pict_width_in_ctu;
+						for(ctu_num_aux=ctu_num_post_semaphore+1; ctu_num_aux<max_filter;ctu_num_aux++)
+						{
+							int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+							SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);			
+							et->enc_engine->dbg_num_posts[thread_idx]++;
+							PRINTF_POST("SEM_POST_1, thread:%d, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", et->index, ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+						}
+					}
+				}
+			}
+
+
+			if((ctu_num+1) == et->pict_total_ctu && is_inter_gop)
+			{
+				int ctu_num_aux;
+				int max_filter = et->pict_total_ctu;//((ctu_num_vertical_index/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+
+				if(ctu_num_vertical<0)
+					ctu_num_vertical=-1;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_horizontal<0)
+					ctu_num_horizontal=-1;
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_padding<0)
+					ctu_num_padding=-1;
+				for(ctu_num_aux=ctu_num_padding+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);				
+					PRINTF_SAO("PADDING_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_post_semaphore<0)
+					ctu_num_post_semaphore=-1;
+				for(ctu_num_aux=ctu_num_post_semaphore+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+					SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+					et->enc_engine->dbg_num_posts[thread_idx]++;
+					PRINTF_POST("SEM_POST_2, thread:%d, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", et->index, ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+				}
+			}
+		}
+	}
+	else //intra
+	{
+		if(sao_enabled)
+		{
+			int ctu_num_sao = (ctu_num_horizontal - (et->pict_width_in_ctu+1));
+//			int ctu_num_sao_offset = ctu_num_sao - (et->pict_width_in_ctu+1);
+			int ctu_num_post_semaphore = ctu_num_sao;
+
+			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
+			{
+				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
+				filter_ctu->partition_list = et->deblock_partition_info;
+				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+
+					if(ctu_num_sao>=0 && (ctu_num_index)>=3)
+					{
+						int thread_idx = (ctu_num_sao/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_sao];
+						hmr_wpp_sao_ctu(et, currslice, filter_ctu);				
+						wfpp_encode_ctu(et, filter_ctu);
+						PRINTF_SAO("SAO_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+						SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+						et->enc_engine->dbg_num_posts[thread_idx]++;
+						PRINTF_POST("SEM_POST_0, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_sao, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+					}
+				}
+			}
+
+
+			if((ctu_num_vertical_index+1) == et->pict_width_in_ctu-1 && (ctu_num+1) != et->pict_total_ctu)
+			{
+				int ctu_num_aux;
+				int max_filter = ((ctu_num_vertical/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_sao>0)
+				{
+					max_filter-=et->pict_width_in_ctu;
+					for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
+					{
+						int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+						filter_ctu->partition_list = et->deblock_partition_info;
+						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
+						wfpp_encode_ctu(et, filter_ctu);
+						PRINTF_SAO("SAO_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+						SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);			
+						et->enc_engine->dbg_num_posts[thread_idx]++;
+						PRINTF_POST("SEM_POST_1, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+
+					}
+				}
+			}
+
+
+			if((ctu_num+1) == et->pict_total_ctu)
+			{
+				int ctu_num_aux;
+				int max_filter = et->pict_total_ctu;//((ctu_num_vertical_index/et->pict_width_in_ctu)+1)*et->pict_width_in_ctu;
+
+				if(ctu_num_vertical<0)
+					ctu_num_vertical=-1;
+				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
+					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_horizontal<0)
+					ctu_num_horizontal=-1;
+				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
+					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+				}
+
+				if(ctu_num_sao<0)
+					ctu_num_sao=0;
+				for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
+				{
+					int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
+					filter_ctu->partition_list = et->deblock_partition_info;
+					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+					hmr_wpp_sao_ctu(et, currslice, filter_ctu);
+					wfpp_encode_ctu(et, filter_ctu);
+					PRINTF_SAO("SAO_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
+					SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+					et->enc_engine->dbg_num_posts[thread_idx]++;
+					PRINTF_POST("SEM_POST_2, filter_ctu_num:%d, thread_signaled:%d, dbg_num_posts=%d\r\n", ctu_num_aux, thread_idx, et->enc_engine->dbg_num_posts[thread_idx]);
+
+				}
+			}
+		}
+		else//if(!sao_enabled)
+		{
+			int thread_idx = (ctu->ctu_number/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
+			wfpp_encode_ctu(et, ctu);					
+			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
+		}
+	}
+#endif
+}
+
+
+
+void hmr_deblock_pad_sync_ctu_(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu)
+{
+	int ctu_num = ctu->ctu_number;
+	cu_partition_info_t* aux_partition_info;
+	ctu_info_t* filter_ctu;
+	int search_window_in_ctus_x = (MOTION_SEARCH_RANGE_X+et->max_cu_size-1)>>et->max_cu_size_shift;
+	int search_window_in_ctus_y = (MOTION_SEARCH_RANGE_Y+et->max_cu_size-1)>>et->max_cu_size_shift;
+	int sem_post_ref_wnd_limit = (1+search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x;
 	int ctu_num_vertical = ctu_num - (et->pict_width_in_ctu+1);//- et->pict_total_ctu;//take into account that intra prediction is done previous to deblocking the references
 	int ctu_num_horizontal = ctu_num - (et->pict_width_in_ctu+2);//  (1*et->pict_width_in_ctu+2);
 
@@ -1740,10 +2295,6 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	}
 */
 #ifndef COMPUTE_AS_HM
-	if(currslice->sps->sample_adaptive_offset_enabled_flag)
-	{
-		hmr_sao_wpp_get_ctu_params(et, currslice, ctu);
-	}
 
 	//deblocking filter - padding - INTER-FRAME synchronization
 	if(ctu_num_vertical>=0 && (ctu_num%et->pict_width_in_ctu)>=1 && et->enc_engine->intra_period != 1)
@@ -1797,7 +2348,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
-		if(filter_ctu->ctu_number >= sem_post_ctu_limit && (filter_ctu->ctu_number%et->pict_width_in_ctu)>=search_window_in_ctus_x)
+		if(filter_ctu->ctu_number >= sem_post_ref_wnd_limit && (filter_ctu->ctu_number%et->pict_width_in_ctu)>=search_window_in_ctus_x)
 		{
 			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-(1+search_window_in_ctus_y))%et->enc_engine->wfpp_num_threads;
 			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
@@ -1825,7 +2376,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
-		if(filter_ctu->ctu_number >= sem_post_ctu_limit)
+		if(filter_ctu->ctu_number >= sem_post_ref_wnd_limit)
 		{
 			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-(1+search_window_in_ctus_y))%et->enc_engine->wfpp_num_threads;
 			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
@@ -1850,7 +2401,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 			}
 		}
-		if(filter_ctu->ctu_number >= sem_post_ctu_limit)
+		if(filter_ctu->ctu_number >= sem_post_ref_wnd_limit)
 		{
 			int n;
 			int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-(1+search_window_in_ctus_y))%et->enc_engine->wfpp_num_threads;
@@ -1886,7 +2437,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 					reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu - et->pict_width_in_ctu);
 				}
 			}
-			if(filter_ctu->ctu_number >= sem_post_ctu_limit)
+			if(filter_ctu->ctu_number >= sem_post_ref_wnd_limit)
 			{
 				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-(1+search_window_in_ctus_y))%et->enc_engine->wfpp_num_threads;
 				SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
@@ -1905,7 +2456,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 				reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 			}
 
-			if(filter_ctu->ctu_number >= sem_post_ctu_limit-et->pict_width_in_ctu)//et->pict_width_in_ctu+1)
+			if(filter_ctu->ctu_number >= sem_post_ref_wnd_limit-et->pict_width_in_ctu)//et->pict_width_in_ctu+1)
 			{
 				int thread_idx = (filter_ctu->ctu_number/et->pict_width_in_ctu-(search_window_in_ctus_y))%et->enc_engine->wfpp_num_threads;
 				SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
@@ -1930,7 +2481,7 @@ void hmr_deblock_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 }
 
 
-
+#define PRINTF_SYNC //printf 
 
 THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 {
@@ -1947,9 +2498,9 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
 	et->num_intra_partitions = 0;
+	et->dbg_sem_post_cnt = 0;
 
 	ctu = &et->enc_engine->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
-
 
 	if(et->index==0)
 	{
@@ -1974,6 +2525,8 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		if(et->cu_current_y == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_wait[0]);
+//			et->dbg_sem_post_cnt++;
+//			PRINTF_SYNC("SEM_POST1: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
 		}
 		if(et->enc_engine->num_encoded_frames == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
@@ -1986,7 +2539,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 //			SEM_WAIT(et->synchro_wait[0]);
 		}
 
-#ifndef COMPUTE_AS_HM
+/*#ifndef COMPUTE_AS_HM
 		if(et->cu_current_x==0 && et->wfpp_enable)
 		{
 			if(et->cu_current_y > 0)
@@ -2002,7 +2555,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
 		}
 #endif
-		ctu = init_ctu(et);
+*/		ctu = init_ctu(et);
 
 		//Prepare Memory
 		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
@@ -2010,7 +2563,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		copy_ctu(ctu, et->ctu_rd);
 
-		bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+//		bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
 
 		PROFILER_RESET(intra)
 
@@ -2038,65 +2591,79 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		}
 		PROFILER_ACCUMULATE(intra)
 
+		et->acc_qp += ctu->partition_list[0].qp;
+
 		mem_transfer_decoded_blocks(et, ctu);
 
-		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
-		{
-			SEM_POST(et->synchro_signal[0]);
-		}
-
-//		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
-		{
-			hmr_deblock_pad_sync_ctu(et, currslice, ctu);
-		}
-
 		//cabac - encode ctu
-#ifdef COMPUTE_AS_HM
+//#ifdef COMPUTE_AS_HM
 		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
+		ctu->distortion = ctu->partition_list[0].distortion;
 		et->acc_dist += ctu->partition_list[0].distortion;
-#else
+		
+/*#else
 		ctu->coeff_wnd = et->transform_quant_wnd[0];
 		ee_encode_sao(et, et->ee, currslice, ctu);
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 		et->acc_dist += ctu->partition_list[0].distortion;
 #endif
+*/		
+//		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
+		{
+			hmr_deblock_pad_sync_ctu(et, currslice, ctu);
+		}
+
+		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
+		{
+			SEM_POST(et->synchro_signal[0]);
+			et->dbg_sem_post_cnt++;
+			PRINTF_SYNC("SEM_POST2: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
+		}
+
+
 		et->num_encoded_ctus++;
 		et->cu_current_x++;
+
 		//sync entrophy contexts between wpp
-		if(et->cu_current_x==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
+		if(et->cu_current_x == 2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
-			if(et->wfpp_enable)
-				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
+//			if(et->wfpp_enable)
+//				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
 			SEM_POST(et->synchro_signal[0]);
+			et->dbg_sem_post_cnt++;
+			PRINTF_SYNC("SEM_POST3: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
+
 		}
 
 		//notify last synchronization as this line goes two ctus ahead from next line in wfpp
 		if(et->cu_current_x==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_signal[0]);
+			et->dbg_sem_post_cnt++;
+			PRINTF_SYNC("SEM_POST4: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
 		}
 
 		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
-#ifndef COMPUTE_AS_HM
+/*#ifndef COMPUTE_AS_HM
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
 #endif
-			et->cu_current_y+=et->wfpp_num_threads;
+*/			et->cu_current_y+=et->wfpp_num_threads;
 			et->cu_current_x=0;
 		}
 
 		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 	}
 
-#ifndef COMPUTE_AS_HM	
+/*#ifndef COMPUTE_AS_HM	
 	if(!et->wfpp_enable)
 	{
 		ee_end_slice(et->ee, currslice, ctu);
 	}
 #endif
-
+*/
 	return THREAD_RETURN;
 }
 
@@ -2155,10 +2722,11 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 	ctu_info_t* ctu;
 	int cu_current_x = 0, cu_current_y = 0;
 //	int dir;
-
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
 		int bits_allocated = hmr_bitstream_bitcount(et->ee->bs);
+		int ee_index = cu_current_y%et->enc_engine->wfpp_num_threads;//et->index;
+
 		ctu = &enc_engine->ctu_info[ctu_num];
 		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
 		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
@@ -2167,24 +2735,40 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		{
 			if(cu_current_y > 0)
 			{
-				ptrswap(enc_env_t*, et->enc_engine->ee_list[(2*et->index)], et->enc_engine->ee_list[(2*et->index+et->enc_engine->num_ee-1)%et->enc_engine->num_ee]);//get inherited enviroment, leave current as avaliable for the previous thread of the list
+				ptrswap(enc_env_t*, et->enc_engine->ee_list[(2*ee_index)], et->enc_engine->ee_list[(2*ee_index+et->enc_engine->num_ee-1)%et->enc_engine->num_ee]);//get inherited enviroment, leave current as avaliable for the previous thread of the list
 			}
 
-			et->ec = &et->enc_engine->ec_list[et->index];
-			et->ee = et->enc_engine->ee_list[(2*et->index)];
+			et->ec = &et->enc_engine->ec_list[ee_index];
+			et->ee = et->enc_engine->ee_list[(2*ee_index)];
 			et->ee->bs = &et->enc_engine->aux_bs[cu_current_y];
 			hmr_bitstream_init(et->ee->bs);
 			et->ee->ee_start(et->ee->b_ctx);
 			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
 		}
 
-
-		if(enc_engine->num_encoded_frames == 3 &&  ctu_num == 8)
+		if(currslice->sps->sample_adaptive_offset_enabled_flag)
 		{
-			int iiiii=0;
-		}
+			hmr_wpp_sao_ctu(enc_engine->thread[0], currslice, ctu);
+			if(ctu_num>=(enc_engine->pict_width_in_ctu+1))
+			{
+				ctu_info_t* ctu_offset = &enc_engine->ctu_info[ctu_num-(enc_engine->pict_width_in_ctu+1)];
+				offset_ctu(enc_engine->thread[0], ctu_offset , &ctu_offset ->recon_params);
+				reference_picture_border_padding_ctu(&enc_engine->thread[0]->enc_engine->curr_reference_frame->img, ctu_offset);
+			}
+			ee_encode_sao(et, et->ee, currslice, ctu);
 
-		ee_encode_sao(et, et->ee, currslice, ctu);
+			if(ctu_num+1 == enc_engine->pict_total_ctu)
+			{
+				int ctu_num_aux;
+				for(ctu_num_aux = enc_engine->pict_total_ctu-(enc_engine->pict_width_in_ctu+1);ctu_num_aux < enc_engine->pict_total_ctu;ctu_num_aux++)
+				{
+					ctu_info_t* ctu_offset = &enc_engine->ctu_info[ctu_num_aux];
+					offset_ctu(enc_engine->thread[0], ctu_offset , &ctu_offset ->recon_params);
+					reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu_offset);
+				}
+			}
+		}
+		
 
 		ee_encode_ctu(et, et->ee, currslice, ctu, 0);
 //		et->num_encoded_ctus++;
@@ -2195,7 +2779,7 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		if(cu_current_x==2 && cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
-				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
+				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
 //			SEM_POST(et->synchro_signal[0]);
 		}
 
@@ -2203,12 +2787,10 @@ void hmr_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		{
 			if(et->wfpp_enable)
 				ee_end_slice(et->ee, currslice, ctu);
-			cu_current_y+=et->wfpp_num_threads;
+			cu_current_y++;//=et->wfpp_num_threads;
 			cu_current_x=0;
 		}
 	}
-
-
 
 	if(!et->wfpp_enable)
 	{
@@ -2223,6 +2805,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 {
 //	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
 //	hvenc_engine_t* enc_engine = (hvenc_engine_t*)hvenc->encoder_engines[0];
+	int avg_qp = 0.0;
 	hvenc_engine_t* enc_engine = (hvenc_engine_t*)h;
 	picture_t *currpict = &enc_engine->current_pict;
 	slice_t *currslice = &currpict->slice;
@@ -2258,6 +2841,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		hmr_bitstream_init(&enc_engine->slice_nalu->bs);
 
 		hmr_slice_init(enc_engine, &enc_engine->current_pict, &currpict->slice);
+
 		hmr_rd_init(enc_engine, &currpict->slice);
 
 		if(enc_engine->bitrate_mode != BR_FIXED_QP)
@@ -2268,6 +2852,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			enc_engine->rc = enc_engine->hvenc->rc;
 			hmr_rc_init_pic(enc_engine, &currpict->slice);
 		}
+
 		//get free img for decoded blocks
 		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
 		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
@@ -2318,15 +2903,21 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		CREATE_THREADS((&enc_engine->hthreads[0]), wfpp_encoder_thread, enc_engine->thread, enc_engine->wfpp_num_threads)
 		JOIN_THREADS(enc_engine->hthreads, enc_engine->wfpp_num_threads-1)
 
-		//calc average distortion
-		if(enc_engine->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || enc_engine->intra_period==1)
+		if(currslice->slice_type == I_SLICE)
+		{
+			int iiiii=0;
+		}
+
+		//----------------------------calc average statistics (distortion, qp)----------------------------------
+//		if(enc_engine->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || enc_engine->intra_period==1)
 		{
 			enc_engine->avg_dist = 0;
 			for(n = 0;n<enc_engine->wfpp_num_threads;n++)
 			{
 				henc_thread_t* henc_th = enc_engine->thread[n];
 		
-				 enc_engine->avg_dist+= henc_th->acc_dist;
+				enc_engine->avg_dist+= henc_th->acc_dist;
+				avg_qp+=henc_th->acc_qp;
 			}
 			enc_engine->avg_dist /= enc_engine->pict_total_ctu*enc_engine->num_partitions_in_cu;
 			enc_engine->avg_dist = clip(enc_engine->avg_dist,.1,enc_engine->avg_dist);
@@ -2335,48 +2926,44 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			else if(enc_engine->is_scene_change)
 				enc_engine->avg_dist*=1.375;
 		}
-		else if(currslice->slice_type == I_SLICE)
-			enc_engine->avg_dist/=1.5;
-
-		if(enc_engine->bitrate_mode != BR_FIXED_QP)
-			hmr_rc_end_pic(enc_engine, currslice);
+//		else if(currslice->slice_type == I_SLICE)
+//			enc_engine->avg_dist/=1.5;
 
 		enc_engine->hvenc->avg_dist = enc_engine->avg_dist;
-		enc_engine->is_scene_change = 0;
+		avg_qp = (avg_qp+(enc_engine->pict_total_ctu>>1))/enc_engine->pict_total_ctu;
+
+#ifndef COMPUTE_AS_HM
+		enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
+		if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
+			enc_engine->pict_qp = hmr_rc_compensate_qp_from_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
+#endif
+		//----------------------------end calc average statistics (distortion, qp)----------------------------------
 
 #ifdef COMPUTE_AS_HM
 		if(enc_engine->intra_period>1)
 			hmr_deblock_filter(enc_engine, currslice);
 			
-		if(currslice->sps->sample_adaptive_offset_enabled_flag)
-		{
-			if(currslice->sps->sample_adaptive_offset_enabled_flag)
-			{
+
+/*		if(currslice->sps->sample_adaptive_offset_enabled_flag)
+		{			
 //				wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
 //				reference_picture_border_padding(&enc_engine->sao_aux_wnd);
-				hmr_sao_hm(enc_engine, currslice);
-			}
+			hmr_sao_hm(enc_engine, currslice);
 		}
+*/
 
 		hmr_encode_ctus_hm(enc_engine, currslice);
+
+		if(currslice->sps->sample_adaptive_offset_enabled_flag)
+		{			
+//				wnd_copy_16bit(&enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd);
+//				reference_picture_border_padding(&enc_engine->sao_aux_wnd);
+			//hmr_wpp_sao_offset_remaining_ctu(enc_engine->thread[0], currslice);
+		}
 
 		if(enc_engine->intra_period>1)
 			reference_picture_border_padding(&enc_engine->curr_reference_frame->img);
 #endif
-
-		//sync to other modules
-		for(engine = 0;engine<enc_engine->hvenc->num_encoder_engines;engine++)
-		{
-			hvenc_engine_t* phvenc_engine = enc_engine->hvenc->encoder_engines[engine];
-			if(phvenc_engine->current_pict.slice.poc>enc_engine->current_pict.slice.poc)
-			{
-				phvenc_engine->rc.vbv_fullness = enc_engine->rc.vbv_fullness;
-				phvenc_engine->rc.acc_avg = enc_engine->rc.acc_avg;
-				phvenc_engine->rc.acc_rate= enc_engine->rc.acc_rate;
-				if(!phvenc_engine->is_scene_change)
-					phvenc_engine->avg_dist= enc_engine->avg_dist;
-			}
-		}
 
 		if(enc_engine->num_encoded_frames==0)
 			SEM_POST(enc_engine->output_wait);
@@ -2403,6 +2990,27 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		hmr_bitstream_put_nal_unit_header(&enc_engine->slice_nalu->bs, currslice->nalu_type, 0, 0);
 		hmr_bitstream_nalu_ebsp(&enc_engine->slice_bs,&enc_engine->slice_nalu->bs);
 
+
+		if(enc_engine->bitrate_mode != BR_FIXED_QP)
+			hmr_rc_end_pic(enc_engine, currslice);
+
+		//sync to other modules
+		for(engine = 0;engine<enc_engine->hvenc->num_encoder_engines;engine++)
+		{
+			hvenc_engine_t* phvenc_engine = enc_engine->hvenc->encoder_engines[engine];
+			if(phvenc_engine->current_pict.slice.poc>enc_engine->current_pict.slice.poc)
+			{
+				phvenc_engine->rc.vbv_fullness = enc_engine->rc.vbv_fullness;
+				phvenc_engine->rc.acc_avg = enc_engine->rc.acc_avg;
+				phvenc_engine->rc.acc_rate= enc_engine->rc.acc_rate;
+				if(!phvenc_engine->is_scene_change)
+					phvenc_engine->avg_dist= enc_engine->avg_dist;
+			}
+		}
+
+
+		enc_engine->is_scene_change = 0;
+
 #ifdef WRITE_REF_FRAMES
 		wnd_write2file(&enc_engine->curr_reference_frame->img);
 #endif
@@ -2428,7 +3036,11 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
 #endif
 			printf("vbv: %.2f, avg_dist: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size, enc_engine->avg_dist);
+			printf("sao:[%d,%d,%d,%d,%d], lambda:%.2f, ", enc_engine->sao_debug_stats[0],enc_engine->sao_debug_stats[1],enc_engine->sao_debug_stats[2],enc_engine->sao_debug_stats[3],enc_engine->sao_debug_stats[4], enc_engine->lambdas[0]);
 //			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
+#ifndef COMPUTE_AS_HM
+			printf("qp: %d, ", enc_engine->pict_qp);			
+#endif
 			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
 			fflush(stdout);
 		}

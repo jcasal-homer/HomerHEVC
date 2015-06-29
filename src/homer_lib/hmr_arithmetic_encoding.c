@@ -1455,9 +1455,18 @@ void encode_delta_qp(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_parti
 
 	diff_qp = qp - ref_qp;
 
+	if(diff_qp>25 || diff_qp<-26)
+	{
+		int iiiii=0;
+	}
+
 //	Int qpBdOffsetY =  pcCU->getSlice()->getSPS()->getQpBDOffsetY();
 	diff_qp = (diff_qp + 78) % 52  - 26;//(iDQp + 78 + qpBdOffsetY + (qpBdOffsetY/2)) % (52 + qpBdOffsetY) - 26 - (qpBdOffsetY/2);
 
+	if(diff_qp>25 || diff_qp<-26)
+	{
+		int iiiii=0;
+	}
 	abs_diff_qp = (uint32_t)abs(diff_qp);//((iDQp > 0)? iDQp  : (-iDQp));
 	tu_value = min((int)abs_diff_qp, CU_DQP_TU_CMAX);
 
@@ -2331,4 +2340,57 @@ uint rd_get_intra_bits_qt( henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 
 	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
 
+}
+
+
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled)
+{
+	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
+	ee_copy_entropy_model(et->ee, et->ec);
+
+	et->ec->ee_reset_bits(et->ec->b_ctx);
+	code_sao_offset_param(et->ec, component, ctbParam, sliceEnabled);
+	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+}
+
+
+
+//Void TEncSbac::codeSAOBlkParam(SAOBlkParam& saoBlkParam
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
+{
+	int isLeftMerge = FALSE;
+	int isAboveMerge= FALSE;
+	int component;
+
+	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
+	ee_copy_entropy_model(et->ee, et->ec);
+
+	if(leftMergeAvail)
+	{
+		isLeftMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_LEFT));
+		code_sao_merge(et->ec, isLeftMerge?1:0);
+//		codeSaoMerge( isLeftMerge?1:0  ); //sao_merge_left_flag
+	}
+
+	if( aboveMergeAvail && !isLeftMerge)
+	{
+		isAboveMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_ABOVE)); 
+		code_sao_merge(et->ec, isAboveMerge?1:0);
+//		codeSaoMerge( isAboveMerge?1:0  ); //sao_merge_left_flag
+	}
+
+	if(onlyEstMergeInfo)
+	{
+		return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+	}
+
+	if(!isLeftMerge && !isAboveMerge) //not merge mode
+	{
+		for(component=0; component < NUM_PICT_COMPONENTS; component++)
+		{
+			code_sao_offset_param(et->ec, component, &saoBlkParam->offsetParam[component], sliceEnabled[component]);
+//			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
+		}
+	}
+	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
 }

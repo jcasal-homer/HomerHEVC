@@ -120,7 +120,7 @@ void print_help()
 
 
 
-
+int aux_dbg;
 void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames)
 {
 	int args_parsed = 1;
@@ -282,6 +282,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", skipped_frames);
 		}
+		else if(strcmp(argv[args_parsed], "-aux_dbg")==0 && args_parsed+1<argc)//frames to skip before starting encoding
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &aux_dbg);
+		}
 		else	//arg not recognized. Continue to next
 		{
 			printf("\r\nunrecognized argument: %s\r\n",argv[args_parsed]);
@@ -300,8 +305,8 @@ int main (int argc, char **argv)
 	int bytes_read = 0;
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 1500;//1500;//500;//2200;//100;//700;//15;
+	int skipped_frames = 00;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int num_frames = 1800;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -342,9 +347,9 @@ int main (int argc, char **argv)
 	HmrCfg.bitrate = 1250;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - used for cbr and vbr
 	HmrCfg.vbv_init = HmrCfg.vbv_size*0.5;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
+	HmrCfg.chroma_qp_offset = 0;
 	HmrCfg.reinit_gop_on_scene_change = 1;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	HmrCfg.performance_mode = PERF_FULL_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 

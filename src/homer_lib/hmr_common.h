@@ -266,12 +266,13 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 
 //hmr_sao.c
 void sao_init(int bit_depth);
-void decide_pic_params(int *slice_enable);
+void decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enable_chroma);
 void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
-void hmr_sao_wpp_get_ctu_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
 void offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
-//void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
-//void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable)	;
+void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
+void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable);
+void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
+void hmr_wpp_sao_offset_remaining_ctu(henc_thread_t *wpp_thread, slice_t *currslice);
 
 
 //hmr_arithmetic_encoding.c
@@ -291,7 +292,8 @@ ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info
 ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
-
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled);
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo);
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);
 void bm_map_funcs(enc_env_t* ee);
@@ -311,4 +313,6 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice);
 void hmr_rc_change_pic_mode(henc_thread_t* enc_engine, slice_t *currslice);
+double hmr_rc_compensate_qp_for_intra(double avg_dist, double qp);
+double hmr_rc_compensate_qp_from_intra(double avg_dist, double qp);
 #endif //__HOMER_HEVC_COMMON_H__
