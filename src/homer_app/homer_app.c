@@ -337,7 +337,7 @@ int main (int argc, char **argv)
 	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.num_enc_engines = 2;
+	HmrCfg.num_enc_engines = 1;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;

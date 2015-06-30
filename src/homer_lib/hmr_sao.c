@@ -688,11 +688,13 @@ void derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_
 //	m_pcRDGoOnSbacCoder->resetBits();
 //	m_pcRDGoOnSbacCoder->codeSAOOffsetParam(component, mode_param[component], sliceEnabled[component]);
 	modeDist[component] = 0;
+#ifdef COMPUTE_AS_HM
 //	minCost = MAX_COST;
-//	minCost = 0;//2.5*lambdas[component];//MAX_COST;
+	minCost = 2.5*lambdas[component];//MAX_COST;
+#else
 	rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component]);
 	minCost = lambdas[component]*rate; 
-
+#endif
 //	minCost= m_lambda[component]*((Double)m_pcRDGoOnSbacCoder->getNumberOfWrittenBits());
 //	m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
 	if(slice_enabled[component])
@@ -723,15 +725,16 @@ void derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_
 //			rate = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 
 			cost = (double)dist[component];// + m_lambda[component]*((Double)rate);
-/*			if(type_idc==SAO_TYPE_BO)
+#ifdef COMPUTE_AS_HM
+			if(type_idc==SAO_TYPE_BO)
 				cost += lambdas[component]*11;
 			else
 				cost += lambdas[component]*8;
-*/
+#else
 //			cost += lambdas[component]*rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
 			rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
 			cost += lambdas[component]*rate; 
-
+#endif
 
 			if(cost < minCost)
 			{
@@ -765,7 +768,9 @@ void derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_
 
 	minCost = cost;
 //	minCost = MAX_COST;
-//	minCost = 0;//2.5*lambdas[U_COMP];//MAX_COST;
+#ifdef COMPUTE_AS_HM
+	minCost = 2.5*lambdas[U_COMP];//MAX_COST;
+#endif
 	//doesn't need to store cabac status here since the whole CTU parameters will be re-encoded at the end of this function
 
 	for(type_idc=0; type_idc< NUM_SAO_NEW_TYPES; type_idc++)
@@ -797,12 +802,15 @@ void derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_
 //			const UInt currentWrittenBits = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 			cost += dist[component];// + (m_lambda[component] * (currentWrittenBits - previousWrittenBits));
 			rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
-			cost += lambdas[component]*rate; 
-/*			if(type_idc==SAO_TYPE_BO)
+			
+#ifdef COMPUTE_AS_HM
+			if(type_idc==SAO_TYPE_BO)
 				cost += lambdas[component]*11;
 			else
 				cost += lambdas[component]*8;
-*/
+#else
+			cost += lambdas[component]*rate; 
+#endif
 //			previousWrittenBits = currentWrittenBits;
 		}
 
@@ -877,7 +885,10 @@ void derive_mode_merge_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_li
 	rate = rd_code_sao_blk_param(wpp_thread, &test_blk_param, slice_enable, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE);
 
 //    cost = norm_dist+lambdas[Y_COMP]*(double)rate;
-	cost = norm_dist+(double)rate;
+	cost = norm_dist;
+#ifndef COMPUTE_AS_HM
+	cost += (double)rate;
+#endif
 
     if(cost < *mode_cost)
     {

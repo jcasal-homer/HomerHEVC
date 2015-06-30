@@ -354,14 +354,9 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 	}
 
 #ifdef COMPUTE_AS_HM
-	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );
+	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
 #else
-//	lambda = pow( 1.5, qp_temp/(1.5+.25*aux_dbg));//3
-//	lambda = pow( 1.5, qp_temp/(2.0));//2
-//	lambda = qp_factor*pow( 2.0, qp_temp/2.0 );
-	lambda = pow( 1.5, qp_temp/(2.25));//2
-	//lambda = qp_factor*pow( 1.5, qp_temp/(1.5));//1//enc_engine->avg_dist/5;//aux_dbg;//qp_factor*pow( 2.0, 3+sqrt(qp_temp/2));//sqrt(enc_engine->avg_dist);//
-//	lambda = enc_engine->avg_dist/4;//aux_dbg;//qp_factor*pow( 2.0, 3+sqrt(qp_temp/2));//sqrt(enc_engine->avg_dist);//
+	lambda = pow( 1.5, qp_temp/(2.));//2
 #endif
 
     if ( depth>0 )
@@ -382,12 +377,7 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 	enc_engine->rd.lambda = lambda;
 
 	enc_engine->lambdas[0] = lambda;
-#ifdef COMPUTE_AS_HM
 	enc_engine->lambdas[1] = enc_engine->lambdas[2] = lambda/weight;
-#else
-//	weight = pow( 2.0, (currslice->qp-clip(currslice->qp+enc_engine->chroma_qp_offset,0,57))/3.0); 
-	enc_engine->lambdas[1] = enc_engine->lambdas[2] = lambda/weight;
-#endif
 }
 
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode)//up_left_luma_dir_mode solo vale para la chroma
