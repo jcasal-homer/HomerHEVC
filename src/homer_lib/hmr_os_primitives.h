@@ -27,7 +27,7 @@
 #ifdef _MSC_VER
 #include	<windows.h>
 #include	<intrin.h>//for cpuid in windows
-#include	"stdint.h"
+#include	"..\win_includes\stdint.h"
 //-----------------------------------------------------------threads---------------------------------------------------
 
 //data alignment

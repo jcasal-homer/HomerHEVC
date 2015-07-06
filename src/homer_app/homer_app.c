@@ -51,7 +51,7 @@
 
 #define HOR_SIZE	1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
 #define VER_SIZE	720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
-#define FPS			25//25//50
+#define FPS			50//25//50
 
 
 #ifdef _MSC_VER
@@ -124,12 +124,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 {
 	int args_parsed = 1;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -316,7 +316,7 @@ int main (int argc, char **argv)
 	HmrCfg.width = HOR_SIZE;
 	HmrCfg.height = VER_SIZE;
 	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 0;//1;
+	HmrCfg.intra_period = 100;//1;
 	HmrCfg.gop_size = 1;//1;//0;
 	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
 	HmrCfg.qp = 32;//32;
@@ -326,18 +326,18 @@ int main (int argc, char **argv)
 	HmrCfg.max_pred_partition_depth = 4;
 	HmrCfg.max_intra_tr_depth = 2;
 	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.num_enc_engines = 2;
+	HmrCfg.num_enc_engines = 1;
 	HmrCfg.wfpp_enable = 1;
 	HmrCfg.wfpp_num_threads = 10;
 	HmrCfg.sign_hiding = 1;
 	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 1250;//in kbps
+	HmrCfg.bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	HmrCfg.bitrate = 5000;//in kbps
 	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - Only used for CBR
 	HmrCfg.vbv_init = HmrCfg.vbv_size*0.25;//in kbps
 	HmrCfg.chroma_qp_offset = 2;
 	HmrCfg.reinit_gop_on_scene_change = 1;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	HmrCfg.performance_mode = PERF_FULL_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 

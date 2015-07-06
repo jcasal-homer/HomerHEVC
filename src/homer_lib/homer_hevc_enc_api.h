@@ -24,7 +24,7 @@
 #define __HOMER_HEVC_ENCODER_API_H__
 
 #ifdef _MSC_VER
-#include "stdint.h"
+#include "..\win_includes\stdint.h"
 #else
 #include <stdint.h>
 #endif
