@@ -356,7 +356,11 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 #ifdef COMPUTE_AS_HM
 	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
 #else
-	lambda = pow( 1.5, qp_temp/(2.));//2
+//	if(aux_dbg==0)
+//	lambda = pow( 1.5, qp_temp/(2.25));//2
+//		lambda = pow( 1.5, qp_temp/(1.75+.25*aux_dbg));//2
+//	else
+		lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
 #endif
 
     if ( depth>0 )

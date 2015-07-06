@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-#define COMPUTE_AS_HM			1	//to debug against HM
+//#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE				1
 //#define COMPUTE_METRICS			1
 
@@ -657,14 +657,14 @@ struct pps_t
 typedef struct wnd_t wnd_t;
 struct wnd_t
 {
-	void	*palloc[3];//allocated pointer
-	void	*pwnd[3];//valid data pointer
-	int		window_size_x[3];
-	int		window_size_y[3];
-	int		data_padding_x[3];//left and right padding due to data pading or memory aligment
-	int		data_padding_y[3];//top and bottom padding due to data pading or memory aligment
-	int		data_width[3];//wnd data horizontal size
-	int		data_height[3];//wnd data vertical size
+	void	*palloc[NUM_PICT_COMPONENTS];//allocated pointer
+	void	*pwnd[NUM_PICT_COMPONENTS];//valid data pointer
+	int		window_size_x[NUM_PICT_COMPONENTS];
+	int		window_size_y[NUM_PICT_COMPONENTS];
+	int		data_padding_x[NUM_PICT_COMPONENTS];//left and right padding due to data pading or memory aligment
+	int		data_padding_y[NUM_PICT_COMPONENTS];//top and bottom padding due to data pading or memory aligment
+	int		data_width[NUM_PICT_COMPONENTS];//wnd data horizontal size
+	int		data_height[NUM_PICT_COMPONENTS];//wnd data vertical size
 	int		pix_size;
 //#ifdef WRITE_REF_FRAMES
 //	FILE	*out_file;//for debug porposes
@@ -949,6 +949,7 @@ struct rate_control_t
 	double	target_bits_per_ctu;
 	double  acc_rate;
 	double  acc_avg;
+	int		extra_bits;
 //	int		acc_qp;
 //	double	consumed_bitrate;
 //	int		consumed_ctus;
@@ -1042,6 +1043,8 @@ struct low_level_funcs_t
 
 	void (*transform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
 	void (*itransform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
+
+	void (*get_sao_stats)(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
 };
 
 
@@ -1101,7 +1104,8 @@ struct henc_thread_t
 	int				rd_mode;
 	int				performance_mode;
 	uint			num_intra_partitions;
-
+	uint			num_total_partitions;
+	uint			num_total_ctus;
 
 	int				*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
@@ -1125,8 +1129,8 @@ struct henc_thread_t
 	uint8_t			*deblock_filter_strength_bs[2];
 
 	//sao
-	int8_t			*sao_sign_line_buff1;//m_signLineBuf1;
-	int8_t			*sao_sign_line_buff2; //m_signLineBuf2;
+	int16_t			*sao_sign_line_buff1;//m_signLineBuf1;
+	int16_t			*sao_sign_line_buff2; //m_signLineBuf2;
 
 	//quarter precission buffers
 	wnd_t			filtered_block_wnd[4][4];
@@ -1302,7 +1306,8 @@ struct hvenc_engine_t
 //	FILE			*f_psnr;
 #endif
 //	FILE			*debug_file;
-	int				sao_debug_stats[5];
+	int				sao_debug_mode[3];
+	int				sao_debug_type[5];
 };
 
 

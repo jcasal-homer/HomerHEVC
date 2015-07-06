@@ -135,5 +135,7 @@ void sse_filter_copy(int16_t *src, int src_stride, int16_t *dst, int dst_stride,
 uint32_t sse_modified_variance(uint8_t * p, int size, int stride, int modif);
 
 
+//---------------------------------------------- sao ------------------------------------------------
+void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
 
 #endif /*__HOMER_HEVC_SSE42_FUNCTIONS__*/

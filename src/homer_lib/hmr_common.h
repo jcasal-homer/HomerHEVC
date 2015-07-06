@@ -266,13 +266,13 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 
 //hmr_sao.c
 void sao_init(int bit_depth);
-void decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enable_chroma);
-void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
-void offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
-void get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
-void decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable);
+void sao_decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enable_chroma);
+void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
+void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
+void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable);
 void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
 void hmr_wpp_sao_offset_remaining_ctu(henc_thread_t *wpp_thread, slice_t *currslice);
+void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
 
 
 //hmr_arithmetic_encoding.c
