@@ -290,8 +290,8 @@ void hmr_put_pic_header(hvenc_enc_t* hvenc)
 	hmr_bitstream_write_bits(bs, pps->sign_data_hiding_flag,1);
 	hmr_bitstream_write_bits(bs, pps->cabac_init_present_flag,1);
 
-	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_module[0]->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
-	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_module[0]->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_engines[0]->num_refs_idx_active_list[REF_PIC_LIST_0]-1);//num_ref_idx_l0_default_active_minus1
+	hmr_bitstream_write_bits_uvlc(bs, hvenc->encoder_engines[0]->num_refs_idx_active_list[REF_PIC_LIST_1]-1);//num_ref_idx_l1_default_active_minus1
 	
 	hmr_bitstream_write_bits_svlc(bs, pps->pic_init_qp_minus26);
 

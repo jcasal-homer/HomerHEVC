@@ -16,18 +16,19 @@ Code style of the development is C'99 and recursive functions have been implemen
 
 HomerHEVC is still under development and will improve in quality and performance during the development.
 
-Current Features (latest version is HomerHEVC_v1.1)
+Current Features (latest version is HomerHEVC_v1.2)
 --------------------------------------------------------
 - Multiplatform (Linux,Windows)
 - 8 bit-depth.
 - Intra and Baseline profile (I and P images with 1 reference image).
 - All intra prediction modes.
 - 2Nx2N and NxN inter prediction modes.
-- CTU size 64 (Intra mode suports CTU size 64, 32 and 16).
+- Half pixel and quarter pixel precission motion estimation.
+- CTU size 64 (Intra mode supports CTU size 64, 32 and 16).
 - All transform sizes (32,16,8,4).
-- high accuracy VBV based rate control.
+- Fixed QP, CBR (Constant Bit Rate), and VBR (Variable Bit Rate).
 - Deblocking filter.
-- Wpp parallelization (native pthread or win32 threads, depending on the OS).
+- Wpp and Frame based parallelization for massive parallelism
 - Sign hiding bit enabled.
 - intra RDO.
 - intra-inter fast RD.
@@ -35,7 +36,7 @@ Current Features (latest version is HomerHEVC_v1.1)
 Optimizations (SSE42):
 - Intra prediction generation.
 - Motion estimation.
-- Inter prediction with 1/8 pixel chroma precission.
+- Inter prediction.
 - Intra Prediction.
 - Reconstruction. 
 - SAD, SSD.
@@ -56,8 +57,9 @@ Current Version improvements - homerHEVC_V1.0 (November 2014)
 - Rate control
 - Further SSE/AVX optimizations & quality improvements.
 
-homerHEVC_V2.0 (March 2015)
+homerHEVC_V2.0 (April 2015)
 - SAO.
+- Frame based parallelism.
 - Half pixel and quarter pixel precission motion estimation.
 - Further SSE/AVX optimizations & quality improvements.
 
@@ -95,31 +97,34 @@ These are a list of the configuration variables currently supported:
 
 	homer_app [-option] [value]...
 	options:
-	-h:                      help
-	-i:                      input yuv file
-	-o:                      output 265 file
-	-o-raw:                  output raw frames in yuv format
-	-widthxheight:           default = 1280x720
-	-frame_rate:             default = 50 fps
-	-cu_size:                cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)
-	-intra_preriod:          default = 20
-	-gop_size:               0:intra profile, 1: IPPP.. profile, default = 1
-	-num_ref_frame:          default = 1 (only 1 reference currently supported)
-	-qp:                     qp[0-51], default = 32
-	-chroma_qp_offset:       chroma_qp_offset[-12,12], default = 2
-	-n_wpp_threads:          0:no wpp, >0-number of wpp threads, default = 10
-	-max_pred_depth:         [0-4], default = 4
-	-max_intra_tr_depth:     [0-4], default = 2
-	-max_inter_tr_depth:     [0-4], default = 1
-	-sign_hiding:            0=off, 1=on, default = 1
-	-bitrate_mode:           0=fixed qp, 1=CBR (Constant bitrate), default = CBR
-	-bitrate:                in kbps when bitrate_mode=CBR, default = 5000
-	-vbv_size:               in kbps when bitrate_mode=CBR, default = .5*bitrate
-	-vbv_init:               in kbps when bitrate_mode=CBR, default = .1*bitrate
-	-performance_mode:       0=full computation, 1=fast , 2= ultra fast, default = fast
-	-rd:                     0=off, 1=full rd (only in intra) , 2= fast rd, default = fast
-	-n_frames:               default = 40
-	-skipped_frames:         default = 0
+	-h:                             help
+	-i:                             input yuv file
+	-o:                             output 265 file
+	-o-raw:                         output raw frames in yuv format
+	-widthxheight:                  default = 1280x720
+	-frame_rate:                    default = 25 fps
+	-cu_size:                       cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)
+	-intra_preriod:                 [0-...], 0=infinite, default = 100
+	-gop_size:                      0:intra profile, 1: IPPP.. profile, default = 1
+	-num_ref_frame:                 default = 1 (only 1 reference currently supported)
+	-qp:                            qp[0-51], default = 32
+	-motion_estimation_precision    0=pel, 1=half_pel, 2=quarter_pel, default = 2
+	-chroma_qp_offset:              chroma_qp_offset[-12,12], default = 2
+	-n_enc_engines:                 number of encoder engines encoding frames in parallel, default = 2
+	-n_wpp_threads:                 0:no wpp, >0-number of wpp threads, default = 10
+	-max_pred_depth:                [0-4], default = 4
+	-max_intra_tr_depth:            [0-4], default = 2
+	-max_inter_tr_depth:            [0-4], default = 1
+	-sign_hiding:                   0=off, 1=on, default = 1
+	-bitrate_mode:                  0=fixed qp, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate), default = VBR
+	-bitrate:                       in kbps when bitrate_mode=CBR, default = 1250
+	-vbv_size:                      in kbps when bitrate_mode=CBR, default = 1.*bitrate
+	-vbv_init:                      in kbps when bitrate_mode=CBR, default = .25*vbv_size
+	-performance_mode:              0=full computation, 1=fast , 2= ultra fast, default = ufast
+	-scene_change:                  0=do not reinit, 1=reinit gop on scene change, default = 1;
+	-rd:                            0=off, 1=full rd (only in intra) , 2= fast rd, default = fast
+	-n_frames:                      default = 1000
+	-skipped_frames:                default = 0
 
 examples:
 

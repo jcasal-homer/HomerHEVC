@@ -249,8 +249,8 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 
 
 //hmr_transform.c
-void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
-void itransform(int bitDepth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
+void transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
+void itransform(int bit_depth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
 
 //hmr_quant.c
 void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU, int width, int height );
@@ -278,7 +278,9 @@ ctu_info_t *get_pu_left_bottom(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary);
 ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
-
+void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled);
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo);
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);
 void bm_map_funcs(enc_env_t* ee);
@@ -298,4 +300,6 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice);
 void hmr_rc_change_pic_mode(henc_thread_t* enc_engine, slice_t *currslice);
+double hmr_rc_compensate_qp_for_intra(double avg_dist, double qp);
+double hmr_rc_compensate_qp_from_intra(double avg_dist, double qp);
 #endif //__HOMER_HEVC_COMMON_H__

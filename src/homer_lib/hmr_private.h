@@ -220,6 +220,7 @@ typedef unsigned long	uint64;
 #define INTRA_MODE				1	
 #define NONE_MODE				2	
 
+
 // partition types
 typedef enum 
 {
@@ -379,6 +380,109 @@ static const uint8_t scan_interlaced[16][2] =
   {2,0},{2,1},{2,2},{2,3},
   {3,0},{3,1},{3,2},{3,3}
 };
+
+
+//-------------------------------------------------- sao ------------------------------------------------------
+#define MAX_SAO_TRUNCATED_BITDEPTH     10 
+
+#define FULL_NBIT 0 ///< When enabled, compute costs using full sample bitdepth.  When disabled, compute costs as if it is 8-bit source video.
+#if FULL_NBIT
+# define DISTORTION_PRECISION_ADJUSTMENT(x) 0
+#else
+# define DISTORTION_PRECISION_ADJUSTMENT(x) (x)
+#endif
+
+typedef enum
+{
+	SAO_TYPE_START_EO =0,
+	SAO_TYPE_EO_0 = SAO_TYPE_START_EO,
+	SAO_TYPE_EO_90,
+	SAO_TYPE_EO_135,
+	SAO_TYPE_EO_45,
+
+	SAO_TYPE_START_BO,
+	SAO_TYPE_BO = SAO_TYPE_START_BO,
+
+	NUM_SAO_NEW_TYPES
+}SAOModeNewTypes;
+#define NUM_SAO_EO_TYPES_LOG2 2
+
+typedef enum
+{
+	SAO_CLASS_EO_FULL_VALLEY = 0,
+	SAO_CLASS_EO_HALF_VALLEY = 1,
+	SAO_CLASS_EO_PLAIN       = 2,
+	SAO_CLASS_EO_HALF_PEAK   = 3,
+	SAO_CLASS_EO_FULL_PEAK   = 4,
+	NUM_SAO_EO_CLASSES,
+}SAOEOClasses;
+#define NUM_SAO_EO_TYPES_LOG2 2
+
+
+typedef enum
+{
+  SAO_MODE_OFF = 0,
+  SAO_MODE_NEW,
+  SAO_MODE_MERGE,
+  NUM_SAO_MODES
+}SAOMode;
+
+typedef enum
+{
+  SAO_MERGE_LEFT =0,
+  SAO_MERGE_ABOVE,
+  NUM_SAO_MERGE_TYPES
+}SAOModeMergeTypes;
+
+#define NUM_SAO_BO_CLASSES_LOG2  5
+typedef enum
+{
+	//SAO_CLASS_BO_BAND0 = 0,
+	//SAO_CLASS_BO_BAND1,
+	//SAO_CLASS_BO_BAND2,
+	//...
+	//SAO_CLASS_BO_BAND31,
+
+	NUM_SAO_BO_CLASSES = (1<<NUM_SAO_BO_CLASSES_LOG2),
+}SAOBOClasses;
+#define MAX_NUM_SAO_CLASSES  32  //(NUM_SAO_EO_GROUPS > NUM_SAO_BO_GROUPS)?NUM_SAO_EO_GROUPS:NUM_SAO_BO_GROUPS
+
+
+typedef struct sao_stat_data_t sao_stat_data_t;
+struct sao_stat_data_t //data structure for SAO statistics
+{
+	int64_t diff[MAX_NUM_SAO_CLASSES];
+	int64_t count[MAX_NUM_SAO_CLASSES];
+};
+
+
+typedef struct sao_offset sao_offset_t;
+struct sao_offset
+{
+  int modeIdc; //NEW, MERGE, OFF
+  int typeIdc; //NEW: EO_0, EO_90, EO_135, EO_45, BO. MERGE: left, above
+  int typeAuxInfo; //BO: starting band index
+  int offset[MAX_NUM_SAO_CLASSES];
+
+//  SAOOffset();
+//  ~SAOOffset();
+//  Void reset();
+
+//  const SAOOffset& operator= (const SAOOffset& src);
+};
+
+typedef struct sao_blk_param sao_blk_param_t;
+struct sao_blk_param
+{
+//  SAOBlkParam();
+//  ~SAOBlkParam();
+//  Void reset();
+//  const SAOBlkParam& operator= (const SAOBlkParam& src);
+//  SAOOffset& operator[](int compIdx){ return offsetParam[compIdx];}
+//private:
+  sao_offset_t offsetParam[NUM_PICT_COMPONENTS];
+};
+
 
 
 
@@ -553,14 +657,14 @@ struct pps_t
 typedef struct wnd_t wnd_t;
 struct wnd_t
 {
-	void	*palloc[3];//allocated pointer
-	void	*pwnd[3];//valid data pointer
-	int		window_size_x[3];
-	int		window_size_y[3];
-	int		data_padding_x[3];//left and right padding due to data pading or memory aligment
-	int		data_padding_y[3];//top and bottom padding due to data pading or memory aligment
-	int		data_width[3];//wnd data horizontal size
-	int		data_height[3];//wnd data vertical size
+	void	*palloc[NUM_PICT_COMPONENTS];//allocated pointer
+	void	*pwnd[NUM_PICT_COMPONENTS];//valid data pointer
+	int		window_size_x[NUM_PICT_COMPONENTS];
+	int		window_size_y[NUM_PICT_COMPONENTS];
+	int		data_padding_x[NUM_PICT_COMPONENTS];//left and right padding due to data pading or memory aligment
+	int		data_padding_y[NUM_PICT_COMPONENTS];//top and bottom padding due to data pading or memory aligment
+	int		data_width[NUM_PICT_COMPONENTS];//wnd data horizontal size
+	int		data_height[NUM_PICT_COMPONENTS];//wnd data vertical size
 	int		pix_size;
 //#ifdef WRITE_REF_FRAMES
 //	FILE	*out_file;//for debug porposes
@@ -675,6 +779,7 @@ struct ctu_info_t
 	int				size;
 	int				num_part_in_ctu;
 	int				last_valid_partition;
+	uint32_t		distortion;
 	cu_partition_info_t	*partition_list;
 
 	uint8_t			*cbf[NUM_PICT_COMPONENTS];//[MAX_NUM_PARTITIONS];
@@ -706,6 +811,11 @@ struct ctu_info_t
 	int				top;
 	int				left;
 	
+	//sao
+//	sao_stat_data_t (*stat_data)[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//to save memory this can be allocated in a wpp thread basis when processing is distributed (COMPUTE_AS_HM undefined)
+	sao_stat_data_t stat_data[NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES];//to save memory this can be allocated in a wpp thread basis when processing is distributed (COMPUTE_AS_HM undefined)
+	sao_blk_param_t recon_params;
+	sao_blk_param_t coded_params;
 	//quant
 //	int				/*qp, */qp_chroma;/*, prev_qp, prev_dqp*/
 //    int				per;//, per_chroma;
@@ -839,6 +949,7 @@ struct rate_control_t
 	double	target_bits_per_ctu;
 	double  acc_rate;
 	double  acc_avg;
+	int		extra_bits;
 //	int		acc_qp;
 //	double	consumed_bitrate;
 //	int		consumed_ctus;
@@ -874,6 +985,8 @@ struct slice_t
 	uint32_t slice_temporal_layer_non_reference_flag;//
 	uint32_t slice_temporal_mvp_enable_flag;
 	uint32_t deblocking_filter_disabled_flag;
+	uint32_t sao_luma_flag;
+	uint32_t sao_chroma_flag;
 	uint32_t slice_loop_filter_across_slices_enabled_flag;
 	uint32_t slice_beta_offset_div2;
 	uint32_t slice_tc_offset_div2;
@@ -928,8 +1041,10 @@ struct low_level_funcs_t
 	void (*quant)(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
 	void (*inv_quant)(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
 
-	void (*transform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
-	void (*itransform)(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
+	void (*transform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, uint16_t uiMode, int16_t *aux);
+	void (*itransform)(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux);
+
+//	void (*get_sao_stats)(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
 };
 
 
@@ -950,7 +1065,7 @@ struct henc_thread_t
 	hmr_sem_ptr	synchro_signal[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	hmr_sem_ptr	synchro_wait[2];// 0 for intra_frame synchronization, 1 for inter frame synchronization
 	int			num_wait_sem;
-
+	int			dbg_sem_post_cnt;
 	bitstream_t	*bs;
 
 	//header info
@@ -968,8 +1083,8 @@ struct henc_thread_t
 
 	//cfg
 	int				max_cu_size;
-	int				max_cu_size_shift;//log2 del tama�o del CU maximo
-	int				max_cu_size_shift_chroma;//log2 del tama�o del CU maximo
+	int				max_cu_size_shift;//log2 of max cu size
+	int				max_cu_size_shift_chroma;
 	int				max_intra_tr_depth;
 	int				max_inter_tr_depth;
 	int				max_pred_partition_depth;//, max_inter_pred_depth;//max depth for prediction
@@ -989,7 +1104,8 @@ struct henc_thread_t
 	int				rd_mode;
 	int				performance_mode;
 	uint			num_intra_partitions;
-
+	uint			num_total_partitions;
+	uint			num_total_ctus;
 
 	int				*partition_depth_start;//start of depths in the partition_info list
 	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
@@ -1011,6 +1127,10 @@ struct henc_thread_t
 	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
 	uint8_t			*deblock_edge_filter[2];
 	uint8_t			*deblock_filter_strength_bs[2];
+
+	//sao
+	int16_t			*sao_sign_line_buff1;//m_signLineBuf1;
+	int16_t			*sao_sign_line_buff2; //m_signLineBuf2;
 
 	//quarter precission buffers
 	wnd_t			filtered_block_wnd[4][4];
@@ -1048,7 +1168,7 @@ struct henc_thread_t
 
 	//rate distortion
 	rate_distortion_t	rd;
-	uint				acc_dist;
+	uint32_t			acc_dist;
 
 	//rate control
 	uint				num_encoded_ctus;
@@ -1073,14 +1193,14 @@ struct hvenc_engine_t
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
-//	int				dbg_num_posts[MAX_NUM_THREADS];
+	int				dbg_num_posts[MAX_NUM_THREADS];
 
-	nalu_t		slice_nalu_list[NUM_OUTPUT_NALUS];//slice
-	nalu_t		*slice_nalu;//slice
-	bitstream_t	slice_bs;//slice information previous to nalu_ebsp conversion
-	bitstream_t	*aux_bs;//list of bitstreams for coef wfpp encoding
-	int			num_sub_streams;
-	uint		*sub_streams_entry_point_list;
+	nalu_t			slice_nalu_list[NUM_OUTPUT_NALUS];//slice
+	nalu_t			*slice_nalu;//slice
+	bitstream_t		slice_bs;//slice information previous to nalu_ebsp conversion
+	bitstream_t		*aux_bs;//list of bitstreams for coef wfpp encoding
+	int				num_sub_streams;
+	uint			*sub_streams_entry_point_list;
 
 	//Encoder Cfg	
 	//Encoding layer
@@ -1129,10 +1249,14 @@ struct hvenc_engine_t
 	int				bit_depth;
 	int				max_sublayers;
 	int				max_layers;
-		
+
+	//sao cfg
+	int 			calculate_preblock_stats;
+	int				slice_enabled[NUM_PICT_COMPONENTS];
 	//current picture_t Config
 	picture_t		current_pict;
 	video_frame_t	*curr_reference_frame;
+	wnd_t			sao_aux_wnd;
 
 	int				last_poc, last_idr;//, num_pictures;
 	int				num_ref_lists;
@@ -1161,12 +1285,13 @@ struct hvenc_engine_t
 
 	//arithmetic coding
 	int					num_ee;
-	enc_env_t			**ee_list;//encoding enviroment list hmr_container 
+	enc_env_t			**ee_list;//encoding enviroment list 
 	int					num_ec;
-	enc_env_t			*ec_list;//encoding enviroment list
+	enc_env_t			*ec_list;//enconding context list
 
 	//rate distortion
 	rate_distortion_t	rd;
+	double				lambdas[NUM_PICT_COMPONENTS];
 	//rate control
 	rate_control_t		rc;
 
@@ -1181,13 +1306,15 @@ struct hvenc_engine_t
 //	FILE			*f_psnr;
 #endif
 //	FILE			*debug_file;
+	int				sao_debug_mode[3];
+	int				sao_debug_type[5];
 };
 
 
 #define MAX_NUM_ENCODER_CTX	8
 struct hvenc_enc_t
 {
-	hvenc_engine_t	*encoder_module[MAX_NUM_ENCODER_CTX];
+	hvenc_engine_t	*encoder_engines[MAX_NUM_ENCODER_CTX];
 	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
 	int				num_encoder_engines;
 	hmr_mutex		mutex_start_frame; 
