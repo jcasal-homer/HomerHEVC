@@ -2008,10 +2008,12 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		}
 		PROFILER_ACCUMULATE(intra)
 
-//		et->num_total_partitions += et->num_partitions_in_cu;
-//		et->num_total_ctus++;
+		et->num_total_partitions += et->num_partitions_in_cu;
+		et->num_total_ctus++;
 		et->acc_qp += ctu->partition_list[0].qp;
-//		et->acc_dist += ctu->partition_list[0].distortion;
+		et->acc_dist += ctu->partition_list[0].distortion;
+		ctu->distortion = ctu->partition_list[0].distortion;
+
 		mem_transfer_decoded_blocks(et, ctu);
 
 		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
@@ -2021,9 +2023,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 			PRINTF_SYNC("SEM_POST2: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
 		}
 
-//		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
-//		ctu->distortion = ctu->partition_list[0].distortion;		
-
+		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
 
 //		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
 		{
@@ -2032,12 +2032,9 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		}
 
 		//cabac - encode ctu
-		ctu->coeff_wnd = et->transform_quant_wnd[0];
-
 		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
 		PROFILER_ACCUMULATE(cabac)
 
-		et->acc_dist += ctu->partition_list[0].distortion;
 		et->num_encoded_ctus++;
 		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 		et->cu_current_x++;
