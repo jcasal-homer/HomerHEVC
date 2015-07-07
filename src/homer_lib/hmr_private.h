@@ -1171,7 +1171,7 @@ struct henc_thread_t
 	uint32_t			acc_dist;
 
 	//rate control
-	uint				num_encoded_ctus;
+	uint				num_encoded_ctus;//num CABAC encoded ctus
 	uint				num_bits;
 	uint				target_pict_size;
 	int					acc_qp;
