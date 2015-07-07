@@ -50,7 +50,7 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
 	hvenc_engine_t* enc_engine = et->enc_engine;
 	int clipped_intra_period = (enc_engine->intra_period==0)?20:enc_engine->intra_period;
-	if(enc_engine->is_scene_change)
+//	if(enc_engine->is_scene_change)
 	{
 		int ithreads;
 		double pic_size_new;

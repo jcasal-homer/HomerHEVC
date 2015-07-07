@@ -79,9 +79,9 @@ int encode_inter_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cur
 //	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
 
 	//2d -> 1D buffer
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 0, curr_sum, curr_part_size, per, rem);
 
 	curr_cu_info->inter_cbf[Y_COMP] = (( *curr_sum ? 1 : 0 ) << (curr_depth - depth));// + (part_size_type == SIZE_NxN)));
 	curr_cu_info->inter_tr_idx = (curr_depth - depth);// + (part_size_type == SIZE_NxN));
@@ -2760,8 +2760,8 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 						best_sum = curr_cu_info->sum;
 						if(uiNoResidual==1)//if it is skipped write 0 in the residual and copy the prediction wnd to the decoder wnd
 						{
-							copy_cu_wnd_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth+1]);
-							zero_cu_wnd_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
+							wnd_copy_cu_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth+1]);
+							wnd_zero_cu_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
 							SET_ENC_INFO_BUFFS(et, curr_cu_info, curr_depth/*+(part_size_type!=SIZE_2Nx2N)*/, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
 						put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
@@ -2813,13 +2813,13 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 	uint cost_sum[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int abs_index;
 	int num_part_in_cu;
-	double consumed_distortion = 0, avg_distortion = 0;
-	int consumed_ctus = 0;
+	double consumed_distortion = 0, avg_distortion = et->enc_engine->avg_dist;
+//	int consumed_ctus = 0;
 //	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
 
 #ifndef COMPUTE_AS_HM
 	int ithreads;
-	uint total_intra_partitions = 0, total_partitions = 1;
+	uint total_intra_partitions = 0, total_partitions = 0;
 
 	for(ithreads=0;ithreads<et->wfpp_num_threads;ithreads++)
 	{
@@ -2827,34 +2827,36 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 		
 		consumed_distortion += henc_th->acc_dist;
 		total_intra_partitions += henc_th->num_intra_partitions;
-		consumed_ctus += henc_th->num_encoded_ctus;
+		total_partitions += henc_th->num_total_partitions;
 	}
-	total_partitions = consumed_ctus*et->num_partitions_in_cu;
+//	total_partitions = 0;
+
 	if(total_partitions==0)
 		total_partitions = 1;
 
-	if(consumed_ctus>10 || consumed_ctus>et->enc_engine->pict_total_ctu/15)
+	if(total_partitions>10*et->num_partitions_in_cu || total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/15)
 	{
-		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);
+		avg_distortion = consumed_distortion/(total_partitions);
 		if(et->enc_engine->is_scene_change)
 			et->enc_engine->avg_dist = avg_distortion;//update avg_dist as it evolves
 	}
-	else
+//	else
 		avg_distortion = et->enc_engine->avg_dist;
 
-	if(et->index==0 && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && consumed_ctus>et->enc_engine->pict_total_ctu/10)
+	if(et->index==0 && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/10)
 	{
 		if(total_intra_partitions > (total_partitions*.7))
 		{
+			hmr_rc_change_pic_mode(et, currslice);
 			et->enc_engine->is_scene_change = 1;
 			if(et->enc_engine->gop_reinit_on_scene_change)
-				et->enc_engine->last_intra = currslice->poc;
+				et->enc_engine->hvenc->last_intra = et->enc_engine->last_intra = currslice->poc;
 			et->enc_engine->last_gop_reinit = currslice->poc;
 			et->enc_engine->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
 			printf("\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
 #endif
-			hmr_rc_change_pic_mode(et, currslice);
+
 		}
 	}
 
@@ -3403,8 +3405,8 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 						best_sum = curr_cu_info->sum;
 						if(uiNoResidual==1)//if it is skipped write 0 in the residual and copy the prediction wnd to the decoder wnd
 						{
-							copy_cu_wnd_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth+1]);
-							zero_cu_wnd_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
+							wnd_copy_cu_2D(et, curr_cu_info, &et->prediction_wnd, et->decoded_mbs_wnd[curr_depth+1]);
+							wnd_zero_cu_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
 							SET_ENC_INFO_BUFFS(et, curr_cu_info, curr_depth/*+(part_size_type!=SIZE_2Nx2N)*/, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
 						put_consolidated_info(et, ctu, curr_cu_info, curr_depth);
@@ -3493,7 +3495,6 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 	double cu_total_distortion=0, consumed_distortion = 0, avg_distortion = 0;
 	int consumed_ctus = 0;
 	int total_intra_partitions = 0, total_partitions;
-//	int cbf_split[NUM_PICT_COMPONENTS] = {0,0,0};
 
 	for(ithreads=0;ithreads<et->wfpp_num_threads;ithreads++)
 	{
@@ -3501,34 +3502,34 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 		
 		consumed_distortion += henc_th->acc_dist;
 		total_intra_partitions += henc_th->num_intra_partitions;
-		consumed_ctus += henc_th->num_encoded_ctus;
+		total_partitions += henc_th->num_total_partitions;
 	}
-	total_partitions = consumed_ctus*et->num_partitions_in_cu;
 	if(total_partitions==0)
 		total_partitions = 1;
 
-	if(consumed_ctus>10 || consumed_ctus>et->enc_engine->pict_total_ctu/15)
+	if(total_partitions>10*et->num_partitions_in_cu || total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/15)
 	{
-		avg_distortion = consumed_distortion/(consumed_ctus*ctu->num_part_in_ctu);
+		avg_distortion = consumed_distortion/(total_partitions);
 		if(et->enc_engine->is_scene_change)
 			et->enc_engine->avg_dist = avg_distortion;//update avg_dist as it evolves
 	}
-	else
+//	else
 		avg_distortion = et->enc_engine->avg_dist;
 
-	if(et->index==0 && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && consumed_ctus>et->enc_engine->pict_total_ctu/10)
+	if(et->index==0 && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/10)
 	{
 		if(total_intra_partitions > (total_partitions*.7))
 		{
+			hmr_rc_change_pic_mode(et, currslice);
 			et->enc_engine->is_scene_change = 1;
 			if(et->enc_engine->gop_reinit_on_scene_change)
-				et->enc_engine->last_intra = currslice->poc;
+				et->enc_engine->hvenc->last_intra = et->enc_engine->last_intra = currslice->poc;
 			et->enc_engine->last_gop_reinit = currslice->poc;
 			et->enc_engine->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
 			printf("\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
 #endif
-			hmr_rc_change_pic_mode(et, currslice);
+
 		}
 	}
 

@@ -229,9 +229,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 uint32_t encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
 uint32_t motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
-//void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
-void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
-void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 
 
 //hmr_motion_intra_chroma.c
@@ -265,6 +262,18 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 //hmr_deblocking_filter.c
 void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, int dir);
+
+
+//hmr_sao.c
+void sao_init(int bit_depth);
+void sao_decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enable_chroma);
+void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
+void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
+void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable);
+void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
+void hmr_wpp_sao_offset_remaining_ctu(henc_thread_t *wpp_thread, slice_t *currslice);
+void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
+
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);

@@ -2318,11 +2318,11 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 	//printf("		+wfpp_encoder_thread %d\r\n", et->index);
 
-	et->acc_dist = 0;
-	et->cu_current = 0;
+//	et->acc_dist = 0;
+//	et->cu_current = 0;
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
-	et->num_intra_partitions = 0;
+//	et->num_intra_partitions = 0;
 
 	ctu = &et->enc_engine->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
 
@@ -2350,8 +2350,8 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		if(et->cu_current_y == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_POST(et->synchro_wait[0]);
-//			et->dbg_sem_post_cnt++;
-//			PRINTF_SYNC("SEM_POST1: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
+			et->dbg_sem_post_cnt++;
+			PRINTF_SYNC("SEM_POST1: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
 		}
 		if(et->enc_engine->num_encoded_frames == 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
@@ -2434,18 +2434,8 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
 
-//		if(et->enc_engine->intra_period!=1)// && ctu->ctu_number == et->pict_total_ctu-1)
-		{
-//			hmr_deblock_pad_sync_ctu(et, currslice, ctu);
-			hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
-		}
+		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
 
-		//cabac - encode ctu
-//		ee_encode_ctu(et, et->ee, currslice, ctu, gcnt);
-//		PROFILER_ACCUMULATE(cabac)
-
-//		et->num_encoded_ctus++;
-//		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;
 		et->cu_current_x++;
 
 		//sync entropy contexts between wpp
@@ -2627,7 +2617,7 @@ int HOMER_enc_get_coded_frame(void* handle, encoder_in_out_t* output_frame, nalu
 		et->acc_dist = 0;													\
 		et->cu_current = 0;													\
 		et->cu_current_x = 0;												\
-		et->cu_current_y = et->index;										\
+		et->cu_current_y = 0;												\
 		et->num_intra_partitions = 0;										\
 		et->num_total_partitions = 0;										\
 		et->num_total_ctus = 0;												\
@@ -2762,7 +2752,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 #ifndef COMPUTE_AS_HM
 		if(enc_engine->bitrate_mode != BR_FIXED_QP)//modulate avg qp for differential encoding
 		{
-			enc_engine->pict_qp = clip(avg_qp,1,MAX_QP);
+			enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
 			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
 				enc_engine->pict_qp = hmr_rc_compensate_qp_from_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 		}
@@ -2852,6 +2842,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
 #endif
 			printf("vbv: %.2f, avg_dist: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size, enc_engine->avg_dist);
+//			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->lambdas[0]);
 //			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
 #ifndef COMPUTE_AS_HM
 			printf("qp: %d, ", /*enc_engine->pict_qp*/currslice->qp);			

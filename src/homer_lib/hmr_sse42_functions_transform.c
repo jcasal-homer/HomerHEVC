@@ -1667,7 +1667,7 @@ void sse_aligned_inv_dct_32x32(int16_t *src, int16_t *dst, int dst_stride, int16
 #endif
 
 
-void sse_transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux)
+void sse_transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux)
 {
 	if(iWidth == 4 && iHeight == 4)
 	{
@@ -1697,10 +1697,10 @@ void sse_transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, 
 #define SHIFT_INV_1ST          7 // Shift after first inverse transform stage
 #define SHIFT_INV_2ND         12 // Shift after second inverse transform stage
 
-void sse_itransform(int bitDepth, short *block,short *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, short *aux)
+void sse_itransform(int bit_depth, short *block,short *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, short *aux)
 {
-	int shift_1st = SHIFT_INV_1ST;//g_aucConvertToBit[iWidth]  + 1 + bitDepth-8; // log2(iWidth) - 1 + g_bitDepth - 8
-	int shift_2nd = SHIFT_INV_2ND - (bitDepth-8);//g_aucConvertToBit[iHeight]  + 8;                   // log2(iHeight) + 6
+	int shift_1st = SHIFT_INV_1ST;//g_aucConvertToBit[iWidth]  + 1 + bit_depth-8; // log2(iWidth) - 1 + g_bitDepth - 8
+	int shift_2nd = SHIFT_INV_2ND - (bit_depth-8);//g_aucConvertToBit[iHeight]  + 8;                   // log2(iHeight) + 6
 
 	if(iWidth == 4 && iHeight == 4)
 	{
