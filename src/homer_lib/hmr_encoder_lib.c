@@ -1539,7 +1539,9 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;
-		currslice->qp = enc_engine->pict_qp;
+
+		if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
+			enc_engine->pict_qp = hmr_rc_compensate_qp_for_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 	}
 	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || enc_engine->intra_period==0)
 	{
@@ -1550,8 +1552,10 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
 		currslice->sublayer = 0;
 		currslice->depth = 0;	
-		currslice->qp = enc_engine->pict_qp;//+2;
+
 	}
+	
+	currslice->qp = enc_engine->pict_qp;
 
 	hmr_select_reference_picture_set(enc_engine->hvenc, currslice);
 
@@ -2353,8 +2357,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		if(enc_engine->bitrate_mode != BR_FIXED_QP)//modulate avg qp for differential encoding
 		{
 			enc_engine->pict_qp = clip(avg_qp,1,MAX_QP);
-//			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
-//				enc_engine->pict_qp = hmr_rc_compensate_qp_from_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
+			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
+				enc_engine->pict_qp = hmr_rc_compensate_qp_from_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 		}
 #endif
 
