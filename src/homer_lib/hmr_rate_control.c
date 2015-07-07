@@ -89,8 +89,11 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	{
 		case  I_SLICE:
 		{
+			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
+				enc_engine->pict_qp = hmr_rc_compensate_qp_for_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 //			enc_engine->rc.target_pict_size = (2.25-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-			enc_engine->rc.target_pict_size = intra_avg_size;///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
+//			enc_engine->rc.target_pict_size = intra_avg_size;///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			enc_engine->rc.target_pict_size = min(intra_avg_size, enc_engine->rc.vbv_fullness);///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			enc_engine->rc.target_pict_size = /*(2.25-((double)enc_engine->avg_dist/15000.))**/2.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
@@ -152,12 +155,12 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 		
 		consumed_bitrate += henc_th->num_bits;
 		consumed_ctus += henc_th->num_encoded_ctus;
-		avg_qp+=henc_th->acc_qp;
+//		avg_qp+=henc_th->acc_qp;
 	}
 
 #ifndef COMPUTE_AS_HM
-	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
-	enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
+//	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
+//	enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
 #endif
 	enc_engine->rc.vbv_fullness += enc_engine->rc.average_pict_size;
 	
@@ -306,7 +309,8 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	{
 		if(currslice->slice_type == I_SLICE || (enc_engine->is_scene_change && enc_engine->gop_reinit_on_scene_change))
 		{
-			qp/=1.5-((double)enc_engine->avg_dist/15000.);
+//			qp/=1.5-((double)enc_engine->avg_dist/15000.);
+			qp/=clip(1.5-((double)enc_engine->avg_dist/15000.),1.15,1.5);
 //			qp/=1.4-((double)enc_engine->avg_dist/50000.);
 		}
 		else if(enc_engine->is_scene_change)
