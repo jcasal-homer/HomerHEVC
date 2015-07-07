@@ -353,7 +353,7 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 		if(curr_cu_info->depth <= et->enc_engine->qp_depth)
 		{
 			qp = hmr_rc_calc_cu_qp(et, ctu, curr_cu_info, currslice);
-			et->acc_qp+=qp;
+//			et->acc_qp+=qp;
 		}
 		else
 			qp = curr_cu_info->parent->qp;
