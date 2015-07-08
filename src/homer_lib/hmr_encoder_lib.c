@@ -2845,7 +2845,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 //			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->lambdas[0]);
 //			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
 #ifndef COMPUTE_AS_HM
-			printf("qp: %d, ", /*enc_engine->pict_qp*/currslice->qp);			
+			printf("qp: %d, ", enc_engine->pict_qp);			
 #endif
 			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
 			fflush(stdout);
