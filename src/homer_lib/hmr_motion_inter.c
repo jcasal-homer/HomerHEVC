@@ -181,9 +181,9 @@ int encode_inter_cu_chroma(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 	diff = min(abs(cu_mode - HOR_IDX), abs(cu_mode - VER_IDX));
 
 	//2d -> 1D buffer
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, component, cu_mode, 0, curr_sum, curr_part_size, per, rem);
 
 
 	curr_cu_info->inter_cbf[component] = (( *curr_sum ? 1 : 0 ) << (original_depth-depth));//+(part_size_type==SIZE_NxN)));
@@ -3494,7 +3494,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 	int ithreads;
 	double cu_total_distortion=0, consumed_distortion = 0, avg_distortion = 0;
 	int consumed_ctus = 0;
-	int total_intra_partitions = 0, total_partitions;
+	int total_intra_partitions = 0, total_partitions = 0;
 
 	for(ithreads=0;ithreads<et->wfpp_num_threads;ithreads++)
 	{

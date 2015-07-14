@@ -101,8 +101,6 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	{
 		case  I_SLICE:
 		{
-			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
-				enc_engine->pict_qp = hmr_rc_compensate_qp_for_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 //			enc_engine->rc.target_pict_size = (2.25-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 //			enc_engine->rc.target_pict_size = intra_avg_size;///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			enc_engine->rc.target_pict_size = min(intra_avg_size, enc_engine->rc.vbv_fullness);///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
@@ -145,12 +143,12 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 double hmr_rc_compensate_qp_for_intra(double avg_dist, double qp)
 {
-	return clip(qp/(1.5-(avg_dist/15000.)),/*MIN_QP*/1.0,MAX_QP);
+	return clip(qp/(clip(1.5-((double)avg_dist/15000.),1.15,1.5)),/*MIN_QP*/1.0,MAX_QP);
 }
 
 double hmr_rc_compensate_qp_from_intra(double avg_dist, double qp)
 {
-	return clip(qp*(1.5-(avg_dist/15000.)),/*MIN_QP*/1.0,MAX_QP);
+	return clip(qp*(clip(1.5-((double)avg_dist/15000.),1.15,1.5)),/*MIN_QP*/1.0,MAX_QP);
 }
 
 void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)

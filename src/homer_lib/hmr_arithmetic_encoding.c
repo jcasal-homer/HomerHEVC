@@ -2338,8 +2338,11 @@ uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ct
 	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
 	ee_copy_entropy_model(et->ee, et->ec);
 
+	et->ec->b_ctx->m_binCountIncrement = 1;
+
 	et->ec->ee_reset_bits(et->ec->b_ctx);
 	code_sao_offset_param(et->ec, component, ctbParam, sliceEnabled);
+	et->ec->b_ctx->m_binCountIncrement = 0;
 	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
 }
 
@@ -2354,6 +2357,8 @@ uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int*
 
 	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
 	ee_copy_entropy_model(et->ee, et->ec);
+
+	et->ec->b_ctx->m_binCountIncrement = 1;
 
 	if(leftMergeAvail)
 	{
@@ -2382,5 +2387,7 @@ uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int*
 //			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
 		}
 	}
+	et->ec->b_ctx->m_binCountIncrement = 0;
+
 	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
 }

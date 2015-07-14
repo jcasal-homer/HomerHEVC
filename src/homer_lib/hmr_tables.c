@@ -319,7 +319,7 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 #define SHIFT_QP	12
 	int		bitdepth_luma_qp_scale = 0;
 	double	qp_factor = 0.4624;//this comes from the cfg file of HM
-	double	qp_temp = (double) currslice->qp /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
+	double	qp_temp = (double) enc_engine->pict_qp + bitdepth_luma_qp_scale - SHIFT_QP;//
 	double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 	double	lambda;
     int depth, poc = currslice->poc%enc_engine->gop_size;
@@ -355,8 +355,7 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 #ifdef COMPUTE_AS_HM
 	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
 #else
-//	if(aux_dbg==0)
-//	lambda = pow( 1.5, qp_temp/(2.25));//2
+//	if(aux_dbg<4)
 //		lambda = pow( 1.5, qp_temp/(1.75+.25*aux_dbg));//2
 //	else
 		lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	

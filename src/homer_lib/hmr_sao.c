@@ -360,7 +360,6 @@ void sao_decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enabl
 }
 
 
-//int get_merge_list(hvenc_engine_t* enc_engine, int ctu_idx, sao_blk_param_t *blk_params, sao_blk_param_t* merge_list[], int *merge_list_size)
 int sao_get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* merge_list[], int *merge_list_size)
 {
 	int ctu_idx = ctu->ctu_number;
@@ -384,7 +383,7 @@ int sao_get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param
 				{
 					ctu_info_t *ctu_aux = ctu - wpp_thread->pict_width_in_ctu;
 					//mergedCTUPos = ctu_idx - enc_engine->pict_width_in_ctu;
-//					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )
+//					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )//availability depends on slice or tile coherence
 					{
 						mergeCandidate = &(ctu_aux->recon_params);
 					}
@@ -397,7 +396,7 @@ int sao_get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param
 				{
 					ctu_info_t *ctu_aux = ctu - 1;
 //					mergedCTUPos = ctu_idx - 1;
-//					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )
+//					if( pic->getSAOMergeAvailability(ctu_idx, mergedCTUPos) )//availability depends on slice or tile coherence
 					{
 						mergeCandidate = &(ctu_aux->recon_params);
 					}
@@ -661,7 +660,7 @@ int64_t sao_get_distortion(int typeIdc, int typeAuxInfo, int* invQuantOffset, sa
 
 
 //Void TEncSampleAdaptiveOffset::deriveModeNewRDO(int ctu, std::vector<SAOBlkParam*>& mergeList, Bool* sliceEnabled, SAOStatData*** blkStats, SAOBlkParam& mode_param, Double& modeNormCost, TEncSbac** cabacCoderRDO, int inCabacLabel)
-void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, double *mode_cost, int slice_enabled[] )
+void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_list, int merge_list_size, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, double *mode_cost, int slice_enabled[] )
 {
 	double minCost, cost;
 	int rate;
@@ -699,7 +698,7 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][
 //	m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
 	if(slice_enabled[component])
 	{
-		int type_idc;
+//		int type_idc;
 		for(type_idc=0; type_idc< NUM_SAO_NEW_TYPES; type_idc++)
 		{
 			testOffset[component].modeIdc = SAO_MODE_NEW;
@@ -826,7 +825,7 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][
 	}
 
 	//----- re-gen rate & normalized cost----//
-	*mode_cost = (double)modeDist[Y_COMP] + (double)modeDist[U_COMP] + (double)modeDist[V_COMP];
+	*mode_cost = (double)modeDist[Y_COMP]/lambdas[Y_COMP] + (double)modeDist[U_COMP]/lambdas[U_COMP] + (double)modeDist[V_COMP]/lambdas[V_COMP];
 //	for(component = Y_COMP; component < NUM_PICT_COMPONENTS; component++)
 //	{
 //		mode_cost += (double)modeDist[component];// / m_lambda[component];
@@ -835,7 +834,9 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_stat_data_t stats[][
 //	m_pcRDGoOnSbacCoder->resetBits();
 //	m_pcRDGoOnSbacCoder->codeSAOBlkParam(mode_param, sliceEnabled, (mergeList[SAO_MERGE_LEFT]!= NULL), (mergeList[SAO_MERGE_ABOVE]!= NULL), false);
 //	modeNormCost += (Double)m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
-
+#ifndef COMPUTE_AS_HM
+	*mode_cost += rd_code_sao_blk_param(wpp_thread, mode_param, slice_enabled, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE);
+#endif
 }
 
 //Void TEncSampleAdaptiveOffset::deriveModeMergeRDO(Int ctu, std::vector<SAOBlkParam*>& mergeList, Bool* sliceEnabled, SAOStatData*** blkStats, SAOBlkParam& modeParam, Double& modeNormCost, TEncSbac** cabacCoderRDO, Int inCabacLabel)
@@ -1245,9 +1246,6 @@ void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t*
 	{
 		sao_offset_t* ctb_offset = &sao_blk_param->offsetParam[component];
 
-		if(ctb_offset->modeIdc!=0)
-			wpp_thread->enc_engine->sao_debug_type[ctb_offset->typeIdc]++; 
-
 		if(ctb_offset->modeIdc != SAO_MODE_OFF)
 		{
 			int isLuma     = (component == Y_COMP);
@@ -1263,6 +1261,7 @@ void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t*
 			int src_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->sao_aux_wnd, component);
 			int16_t *src_buff = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->sao_aux_wnd, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 
+			wpp_thread->enc_engine->sao_debug_type[ctb_offset->typeIdc]++; 
 //			int  srcStride = isLuma?srcYuv->getStride():srcYuv->getCStride();
 //			uint8_t* srcBlk    = getPicBuf(srcYuv, compIdx)+ (yPos >> formatShift)*srcStride+ (xPos >> formatShift);
 
@@ -1324,11 +1323,10 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 			return;
 		}
 
-		if(wpp_thread->enc_engine->num_encoded_frames == 3 && ctu->ctu_number == 8)
+		if(wpp_thread->enc_engine->num_encoded_frames == 1)// && ctu_idx == 9)
 		{
 			int iiiii=0;
 		}
-
 
 //		get_merge_list(enc_engine, ctu_idx, recon_params, merge_list, &merge_list_size);
 		sao_get_merge_list(wpp_thread, ctu, merge_list, &merge_list_size);
@@ -1347,7 +1345,7 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 				{
 					//deriveModeNewRDO(ctu, mergeList, sliceEnabled, blkStats, mode_param, modeCost, m_pppcRDSbacCoder, SAO_CABACSTATE_BLK_CUR);
 //					derive_mode_new_rdo(hvenc_engine_t* enc_engine, sao_stat_data_t stats[][NUM_PICT_COMPONENTS][NUM_SAO_NEW_TYPES], sao_blk_param_t *mode_param, int slice_enabled[] )
-					sao_derive_mode_new_rdo(wpp_thread, stats, &mode_param, &modeCost, slice_enable);
+					sao_derive_mode_new_rdo(wpp_thread, merge_list, merge_list_size, stats, &mode_param, &modeCost, slice_enable);
 				}
 				break;
 			case SAO_MODE_MERGE:
@@ -1373,6 +1371,8 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 			}
 		} //mode
 		wpp_thread->enc_engine->sao_debug_mode[coded_params->offsetParam[Y_COMP].modeIdc]++; 
+		wpp_thread->enc_engine->sao_debug_mode[coded_params->offsetParam[U_COMP].modeIdc]++; 
+		wpp_thread->enc_engine->sao_debug_mode[coded_params->offsetParam[V_COMP].modeIdc]++; 
 //		m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[ SAO_CABACSTATE_BLK_NEXT ]);
 
 		if(ctu_idx==3)
@@ -1444,6 +1444,11 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	wnd_copy_ctu(wpp_thread, &wpp_thread->enc_engine->curr_reference_frame->img, &wpp_thread->enc_engine->sao_aux_wnd, ctu);
 	reference_picture_border_padding_ctu(&wpp_thread->enc_engine->sao_aux_wnd, ctu);
 
+
+	if(wpp_thread->enc_engine->num_encoded_frames == 1)// && ctu_idx == 9)
+	{
+		int iiiii=0;
+	}
 	wpp_thread->funcs->get_sao_stats(wpp_thread, currslice, ctu, ctu->stat_data);
 	sao_decide_blk_params(wpp_thread, currslice, ctu, ctu->stat_data, wpp_thread->enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 }
@@ -1460,6 +1465,7 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 }
 */
 
+//borrar - this function is not used any more
 void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 {
 	int ctu_num;
