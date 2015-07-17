@@ -158,6 +158,22 @@ void hmr_bitstream_align_bits_0(bitstream_t* bs);
 void hmr_bitstream_write2file(bitstream_t* bs);
 
 
+void hmr_bc_bitstream_alloc(bitstream_t* bs, int size);
+void hmr_bc_bitstream_free(bitstream_t* bs);
+void hmr_bc_bitstream_init(bitstream_t* bs);
+void hmr_bc_bitstream_write_bits(bitstream_t* bs, unsigned int val,int n);
+int  hmr_bc_bitstream_bitcount(bitstream_t* bs);
+void hmr_bc_bitstream_write_bits_uvlc(bitstream_t* bs, unsigned int val);
+void hmr_bc_bitstream_write_bits_svlc(bitstream_t* bs, int val);
+void hmr_bc_bitstream_rbsp_trailing_bits(bitstream_t* bs);
+void hmr_bc_bitstream_put_nal_unit_header(bitstream_t* bs, unsigned int nalu_type, ushort temporal_id, ushort rsvd_zero6bits);
+void hmr_bc_bitstream_nalu_ebsp(bitstream_t* in_bs, bitstream_t* out_bs);
+void hmr_bc_bitstream_align_bits_1(bitstream_t* bs);
+void hmr_bc_bitstream_align_bits_0(bitstream_t* bs);
+void hmr_bc_bitstream_write2file(bitstream_t* bs);
+
+
+
 //hmr_headers.c
 void hmr_put_vps_header(hvenc_enc_t* hvenc);
 void hmr_put_seq_header(hvenc_enc_t* hvenc);
@@ -278,7 +294,7 @@ void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);
 void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag);
-void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst);
+void ee_copy_entropy_model(context_model_t *ctx_src, context_model_t *ctx_dst);
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* cu, int gcnt);
 void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt);
 void ee_end_slice(enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
@@ -292,8 +308,8 @@ ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info
 ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
-uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled);
-uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo);
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled, context_model_t *ctx_src, binary_model_t *bm_src);
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo, context_model_t *ctx_src, binary_model_t *bm_src);
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);
 void bm_map_funcs(enc_env_t* ee);

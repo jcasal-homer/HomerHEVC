@@ -51,7 +51,6 @@
 #include "hmr_private.h"
 #include "hmr_cabac_tables.h"
 
-#define FAST_BIT_EST	1
 
 
 
@@ -273,6 +272,11 @@ void be_finish(enc_env_t* ee)
 
 
 //------------------------------counter -------------------------------------------------
+
+
+
+
+#ifdef FAST_BIT_EST
 const int g_bc_entropy_bits[128] =
 {
 #if FAST_BIT_EST
@@ -301,7 +305,7 @@ const int g_bc_entropy_bits[128] =
 static byte g_bc_next_state[128][2];
 void bc_init_next_state_table()
 {
-	int /*i, */j;
+	int j;
 	for(j=0;j<128;j++)
 	{
 		if((j&1) == 0)
@@ -356,6 +360,194 @@ void bc_encode_bin_TRM( enc_env_t* ee, uint binValue)//encode terminating bit
 void bc_finish(enc_env_t* ee)
 {
 }
+#else //FAST_BIT_EST
+uint bc_bitcnt(bitstream_t *bs, binary_model_t* bm)
+{
+	return hmr_bc_bitstream_bitcount(bs) + 8 * bm->m_numBufferedBytes + 23 - bm->m_bitsLeft;
+}
+
+
+void bc_write(bitstream_t *bs, binary_model_t* bm)
+{
+	uint leadByte = bm->m_uiLow >> (24 - bm->m_bitsLeft);
+	bm->m_bitsLeft += 8;
+	bm->m_uiLow &= 0xffffffff >> bm->m_bitsLeft;
+
+	if ( leadByte == 0xff )
+	{
+		bm->m_numBufferedBytes++;
+	}
+	else
+	{
+		if ( bm->m_numBufferedBytes > 0 )
+		{
+			uint carry = leadByte >> 8;
+			uint byte = bm->m_bufferedByte + carry;
+			bm->m_bufferedByte = leadByte & 0xff;
+			hmr_bc_bitstream_write_bits(bs,byte,8);
+
+			byte = ( 0xff + carry ) & 0xff;
+			while ( bm->m_numBufferedBytes > 1 )
+			{
+				hmr_bc_bitstream_write_bits(bs,byte,8);
+				bm->m_numBufferedBytes--;
+			}
+		}
+		else
+		{
+			bm->m_numBufferedBytes = 1;
+			bm->m_bufferedByte = leadByte;
+		}      
+	}    
+}
+
+void bc_encode_bin_EP( enc_env_t* ee, uint binValue)
+{
+	binary_model_t* bm = ee->b_ctx;
+	bm->m_uiBinsCoded += bm->m_binCountIncrement;
+	bm->m_uiLow <<= 1;
+	if( binValue )
+	{
+		bm->m_uiLow += bm->m_uiRange;
+	}
+	bm->m_bitsLeft--;
+
+	if ( bm->m_bitsLeft < 12 )
+	{
+		bc_write(ee->bs, bm);//writeout
+	}
+}
+
+void bc_encode_bins_EP( enc_env_t* ee, uint binValues, int numBins )
+{
+	binary_model_t* bm = ee->b_ctx;
+	bm->m_uiBinsCoded += numBins & -bm->m_binCountIncrement;
+
+	while ( numBins > 8 )
+	{
+		uint pattern;
+		numBins -= 8;
+		pattern = binValues >> numBins; 
+		bm->m_uiLow <<= 8;
+		bm->m_uiLow += bm->m_uiRange * pattern;
+		binValues -= pattern << numBins;
+		bm->m_bitsLeft -= 8;
+
+//		testAndWriteOut();
+		if ( bm->m_bitsLeft < 12 )
+		{
+			bc_write(ee->bs, bm);//writeout
+		}
+	}
+
+	bm->m_uiLow <<= numBins;
+	bm->m_uiLow += bm->m_uiRange * binValues;
+	bm->m_bitsLeft -= numBins;
+
+	if ( bm->m_bitsLeft < 12 )
+	{
+		bc_write(ee->bs, bm);//writeout
+	}
+}
+
+void bc_encode_bin( enc_env_t* ee, context_model_t *cm, uint binValue)
+{
+	binary_model_t* bm = ee->b_ctx;
+	uint  LPS   = g_cabac_LPST_table[ (cm->state>>1) ][ ( bm->m_uiRange >> 6 ) & 3 ];
+	bm->m_uiBinsCoded+=bm->m_binCountIncrement;
+	cm->num_bins_coded = 1;
+	bm->m_uiRange -= LPS;
+	
+	if(binValue != (cm->state&1))
+	{
+		int numBits = g_cabac_renorm_table[ LPS >> 3 ];
+		bm->m_uiLow     = ( bm->m_uiLow + bm->m_uiRange ) << numBits;
+		bm->m_uiRange   = LPS << numBits;
+		cm->state = g_bc_next_state_LPS[cm->state];
+    
+		bm->m_bitsLeft -= numBits;	
+	}
+	else
+	{
+		cm->state = g_bc_next_state_MPS[cm->state];
+		if ( bm->m_uiRange >= 256 )
+		{
+			return;
+		}
+
+		bm->m_uiLow <<= 1;
+		bm->m_uiRange <<= 1;
+		bm->m_bitsLeft--;
+	}
+
+	if ( bm->m_bitsLeft < 12 )
+	{
+		bc_write(ee->bs, bm);
+	}
+}
+
+void bc_encode_bin_TRM( enc_env_t* ee, uint binValue)
+{
+	binary_model_t* bm = ee->b_ctx;
+	bm->m_uiBinsCoded += bm->m_binCountIncrement;
+	bm->m_uiRange -= 2;
+	if( binValue )
+	{
+		bm->m_uiLow     = ( bm->m_uiLow + bm->m_uiRange ) << 7;
+		bm->m_uiRange = 2 << 7;
+		bm->m_bitsLeft -= 7;
+	}
+	else if ( bm->m_uiRange >= 256 )
+	{
+		return;
+	}
+	else
+	{
+		bm->m_uiLow   <<= 1;
+		bm->m_uiRange <<= 1;
+		bm->m_bitsLeft--;    
+	}
+
+	if ( bm->m_bitsLeft < 12 )
+	{
+		bc_write(ee->bs, bm);
+	}
+}
+
+
+void bc_finish(enc_env_t* ee)
+{	
+	binary_model_t* bm = ee->b_ctx;
+
+	if ( bm->m_uiLow >> ( 32 - bm->m_bitsLeft ) )
+	{
+		hmr_bc_bitstream_write_bits(ee->bs,bm->m_bufferedByte + 1,8);
+
+		while ( bm->m_numBufferedBytes > 1 )
+		{
+			hmr_bc_bitstream_write_bits(ee->bs,0x00,8);
+
+			bm->m_numBufferedBytes--;
+		}
+		bm->m_uiLow -= 1 << ( 32 - bm->m_bitsLeft );
+	}
+	else
+	{
+		if ( bm->m_numBufferedBytes > 0 )
+		{
+			hmr_bc_bitstream_write_bits(ee->bs,bm->m_bufferedByte,8);
+		}
+		while ( bm->m_numBufferedBytes > 1 )
+		{
+			hmr_bc_bitstream_write_bits(ee->bs,0xff,8);
+			bm->m_numBufferedBytes--;
+		}    
+	}
+	hmr_bc_bitstream_write_bits(ee->bs,bm->m_uiLow >> 8, 24 - bm->m_bitsLeft);
+}
+#endif //FAST_BIT_EST
+
+
 
 
 void bm_start(binary_model_t* b_ctx)

@@ -170,7 +170,7 @@ void *HOMER_enc_init()
 		hvenc->funcs.transform = sse_transform;
 		hvenc->funcs.itransform = sse_itransform;
 		
-		hvenc->funcs.get_sao_stats = sao_get_ctu_stats;		
+		hvenc->funcs.get_sao_stats = sse_sao_get_ctu_stats;		
 	}
 	else
 	{
@@ -277,6 +277,8 @@ void HOMER_enc_close(void* h)
 			henc_thread_t* henc_th = phvenc_engine->thread[ithreads];
 			if(henc_th==NULL)
 				break;
+
+			HMR_FREE(henc_th->aux_contexts)
 
 			HMR_FREE(henc_th->ctu_rd->merge_idx)
 			HMR_FREE(henc_th->ctu_rd->merge)
@@ -744,6 +746,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 					phvenc_engine->sub_streams_entry_point_list = (uint*)calloc (phvenc_engine->num_sub_streams, sizeof(uint32_t));
 					//create new streams
+//					phvenc_engine->bc_bs = (bitstream_t	*)calloc (phvenc_engine->num_sub_streams, sizeof(bitstream_t));
 					phvenc_engine->aux_bs = (bitstream_t	*)calloc (phvenc_engine->num_sub_streams, sizeof(bitstream_t));
 					for(i=0;i<phvenc_engine->num_sub_streams;i++)
 						hmr_bitstream_alloc(&phvenc_engine->aux_bs[i], 4*bitstream_size/phvenc_engine->num_sub_streams);
@@ -910,6 +913,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 					//alloc processing windows (processing buffers attached to windows will be allocated depending on the resolution)
 					henc_th->wfpp_num_threads = phvenc_engine->wfpp_num_threads;
+
+					HMR_FREE(henc_th->aux_contexts)
+					henc_th->aux_contexts = (context_model_t*)calloc(NUM_CTXs, sizeof(context_model_t));
 
 					if(henc_th->synchro_signal[0]!=NULL)
 						SEM_DESTROY(henc_th->synchro_signal[0]);
@@ -1541,11 +1547,12 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		currslice->depth = 0;
 
 #ifndef COMPUTE_AS_HM
-		if(enc_engine->bitrate_mode != BR_FIXED_QP)//modulate avg qp for differential encoding
+/*		if(enc_engine->bitrate_mode != BR_FIXED_QP)//modulate avg qp for differential encoding
 		{
 			if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
 				enc_engine->pict_qp = hmr_rc_compensate_qp_for_intra(enc_engine->avg_dist, enc_engine->pict_qp);		
 		}
+*/
 #endif
 	}
 	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || enc_engine->intra_period==0)
@@ -1746,6 +1753,7 @@ void wfpp_encode_select_bitstream(henc_thread_t* et, ctu_info_t *ctu)
 		PRINTF_CTU_ENCODE("ee_get0, ctu_num:%d, ee_index:%d - ", ctu_num, (2*ee_index));
 		et->ec = &et->enc_engine->ec_list[ee_index];
 		et->ee = et->enc_engine->ee_list[2*ee_index];
+//		et->ec->bs = &et->enc_engine->bc_bs[ctu_y];
 		et->ee->bs = &et->enc_engine->aux_bs[ctu_y];
 		hmr_bitstream_init(et->ee->bs);
 
@@ -1765,6 +1773,7 @@ void wfpp_encode_select_bitstream(henc_thread_t* et, ctu_info_t *ctu)
 		PRINTF_CTU_ENCODE("ee_get1, ctu_num:%d, ee_index:%d - ", ctu_num, (2*ee_index));
 
 		et->ec = &et->enc_engine->ec_list[ee_index];
+//		et->ec->bs = &et->enc_engine->bc_bs[ctu_y];
 		et->ee = et->enc_engine->ee_list[(2*ee_index)];
 		et->ee->bs = &et->enc_engine->aux_bs[ctu_y];
 		if(ctu_x==0)
@@ -1802,7 +1811,7 @@ void wfpp_encode_ctu(henc_thread_t* et, ctu_info_t *ctu)
 	if(ctu_x==1 && ctu_y+1 != et->pict_height_in_ctu)
 	{
 		if(et->wfpp_enable)
-			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
+			ee_copy_entropy_model(et->ee->contexts, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]->contexts);
 		PRINTF_CTU_ENCODE("ee_copy, ctu_num:%d, ee_index_dst:%d\r\n", ctu_num, (2*ee_index+1)%et->enc_engine->num_ee);			
 	}
 
@@ -1882,6 +1891,11 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 					if(ctu_num_sao>=0 && (ctu_num_index)>=3)
 					{
 						filter_ctu = &et->enc_engine->ctu_info[ctu_num_sao];
+						if(filter_ctu->ctu_number==20)
+						{
+							int iiiii=0;
+						}
+
 						wfpp_encode_select_bitstream(et, filter_ctu);
 						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
 						wfpp_encode_ctu(et, filter_ctu);
@@ -2427,6 +2441,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
 
+
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
 		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
 		{
@@ -2600,7 +2615,7 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		if(cu_current_x==2 && cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
-				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
+				ee_copy_entropy_model(et->ee->contexts, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]->contexts);
 //			SEM_POST(et->synchro_signal[0]);
 		}
 
@@ -2686,16 +2701,17 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			hmr_rc_init_pic(enc_engine, &currpict->slice);
 		}
 		hmr_rd_init(enc_engine, &currpict->slice);
-
+#ifndef COMPUTE_AS_HM
 #define SHIFT_QP	12
 		{
 			int		bitdepth_luma_qp_scale = 0;
-			int qp = hmr_rc_get_cu_qp(enc_engine->thread[0], &enc_engine->ctu_info[0], &enc_engine->thread[0]->partition_info[0], currslice);
+			int qp = enc_engine->num_encoded_frames==0?enc_engine->pict_qp:hmr_rc_get_cu_qp(enc_engine->thread[0], &enc_engine->ctu_info[0], &enc_engine->thread[0]->partition_info[0], currslice);
 			double lambda;
 			double	qp_temp = (double) qp + bitdepth_luma_qp_scale - SHIFT_QP;//
 			double	qp_factor = 0.4624;//this comes from the cfg file of HM
 			double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
-			
+
+
 			currslice->qp = enc_engine->pict_qp = qp;
 //			lambda = pow( 1.5, qp/(2.25));//2
 			if(currslice->slice_type == I_SLICE)
@@ -2704,7 +2720,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			}
 			if(aux_dbg3==0)
 			{
-				qp_factor = 1;
+//				qp_factor = 1;
 			}
 
 //			enc_engine->lambdas[0] = qp_factor*pow( 2.0, qp_temp/3.0 );	
@@ -2712,8 +2728,14 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 //			enc_engine->lambdas[0] = qp_factor*pow( 1.1+(.1*(double)aux_dbg2), qp_temp/(1.5+.1*(double)aux_dbg));	
 //			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = qp_factor*pow( 1.1+(.1*(double)aux_dbg2), (qp_temp+enc_engine->chroma_qp_offset)/(1.5+.1*(double)aux_dbg));	
-			enc_engine->lambdas[0] = .05*(double)aux_dbg*enc_engine->avg_dist;	
-			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = .05*(double)aux_dbg*enc_engine->avg_dist;
+			aux_dbg = 10;
+			enc_engine->lambdas[0] = .1*(double)aux_dbg*qp_factor*pow( 1.4, qp_temp/(1.4));	
+			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = .1*(double)aux_dbg*qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
+
+
+
+//			enc_engine->lambdas[0] = .05*(double)aux_dbg*enc_engine->avg_dist;	
+//			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = .05*(double)aux_dbg*enc_engine->avg_dist;
 
 //			printf("aux_dbg:%d, aux_dbg2:%d, aux_dbg3:%d, ", aux_dbg, aux_dbg2, aux_dbg3);
 
@@ -2733,6 +2755,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			}
 */
 		}
+#endif
 
 		//get free img for decoded blocks
 		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);

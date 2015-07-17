@@ -691,8 +691,10 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 //	minCost = MAX_COST;
 	minCost = 2.5*lambdas[component];//MAX_COST;
 #else
-	rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component]);
+	rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component], wpp_thread->ee->contexts, wpp_thread->ee->b_ctx);
 	minCost = lambdas[component]*rate; 
+	bm_copy_binary_model(wpp_thread->ec->b_ctx, &wpp_thread->aux_bm);
+	ee_copy_entropy_model(wpp_thread->ec->contexts, wpp_thread->aux_contexts);
 #endif
 //	minCost= m_lambda[component]*((Double)m_pcRDGoOnSbacCoder->getNumberOfWrittenBits());
 //	m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
@@ -731,7 +733,7 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 				cost += lambdas[component]*8;
 #else
 //			cost += lambdas[component]*rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
-			rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
+			rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component], wpp_thread->ee->contexts, wpp_thread->ee->b_ctx);
 			cost += lambdas[component]*rate; 
 #endif
 
@@ -740,6 +742,8 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 				minCost = cost;
 				modeDist[component] = dist[component];
 				mode_param->offsetParam[component]= testOffset[component];
+				bm_copy_binary_model(wpp_thread->ec->b_ctx, &wpp_thread->aux_bm);
+				ee_copy_entropy_model(wpp_thread->ec->contexts, wpp_thread->aux_contexts);
 //				m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
 			}
 		}
@@ -756,7 +760,10 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 	{
 		mode_param->offsetParam[component].modeIdc = SAO_MODE_OFF; 
 		modeDist [component] = 0;
-		rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component]);
+		if(component == U_COMP)
+			rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component], wpp_thread->aux_contexts, &wpp_thread->aux_bm);
+		else
+			rate = rd_code_sao_offset_param(wpp_thread, component, &mode_param->offsetParam[component], slice_enabled[component], wpp_thread->ec->contexts, wpp_thread->ec->b_ctx);
 		cost += lambdas[component]*rate; 
 //		m_pcRDGoOnSbacCoder->codeSAOOffsetParam(component, mode_param[component], sliceEnabled[component]);
 
@@ -800,7 +807,10 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 			
 //			const UInt currentWrittenBits = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 			cost += dist[component];// + (m_lambda[component] * (currentWrittenBits - previousWrittenBits));
-			rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component]);
+			if(component == U_COMP)
+				rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component], wpp_thread->aux_contexts, &wpp_thread->aux_bm);
+			else
+				rate = rd_code_sao_offset_param(wpp_thread, component, &testOffset[component], slice_enabled[component], wpp_thread->ec->contexts, wpp_thread->ec->b_ctx);
 			
 #ifdef COMPUTE_AS_HM
 			if(type_idc==SAO_TYPE_BO)
@@ -835,71 +845,72 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 //	m_pcRDGoOnSbacCoder->codeSAOBlkParam(mode_param, sliceEnabled, (mergeList[SAO_MERGE_LEFT]!= NULL), (mergeList[SAO_MERGE_ABOVE]!= NULL), false);
 //	modeNormCost += (Double)m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
 #ifndef COMPUTE_AS_HM
-	*mode_cost += rd_code_sao_blk_param(wpp_thread, mode_param, slice_enabled, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE);
+//	if(mode_param->offsetParam[Y_COMP].modeIdc != SAO_MODE_OFF || mode_param->offsetParam[U_COMP].modeIdc != SAO_MODE_OFF || mode_param->offsetParam[V_COMP].modeIdc != SAO_MODE_OFF)
+		*mode_cost += rd_code_sao_blk_param(wpp_thread, mode_param, slice_enabled, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE, wpp_thread->ee->contexts, wpp_thread->ee->b_ctx);
 #endif
 }
 
 //Void TEncSampleAdaptiveOffset::deriveModeMergeRDO(Int ctu, std::vector<SAOBlkParam*>& mergeList, Bool* sliceEnabled, SAOStatData*** blkStats, SAOBlkParam& modeParam, Double& modeNormCost, TEncSbac** cabacCoderRDO, Int inCabacLabel)
 void sao_derive_mode_merge_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_list, int merge_list_size, int* slice_enable, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], sao_blk_param_t* mode_param, double *mode_cost)//, TEncSbac** cabacCoderRDO, Int inCabacLabel)
 {
-  double cost;
-  sao_blk_param_t test_blk_param;
-  int merge_type;
+	double cost;
+	sao_blk_param_t test_blk_param;
+	int merge_type;
 	int component;
 	uint rate;
 	double *lambdas = wpp_thread->enc_engine->lambdas;
-//  int mergeListSize = (Int)mergeList.size();
-  *mode_cost = MAX_COST;
+	//  int mergeListSize = (Int)mergeList.size();
+	*mode_cost = MAX_COST;
 
-  for(merge_type=0; merge_type< merge_list_size; merge_type++)
-  {
-    double norm_dist=0;
-    if(merge_list[merge_type] == NULL)
-    {
-      continue;
-    }
+	for(merge_type=0; merge_type< merge_list_size; merge_type++)
+	{
+		double norm_dist=0;
+		if(merge_list[merge_type] == NULL)
+		{
+			continue;
+		}
 
-    test_blk_param = *(merge_list[merge_type]);
-    //normalized distortion
+		test_blk_param = *(merge_list[merge_type]);
+		//normalized distortion
 
-    for(component=0; component< NUM_PICT_COMPONENTS; component++)
-    {
-		sao_offset_t *merged_offsetparam;
-		test_blk_param.offsetParam[component].modeIdc = SAO_MODE_MERGE;
-		test_blk_param.offsetParam[component].typeIdc = merge_type;
+		for(component=0; component< NUM_PICT_COMPONENTS; component++)
+		{
+			sao_offset_t *merged_offsetparam;
+			test_blk_param.offsetParam[component].modeIdc = SAO_MODE_MERGE;
+			test_blk_param.offsetParam[component].typeIdc = merge_type;
 
-		merged_offsetparam = &(*(merge_list[merge_type])).offsetParam[component];
+			merged_offsetparam = &(*(merge_list[merge_type])).offsetParam[component];
 
-      if( merged_offsetparam->modeIdc != SAO_MODE_OFF)
-      {
-        //offsets have been reconstructed. Don't call inversed quantization function.
-		  //get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);        
-		  norm_dist += (((double)sao_get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], wpp_thread->bit_depth)))/wpp_thread->enc_engine->lambdas[component];///m_lambda[component]);
-      }
-    }
+			if( merged_offsetparam->modeIdc != SAO_MODE_OFF)
+			{
+				//offsets have been reconstructed. Don't call inversed quantization function.
+				//get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);        
+				norm_dist += (((double)sao_get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], wpp_thread->bit_depth)))/wpp_thread->enc_engine->lambdas[component];///m_lambda[component]);
+			}
+		}
 
-    //rate
-//    m_pcRDGoOnSbacCoder->load(cabacCoderRDO[inCabacLabel]);
-//    m_pcRDGoOnSbacCoder->resetBits();
-//    m_pcRDGoOnSbacCoder->codeSAOBlkParam(testBlkParam, sliceEnabled, (mergeList[SAO_MERGE_LEFT]!= NULL), (mergeList[SAO_MERGE_ABOVE]!= NULL), false);
-//    Int rate = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
-	rate = rd_code_sao_blk_param(wpp_thread, &test_blk_param, slice_enable, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE);
+		//rate
+		//    m_pcRDGoOnSbacCoder->load(cabacCoderRDO[inCabacLabel]);
+		//    m_pcRDGoOnSbacCoder->resetBits();
+		//    m_pcRDGoOnSbacCoder->codeSAOBlkParam(testBlkParam, sliceEnabled, (mergeList[SAO_MERGE_LEFT]!= NULL), (mergeList[SAO_MERGE_ABOVE]!= NULL), false);
+		//    Int rate = m_pcRDGoOnSbacCoder->getNumberOfWrittenBits();
+		rate = rd_code_sao_blk_param(wpp_thread, &test_blk_param, slice_enable, (merge_list[SAO_MERGE_LEFT]!= NULL), (merge_list[SAO_MERGE_ABOVE]!= NULL), FALSE, wpp_thread->ee->contexts, wpp_thread->ee->b_ctx);
 
-//    cost = norm_dist+lambdas[Y_COMP]*(double)rate;
-	cost = norm_dist;
+		//    cost = norm_dist+lambdas[Y_COMP]*(double)rate;
+		cost = norm_dist;
 #ifndef COMPUTE_AS_HM
-	cost += (double)rate;
+		cost += (double)rate;
 #endif
 
-    if(cost < *mode_cost)
-    {
-      *mode_cost = cost;
-      *mode_param    = test_blk_param;
-//      m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
-    }
-  }
+		if(cost < *mode_cost)
+		{
+			*mode_cost = cost;
+			*mode_param    = test_blk_param;
+			//      m_pcRDGoOnSbacCoder->store(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
+		}
+	}
 
-//  m_pcRDGoOnSbacCoder->load(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
+	//  m_pcRDGoOnSbacCoder->load(cabacCoderRDO[SAO_CABACSTATE_BLK_TEMP]);
 }
 
 
@@ -1485,14 +1496,16 @@ void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
 
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
-//#define SHIFT_QP	12
-//		int		bitdepth_luma_qp_scale = 0;
+#define SHIFT_QP	12
+		int		bitdepth_luma_qp_scale = 0;
 		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
-//		double	qp_factor = 0.4624;
+		double	qp_factor = 0.4624;
 //		double  weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
-//		double	qp_temp = (double) ctu->qp[0] /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
+		double	qp_temp = (double) ctu->qp[0] /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
 //		enc_engine->lambdas[0] = 0.4624*.95*qp_factor*pow( 2.0, qp_temp/3.0 );//((double)enc_engine->avg_dist+(double)ctu->distortion/((double)enc_engine->num_partitions_in_cu))/5.;
 //		enc_engine->lambdas[1] = enc_engine->lambdas[2] = enc_engine->lambdas[0]*weight;
+//		enc_engine->lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
+//		enc_engine->lambdas[1] =  enc_engine->lambdas[2] = qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
 	
 
 		memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));

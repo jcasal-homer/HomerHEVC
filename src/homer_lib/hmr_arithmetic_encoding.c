@@ -203,9 +203,9 @@ void ee_copy_context(context_model_buff_t *cm_src, context_model_buff_t *cm_dst)
 	}
 }
 
-void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst)
+void ee_copy_entropy_model(context_model_t *ctx_src, context_model_t *ctx_dst)
 {
-	memcpy(ee_dst->contexts, ee_src->contexts, NUM_CTXs*sizeof(context_model_t));
+	memcpy(ctx_dst, ctx_src, NUM_CTXs*sizeof(context_model_t));
 }
 
 #define GET_CONTEXT_XYZ(cm, z, y, x) (&(cm.ctx[(z)*(cm.size_xy)+(y)*(cm.size_x)+(x)]))
@@ -2321,7 +2321,7 @@ void rd_transform_tree(henc_thread_t* et, enc_env_t* ec, ctu_info_t* ctu, cu_par
 uint rd_get_intra_bits_qt( henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* partition_info, uint pred_depth, int is_luma, int gcnt)//( TComDataCU*  pcCU, UInt uiTrDepth, UInt uiAbsPartIdx, Bool bLuma, Bool bChroma, Bool bRealCoeff /* just for test */ )
 {
 	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
-	ee_copy_entropy_model(et->ee, et->ec);
+	ee_copy_entropy_model(et->ee->contexts, et->ec->contexts);
 
 	et->ec->ee_reset_bits(et->ec->b_ctx);
 
@@ -2333,32 +2333,38 @@ uint rd_get_intra_bits_qt( henc_thread_t* et, ctu_info_t* ctu, cu_partition_info
 }
 
 
-uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled)
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled, context_model_t *ctx_src, binary_model_t	*bm_src)
 {
-	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
-	ee_copy_entropy_model(et->ee, et->ec);
+	int init_bits;
+	bm_copy_binary_model(bm_src, et->ec->b_ctx);
+	ee_copy_entropy_model(ctx_src, et->ec->contexts);
+//	hmr_bc_bitstream_init(et->ec->bs);
+//	et->ec->b_ctx->m_binCountIncrement = 1;
 
-	et->ec->b_ctx->m_binCountIncrement = 1;
-
-	et->ec->ee_reset_bits(et->ec->b_ctx);
+	init_bits = et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+//	et->ec->ee_reset_bits(et->ec->b_ctx);
 	code_sao_offset_param(et->ec, component, ctbParam, sliceEnabled);
-	et->ec->b_ctx->m_binCountIncrement = 0;
-	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+//	et->ec->b_ctx->m_binCountIncrement = 0;
+	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx) - init_bits;
 }
 
 
 
 //Void TEncSbac::codeSAOBlkParam(SAOBlkParam& saoBlkParam
-uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
+
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo, context_model_t *ctx_src, binary_model_t *bm_src)
 {
+	int init_bits;
 	int isLeftMerge = FALSE;
 	int isAboveMerge= FALSE;
 	int component;
 
-	bm_copy_binary_model(et->ee->b_ctx, et->ec->b_ctx);
-	ee_copy_entropy_model(et->ee, et->ec);
+	bm_copy_binary_model(bm_src, et->ec->b_ctx);
+	ee_copy_entropy_model(ctx_src, et->ec->contexts);
+//	hmr_bc_bitstream_init(et->ec->bs);
 
-	et->ec->b_ctx->m_binCountIncrement = 1;
+	init_bits = et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+//	et->ec->b_ctx->m_binCountIncrement = 1;
 
 	if(leftMergeAvail)
 	{
@@ -2387,7 +2393,7 @@ uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int*
 //			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
 		}
 	}
-	et->ec->b_ctx->m_binCountIncrement = 0;
+//	et->ec->b_ctx->m_binCountIncrement = 0;
 
-	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
+	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx) - init_bits;
 }

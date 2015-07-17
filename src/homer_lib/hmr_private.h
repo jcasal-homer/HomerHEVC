@@ -1165,7 +1165,8 @@ struct henc_thread_t
 
 	enc_env_t			*ee;//encoding enviroment of the processing element
 	enc_env_t			*ec;//encoding counter  of the processing element
-
+	context_model_t		*aux_contexts;
+	binary_model_t		aux_bm;
 	//rate distortion
 	rate_distortion_t	rd;
 	uint32_t			acc_dist;
@@ -1199,6 +1200,7 @@ struct hvenc_engine_t
 	nalu_t			*slice_nalu;//slice
 	bitstream_t		slice_bs;//slice information previous to nalu_ebsp conversion
 	bitstream_t		*aux_bs;//list of bitstreams for coef wfpp encoding
+//	bitstream_t		*bc_bs;//list of bitstreams for coef wfpp encoding
 	int				num_sub_streams;
 	uint			*sub_streams_entry_point_list;
 
