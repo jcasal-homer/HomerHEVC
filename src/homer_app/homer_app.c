@@ -84,31 +84,31 @@ void print_help()
 	printf("-i: \t\t\t\t\t input yuv file\r\n");
 	printf("-o: \t\t\t\t\t output 265 file\r\n");
 	printf("-o-raw: \t\t\t\t output raw frames in yuv format\r\n");
-	printf("-widthxheight: \t\t\t\t default = 1280x720\r\n");
-	printf("-frame_rate: \t\t\t\t default = 25 fps\r\n");	
-	printf("-cu_size: \t\t\t\t cu size [16,32 or 64], default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_period: \t\t\t\t [0-....], 0=infinite, default = 100 \r\n");
-	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile, default = 1\r\n");
-	printf("-num_ref_frame: \t\t\t default = 1 (only 1 reference currently supported) \r\n");	
-	printf("-qp: \t\t\t\t\t qp[0-51], default = 32\r\n");
-	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel, default = 2\r\n");
-	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12], default = 2\r\n");	
-	printf("-n_enc_engines: \t\t\t number of encoder engines encoding frames in parallel, default = 2\r\n");	
-	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads, default = 10\r\n");	
-	printf("-max_pred_depth: \t\t\t [0-4], default = 4\r\n");
-	printf("-max_intra_tr_depth: \t\t\t [0-4], default = 2\r\n");
-	printf("-max_inter_tr_depth: \t\t\t [0-4], default = 1\r\n");
-	printf("-sign_hiding: \t\t\t\t 0=off, 1=on, default = 1\r\n");
-	printf("-sao: \t\t\t\t 0=off, 1=on, default = 1\r\n");
-	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate), default = VBR\r\n");
-	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR, default = 1250\r\n");
-	printf("-vbv_size: \t\t\t\t in kbps when bitrate_mode=CBR, default = 1.*bitrate\r\n");
-	printf("-vbv_init: \t\t\t\t in kbps when bitrate_mode=CBR, default = .25*vbv_size\r\n");
-	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change, default = 1\r\n");
-	printf("-performance_mode: \t\t\t 0=full computation, 1=fast , 2= ultra fast, default = ufast\r\n");
-	printf("-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd, default = fast\r\n");
-	printf("-n_frames: \t\t\t\t default = 1000\r\n");
-	printf("-skipped_frames: \t\t\t default = 0\r\n");
+	printf("-widthxheight: \t\t\t\t Default = 1280x720\r\n");
+	printf("-frame_rate: \t\t\t\t Default = 25 fps\r\n");	
+	printf("-cu_size: \t\t\t\t cu size [16,32 or 64]. Default = 64 (only 64 supported for inter prediction)\r\n");
+	printf("-intra_period: \t\t\t\t [0-....], 0=infinite. Default = 100 \r\n");
+	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile. Default = 1\r\n");
+	printf("-num_ref_frame: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
+	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
+	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
+	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
+	printf("-n_enc_engines: \t\t\t number of encoder engines encoding frames in parallel. default = 2\r\n");	
+	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads. default = 10\r\n");	
+	printf("-max_pred_depth: \t\t\t [0-4]. default = 4\r\n");
+	printf("-max_intra_tr_depth: \t\t\t [0-4]. default = 2\r\n");
+	printf("-max_inter_tr_depth: \t\t\t [0-4]. Default = 1\r\n");
+	printf("-sign_hiding: \t\t\t\t 0=off, 1=on. Default = 1\r\n");
+	printf("-sao: \t\t\t\t\t 0=off, 1=on. Default = 1\r\n");
+	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate). Default = VBR\r\n");
+	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1000\r\n");
+	printf("-vbv_size: \t\t\t\t in terms of the specified bitrate. Used in CBR and VBR. Default = 1.0\r\n");
+	printf("-vbv_init: \t\t\t\t in terms of the specified vbv_size. Default = 0.35\r\n");
+	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change. Default = 1\r\n");
+	printf("-performance_mode: \t\t\t 0=full, 1=fast, 2= ultra fast. Default = ufast\r\n");
+	printf("-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd. Default = fast\r\n");
+	printf("-n_frames: \t\t\t\t Default = 1000\r\n");
+	printf("-skipped_frames: \t\t\t Default = 0\r\n");
 
 	printf("\r\nexamples:\r\n\r\n");
 	printf("intra:\r\n");
@@ -120,13 +120,11 @@ void print_help()
 
 
 
-int aux_dbg = 0;
-int aux_dbg2 = 3;
-int aux_dbg3 = 0;
 void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames)
 {
 	int args_parsed = 1;
-
+	double vbv_size = cfg->vbv_size/(double)cfg->bitrate;
+	double vbv_init = cfg->vbv_init/(double)cfg->vbv_size;
 /*	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
@@ -252,12 +250,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		else if(strcmp(argv[args_parsed], "-vbv_size")==0 && args_parsed+1<argc)//size of VBV (video buffering verifier) in kbps when bitrate_mode=BR_CBR 
 		{
 			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &cfg->vbv_size);
+			sscanf( argv[args_parsed++], "%f", &vbv_size);
 		}
 		else if(strcmp(argv[args_parsed], "-vbv_init")==0 && args_parsed+1<argc)//initial fullnes of VBV in kbps when bitrate_mode=BR_CBR 
 		{
 			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &cfg->vbv_init);
+			sscanf( argv[args_parsed++], "%f", &vbv_init);
 		}
 		else if(strcmp(argv[args_parsed], "-performance_mode")==0 && args_parsed+1<argc)//performance_mode:	//0=FULL_COMPUTATION, 1=PERF_FAST_COMPUTATION, 2=FAST_PRED_MODE
 		{
@@ -284,29 +282,61 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", skipped_frames);
 		}
-		else if(strcmp(argv[args_parsed], "-aux_dbg")==0 && args_parsed+1<argc)//debugging parameter
-		{
-			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &aux_dbg);
-		}
-		else if(strcmp(argv[args_parsed], "-aux_dbg2")==0 && args_parsed+1<argc)//debugging parameter
-		{
-			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &aux_dbg2);
-		}
-		else if(strcmp(argv[args_parsed], "-aux_dbg3")==0 && args_parsed+1<argc)//debugging parameter
-		{
-			args_parsed++;
-			sscanf( argv[args_parsed++], "%d", &aux_dbg3);
-		}
 		else	//arg not recognized. Continue to next
 		{
 			printf("\r\nunrecognized argument: %s\r\n",argv[args_parsed]);
 			args_parsed++;
 		}
 	}
+
+	//update vbv values
+	cfg->vbv_size = (int)(vbv_size*(double)cfg->bitrate);
+	cfg->vbv_init = (int)(vbv_init*(double)cfg->vbv_size);
 }
 
+
+void get_default_config(HVENC_Cfg *cfg)
+{
+	cfg->size = sizeof(*cfg);
+	cfg->width = 1280;
+	cfg->height = 720;
+	cfg->profile = PROFILE_MAIN;
+	cfg->intra_period = 100;//1;
+	cfg->gop_size = 1;//1;
+	cfg->motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
+	cfg->qp = 32;//32;
+	cfg->frame_rate = 25;
+	cfg->num_ref_frames = 1;
+	cfg->cu_size = 64;
+	cfg->max_pred_partition_depth = 4;
+	cfg->max_intra_tr_depth = 2;
+	cfg->max_inter_tr_depth = 1;
+	cfg->num_enc_engines = 2;
+	cfg->wfpp_enable = 1;
+	cfg->wfpp_num_threads = 10;
+	cfg->sign_hiding = 1;
+	cfg->sample_adaptive_offset = 1;
+	cfg->rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
+	cfg->bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate = 1000;//in kbps
+	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
+	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
+	cfg->chroma_qp_offset = 2;
+	cfg->reinit_gop_on_scene_change = 1;
+	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+}
+
+void get_debug_config(HVENC_Cfg *cfg)
+{
+	cfg->width = HOR_SIZE;
+	cfg->height = VER_SIZE;
+	cfg->frame_rate = FPS;
+	cfg->num_enc_engines = 3;
+	cfg->reinit_gop_on_scene_change = 0;
+	cfg->sample_adaptive_offset = 1;
+	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate = 1250;//in kbps
+}
 
 
 int main (int argc, char **argv)
@@ -335,41 +365,11 @@ int main (int argc, char **argv)
 	strcpy(file_out_name, FILE_OUT);
 //	strcpy(file_ref_name, FILE_REF);
 
-	HmrCfg.size = sizeof(HmrCfg);
-	HmrCfg.width = HOR_SIZE;
-	HmrCfg.height = VER_SIZE;
-	HmrCfg.profile = PROFILE_MAIN;
-	HmrCfg.intra_period = 100;//1;
-	HmrCfg.gop_size = 1;//1;
-	HmrCfg.motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
-	HmrCfg.qp = 32;//32;
-	HmrCfg.frame_rate = FPS;
-	HmrCfg.num_ref_frames = 1;
-	HmrCfg.cu_size = 64;
-	HmrCfg.max_pred_partition_depth = 4;
-	HmrCfg.max_intra_tr_depth = 1;
-	HmrCfg.max_inter_tr_depth = 1;
-	HmrCfg.num_enc_engines = 2;
-	HmrCfg.wfpp_enable = 1;
-	HmrCfg.wfpp_num_threads = 10;
-	HmrCfg.sign_hiding = 1;
-	HmrCfg.sample_adaptive_offset = 1;
-	HmrCfg.rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
-	HmrCfg.bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	HmrCfg.bitrate = 1250;//in kbps
-	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - used for cbr and vbr
-	HmrCfg.vbv_init = HmrCfg.vbv_size*0.35;//in kbps
-	HmrCfg.chroma_qp_offset = 2;
-	HmrCfg.reinit_gop_on_scene_change = 0;
-	HmrCfg.performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	get_default_config(&HmrCfg);
+	get_debug_config(&HmrCfg);
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 	
-	//recalculate vbv as it depends on bitrate
-	HmrCfg.vbv_size = HmrCfg.bitrate*1.;//in kbps - used for cbr and vbr
-	HmrCfg.vbv_init = HmrCfg.vbv_size*0.35;//in kbps
-
-
 	if(!(infile = fopen(file_in_name, "rb")))
 	{
 		printf("Error opening input file: %s\r\n", file_in_name);

@@ -312,7 +312,6 @@ void create_raster2abs_tables( unsigned short *zigzag, unsigned short *inv_zigza
 
 extern const uint8_t chroma_scale_conversion_table[];
 
-extern int aux_dbg;
 
 void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
@@ -352,14 +351,7 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 		qp_factor=0.57*lambda_scale;
 	}
 
-#ifdef COMPUTE_AS_HM
 	lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
-#else
-//	if(aux_dbg<4)
-//		lambda = pow( 1.5, qp_temp/(1.75+.25*aux_dbg));//2
-//	else
-		lambda = qp_factor*pow( 2.0, qp_temp/3.0 );	
-#endif
 
     if ( depth>0 )
     {
@@ -378,8 +370,8 @@ void hmr_rd_init(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 	enc_engine->rd.lambda = lambda;
 
-	enc_engine->lambdas[0] = lambda;
-	enc_engine->lambdas[1] = enc_engine->lambdas[2] = lambda/weight;
+	enc_engine->sao_lambdas[0] = lambda;
+	enc_engine->sao_lambdas[1] = enc_engine->sao_lambdas[2] = lambda/weight;
 }
 
 int find_scan_mode(int is_intra, int is_luma, int width, int dir_mode, int up_left_luma_dir_mode)//up_left_luma_dir_mode solo vale para la chroma

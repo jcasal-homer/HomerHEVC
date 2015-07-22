@@ -707,12 +707,12 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 }
 
 
-void get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+void get_partition_neigbours(hvenc_engine_t* enc_engine, cu_partition_info_t* curr_partition_info)
 {
-	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_line = (enc_engine->max_cu_size)>>(enc_engine->num_partitions_in_cu_shift>>1);
 	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
-	int ctu_partitions_in_ctu_mask = et->num_partitions_in_cu-1;
-	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_partitions_in_line;
+	int ctu_partitions_in_ctu_mask = enc_engine->num_partitions_in_cu-1;
+	int ctu_partition_top_line_offset = enc_engine->num_partitions_in_cu-ctu_partitions_in_line;
 	int left_raster_index, left_bottom_raster_index, top_raster_index, top_right_raster_index, top_left_raster_index;
 	int	raster_index = curr_partition_info->raster_index;
 
@@ -745,23 +745,23 @@ void get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partit
 	//top left
 	top_left_raster_index = (left_raster_index + ctu_partition_top_line_offset) & ctu_partitions_in_ctu_mask;
 
-	curr_partition_info->abs_index_left_partition = et->enc_engine->raster2abs_table[left_raster_index];
-	curr_partition_info->abs_index_left_bottom_partition = et->enc_engine->raster2abs_table[left_bottom_raster_index];
-	curr_partition_info->abs_index_top_partition = et->enc_engine->raster2abs_table[top_raster_index];
-	curr_partition_info->abs_index_top_right_partition = et->enc_engine->raster2abs_table[top_right_raster_index];
-	curr_partition_info->abs_index_top_left_partition = et->enc_engine->raster2abs_table[top_left_raster_index];
+	curr_partition_info->abs_index_left_partition = enc_engine->raster2abs_table[left_raster_index];
+	curr_partition_info->abs_index_left_bottom_partition = enc_engine->raster2abs_table[left_bottom_raster_index];
+	curr_partition_info->abs_index_top_partition = enc_engine->raster2abs_table[top_raster_index];
+	curr_partition_info->abs_index_top_right_partition = enc_engine->raster2abs_table[top_right_raster_index];
+	curr_partition_info->abs_index_top_left_partition = enc_engine->raster2abs_table[top_left_raster_index];
 }
 
 
 
 //creates tree depencies
-void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
+void init_partition_info(hvenc_engine_t* enc_engine, cu_partition_info_t *partition_list)
 {
 	int curr_depth = 0;
 	int next_depth_change = 0;
 	int num_qtree_partitions;
 	int curr_part_x, curr_part_y;
-	int curr_part_size = et->max_cu_size, parent_size;
+	int curr_part_size = enc_engine->max_cu_size, parent_size;
 	int num_part_in_cu;
 	int curr_cu_part;
 	int parent_cnt, child_cnt;
@@ -775,9 +775,9 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 	parent_part_info->size_chroma = curr_part_size>>1;
 	parent_part_info->depth = curr_depth;
 	parent_part_info->abs_index = 0;
-	parent_part_info->num_part_in_cu = ((curr_part_size*curr_part_size)>>et->num_partitions_in_cu_shift);
+	parent_part_info->num_part_in_cu = ((curr_part_size*curr_part_size)>>enc_engine->num_partitions_in_cu_shift);
 	parent_part_info->parent = NULL;//pointer to parent partition
-	get_partition_neigbours(et, parent_part_info);
+	get_partition_neigbours(enc_engine, parent_part_info);
 
 	num_qtree_partitions = 0;
 	//calculate the number of iterations needed to cover all the tree elements (nodes and leaves)
@@ -799,11 +799,11 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 		{
 			curr_depth++;
 			next_depth_change += (1<<(2*(curr_depth-1)));
-			et->partition_depth_start[curr_depth] = next_depth_change;
+			enc_engine->partition_depth_start[curr_depth] = next_depth_change;
 			parent_size = curr_part_size;
-			curr_part_size = et->max_cu_size>>curr_depth;
+			curr_part_size = enc_engine->max_cu_size>>curr_depth;
 //			curr_part_size_shift = et->max_cu_size_shift-curr_depth;
-			num_part_in_cu =  ((curr_part_size*curr_part_size)>>et->num_partitions_in_cu_shift);
+			num_part_in_cu =  ((curr_part_size*curr_part_size)>>enc_engine->num_partitions_in_cu_shift);
 		}
 
 		curr_part_x = 0;//these are partial coordiatens inside the CU
@@ -824,8 +824,8 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 			curr_partition_info->size_chroma = curr_part_size>>1;
 			curr_partition_info->depth = curr_depth;
 			curr_partition_info->abs_index = parent_part_info->abs_index+child_cnt*num_part_in_cu;
-			curr_partition_info->raster_index = et->enc_engine->abs2raster_table[curr_partition_info->abs_index];
-			get_partition_neigbours(et, curr_partition_info);
+			curr_partition_info->raster_index = enc_engine->abs2raster_table[curr_partition_info->abs_index];
+			get_partition_neigbours(enc_engine, curr_partition_info);
 
 
 			curr_partition_info->num_part_in_cu = num_part_in_cu;

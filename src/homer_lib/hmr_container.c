@@ -109,9 +109,9 @@ void sync_cont_init(void** h)
 {
 	sync_hmr_container_t* cont = (sync_hmr_container_t *)calloc(1,sizeof(sync_hmr_container_t));
 	SEM_INIT(cont->buffs_clean.semaphore, 0,MAX_CONT_ELEMENTS);
-	SEM_COPY(cont->buffs_clean.sem, cont->buffs_clean.semaphore);
+	SEM_COPY(cont->buffs_clean.semaphore, cont->buffs_clean.sem);
 	SEM_INIT(cont->buffs_filled.semaphore, 0,MAX_CONT_ELEMENTS);
-	SEM_COPY(cont->buffs_filled.sem, cont->buffs_filled.semaphore);
+	SEM_COPY(cont->buffs_filled.semaphore, cont->buffs_filled.sem);
 
 	*h = cont; 
 }

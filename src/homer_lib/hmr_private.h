@@ -1108,7 +1108,7 @@ struct henc_thread_t
 	uint			num_total_ctus;
 
 	int				*partition_depth_start;//start of depths in the partition_info list
-	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
+//	cu_partition_info_t	*partition_info;//recursive structure list to store the state of the recursive computing stages
 	//current processing state and buffers
 	int				cu_current, cu_next;
 	int				cu_current_x, cu_current_y;
@@ -1124,7 +1124,7 @@ struct henc_thread_t
 	wnd_t			*decoded_mbs_wnd[NUM_DECODED_WNDS];
 
 	//deblock filter
-	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
+//	cu_partition_info_t* deblock_partition_info;//recursive structure list to store the state of the recursive computing stages
 	uint8_t			*deblock_edge_filter[2];
 	uint8_t			*deblock_filter_strength_bs[2];
 
@@ -1183,20 +1183,23 @@ struct henc_thread_t
 };
 
 
-#define MAX_NUM_THREADS			32
-#define NUM_INPUT_FRAMES		2
-#define NUM_OUTPUT_NALUS		(2*NUM_INPUT_FRAMES)
-#define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
+#define MAX_NUM_ENCODER_ENGINES				8
+#define STREAMS_PER_ENGINE					3
+#define MAX_NUM_THREADS						32
+#define NUM_INPUT_FRAMES(num_engines)		((STREAMS_PER_ENGINE-1)*num_engines)
+#define NUM_OUTPUT_NALUS(num_engines)		(2*NUM_INPUT_FRAMES(num_engines))
+//#define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
 struct hvenc_engine_t
 {
 	int				index;
 	int				num_encoded_frames;
+	int				num_encoded_frames_in_engine;
 	hvenc_enc_t		*hvenc;//parent encoder layer
 	henc_thread_t	*thread[MAX_NUM_THREADS];//*encoders_list;
 	hmr_thread_t	hthreads[MAX_NUM_THREADS];
 	int				dbg_num_posts[MAX_NUM_THREADS];
 
-	nalu_t			slice_nalu_list[NUM_OUTPUT_NALUS];//slice
+	nalu_t			slice_nalu_list[STREAMS_PER_ENGINE];//slice
 	nalu_t			*slice_nalu;//slice
 	bitstream_t		slice_bs;//slice information previous to nalu_ebsp conversion
 	bitstream_t		*aux_bs;//list of bitstreams for coef wfpp encoding
@@ -1293,14 +1296,18 @@ struct hvenc_engine_t
 
 	//rate distortion
 	rate_distortion_t	rd;
-	double				lambdas[NUM_PICT_COMPONENTS];
+	double				sao_lambdas[NUM_PICT_COMPONENTS];
 	//rate control
 	rate_control_t		rc;
 
 	//input and output
-	hmr_sem_t		output_sem;// 0 for intra_frame synchronization, 1 for inter frame synchronization
-	hmr_sem_ptr		output_signal;// 0 for intra_frame synchronization, 1 for inter frame synchronization
-	hmr_sem_ptr		output_wait;// 0 for intra_frame synchronization, 1 for inter frame synchronization
+	hmr_sem_t		input_sem;
+	hmr_sem_ptr		input_signal;
+	hmr_sem_ptr		input_wait;
+
+	hmr_sem_t		output_sem;
+	hmr_sem_ptr		output_signal;
+	hmr_sem_ptr		output_wait;
 
 #ifdef COMPUTE_METRICS
 	double			current_psnr[3];
@@ -1313,13 +1320,12 @@ struct hvenc_engine_t
 };
 
 
-#define MAX_NUM_ENCODER_CTX	8
 struct hvenc_enc_t
 {
-	hvenc_engine_t	*encoder_engines[MAX_NUM_ENCODER_CTX];
-	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_CTX];
+	hvenc_engine_t	*encoder_engines[MAX_NUM_ENCODER_ENGINES];
+	hmr_thread_t	encoder_mod_thread[MAX_NUM_ENCODER_ENGINES];
 	int				num_encoder_engines;
-	hmr_mutex		mutex_start_frame; 
+//	hmr_mutex		mutex_start_frame; 
 
 	int				run;
 	int				num_encoded_frames;
@@ -1362,9 +1368,9 @@ struct hvenc_enc_t
 	int					reference_list_index;
 
 	//input and output
-	video_frame_t		input_frames[NUM_INPUT_FRAMES];
+	video_frame_t		input_frames[NUM_INPUT_FRAMES(MAX_NUM_ENCODER_ENGINES)];
 	void				*input_hmr_container;
-	output_set_t		output_sets[NUM_OUTPUT_NALUS];
+	output_set_t		output_sets[NUM_OUTPUT_NALUS(MAX_NUM_ENCODER_ENGINES)];
 	void				*output_hmr_container;
 	
 	//for reconstructed img and reference frames

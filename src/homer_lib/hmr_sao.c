@@ -483,7 +483,7 @@ void sao_derive_offsets(henc_thread_t *wpp_thread, int component, int type_idc, 
 	int shift = 2 * DISTORTION_PRECISION_ADJUSTMENT(bit_depth-8);
 	int offset_thrshld = g_saoMaxOffsetQVal[component];  //inclusive
 	int num_classes, class_idx;
-	double *lambdas = wpp_thread->enc_engine->lambdas;
+	double *lambdas = wpp_thread->enc_engine->sao_lambdas;
 
 	memset(quant_offsets, 0, sizeof(int)*MAX_NUM_SAO_CLASSES);
 
@@ -670,7 +670,7 @@ void sao_derive_mode_new_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merge_
 	int component;
 	int invQuantOffset[MAX_NUM_SAO_CLASSES];
 	int type_idc;
-	double *lambdas = wpp_thread->enc_engine->lambdas;
+	double *lambdas = wpp_thread->enc_engine->sao_lambdas;
 
 	modeDist[Y_COMP]= modeDist[U_COMP] = modeDist[V_COMP] = 0;
 
@@ -858,7 +858,7 @@ void sao_derive_mode_merge_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merg
 	int merge_type;
 	int component;
 	uint rate;
-	double *lambdas = wpp_thread->enc_engine->lambdas;
+	double *lambdas = wpp_thread->enc_engine->sao_lambdas;
 	//  int mergeListSize = (Int)mergeList.size();
 	*mode_cost = MAX_COST;
 
@@ -885,7 +885,7 @@ void sao_derive_mode_merge_rdo(henc_thread_t *wpp_thread, sao_blk_param_t** merg
 			{
 				//offsets have been reconstructed. Don't call inversed quantization function.
 				//get_distortion(testOffset[component].typeIdc, testOffset[component].typeAuxInfo, invQuantOffset, &stats[component][type_idc], enc_engine->bit_depth);        
-				norm_dist += (((double)sao_get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], wpp_thread->bit_depth)))/wpp_thread->enc_engine->lambdas[component];///m_lambda[component]);
+				norm_dist += (((double)sao_get_distortion(merged_offsetparam->typeIdc, merged_offsetparam->typeAuxInfo, merged_offsetparam->offset, &stats[component][merged_offsetparam->typeIdc], wpp_thread->bit_depth)))/wpp_thread->enc_engine->sao_lambdas[component];///m_lambda[component]);
 			}
 		}
 
@@ -1247,12 +1247,6 @@ void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t*
 	height = (y_pos + max_cu_size > pic_height)?(pic_height- y_pos):max_cu_size;
 	width  = (x_pos + max_cu_size > pic_width)?(pic_width - x_pos):max_cu_size;
 
-
-	if(wpp_thread->enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 10)
-	{
-		int iiiii=0;
-	}
-
 	for(component= Y_COMP; component < NUM_PICT_COMPONENTS; component++)
 	{
 		sao_offset_t* ctb_offset = &sao_blk_param->offsetParam[component];
@@ -1334,11 +1328,6 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 			return;
 		}
 
-		if(wpp_thread->enc_engine->num_encoded_frames == 1)// && ctu_idx == 9)
-		{
-			int iiiii=0;
-		}
-
 //		get_merge_list(enc_engine, ctu_idx, recon_params, merge_list, &merge_list_size);
 		sao_get_merge_list(wpp_thread, ctu, merge_list, &merge_list_size);
 
@@ -1386,10 +1375,6 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 		wpp_thread->enc_engine->sao_debug_mode[coded_params->offsetParam[V_COMP].modeIdc]++; 
 //		m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[ SAO_CABACSTATE_BLK_NEXT ]);
 
-		if(ctu_idx==3)
-		{
-			int iiiii=0;
-		}
 		//apply reconstructed offsets
 		*recon_params = *coded_params;
 
@@ -1433,11 +1418,18 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 #define SHIFT_QP	12
 	int ctu_num = ctu->ctu_number;
 	int		bitdepth_luma_qp_scale = 0;
-	double  weight = pow( 2.0, (ctu->qp[0]-chroma_scale_conversion_table[clip(ctu->qp[0]+wpp_thread->enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
+//	double  weight = pow( 2.0, (ctu->qp[0]-chroma_scale_conversion_table[clip(ctu->qp[0]+wpp_thread->enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
 	double	qp_temp = (double) ctu->qp[0] /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
 	int ithreads;
 	double avg_qp=0.;
 	int num_ctus=0;
+	double	qp_factor = 0.4624;//this comes from the cfg file of HM
+	double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (wpp_thread->enc_engine->gop_size-1)/2 : (wpp_thread->enc_engine->gop_size-1)), 0.0, 0.5);
+
+	if(currslice->slice_type == I_SLICE)
+	{
+		qp_factor=0.57*lambda_scale;
+	}
 /*	for(ithreads=0;ithreads<wpp_thread->wfpp_num_threads;ithreads++)
 	{
 		henc_thread_t* henc_th = wpp_thread->enc_engine->thread[ithreads];
@@ -1446,123 +1438,20 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	}
 	avg_qp/=num_ctus;
 	qp_temp = (double) avg_qp + bitdepth_luma_qp_scale - SHIFT_QP;//
-	wpp_thread->enc_engine->lambdas[0] = pow( 1.5, qp_temp/(2.));//0.4624*pow( 2.0, qp_temp/3.0 );//pow( 1.5, qp_temp/(2.));//((double)enc_engine->avg_dist+(double)ctu->distortion/((double)enc_engine->num_partitions_in_cu))/5.;
-	wpp_thread->enc_engine->lambdas[1] = wpp_thread->enc_engine->lambdas[2] = wpp_thread->enc_engine->lambdas[0]*weight;
-*/
+*/	
+	wpp_thread->enc_engine->sao_lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
+	wpp_thread->enc_engine->sao_lambdas[1] =  wpp_thread->enc_engine->sao_lambdas[2] = qp_factor*pow( 1.4, (qp_temp+wpp_thread->enc_engine->chroma_qp_offset)/(1.4));
+	
+//	wpp_thread->enc_engine->sao_lambdas[0] = pow( 1.5, qp_temp/(2.));//0.4624*pow( 2.0, qp_temp/3.0 );//pow( 1.5, qp_temp/(2.));//((double)enc_engine->avg_dist+(double)ctu->distortion/((double)enc_engine->num_partitions_in_cu))/5.;
+//	wpp_thread->enc_engine->sao_lambdas[1] = wpp_thread->enc_engine->sao_lambdas[2] = pow( 1.5, qp_temp+wpp_thread->enc_engine->chroma_qp_offset/(2.));//wpp_thread->enc_engine->sao_lambdas[0]*weight;
+
 	memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
 	memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
 
 	wnd_copy_ctu(wpp_thread, &wpp_thread->enc_engine->curr_reference_frame->img, &wpp_thread->enc_engine->sao_aux_wnd, ctu);
 	reference_picture_border_padding_ctu(&wpp_thread->enc_engine->sao_aux_wnd, ctu);
 
-
-	if(wpp_thread->enc_engine->num_encoded_frames == 1)// && ctu_idx == 9)
-	{
-		int iiiii=0;
-	}
 	wpp_thread->funcs->get_sao_stats(wpp_thread, currslice, ctu, ctu->stat_data);
 	sao_decide_blk_params(wpp_thread, currslice, ctu, ctu->stat_data, wpp_thread->enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
 }
-
-/*void hmr_wpp_sao_offset_remaining_ctu(henc_thread_t *wpp_thread, slice_t *currslice)
-{
-	int ctu_num;
-	for(ctu_num = wpp_thread->enc_engine->pict_total_ctu-(wpp_thread->pict_width_in_ctu+1);ctu_num < wpp_thread->pict_total_ctu;ctu_num++)
-	{
-		ctu_info_t* ctu_offset = &wpp_thread->enc_engine->ctu_info[ctu_num];
-		offset_ctu(wpp_thread, ctu_offset , &ctu_offset ->recon_params);
-		reference_picture_border_padding_ctu(&wpp_thread->enc_engine->curr_reference_frame->img, ctu_offset);
-	}
-}
-*/
-
-//borrar - this function is not used any more
-void hmr_sao_hm(hvenc_engine_t *enc_engine, slice_t *currslice)
-{
-	int ctu_num;
-	int num_lcus_for_sao_off[NUM_PICT_COMPONENTS];
-	int component;
-
-//	sao_init(enc_engine->bit_depth);
-
-//	memset(num_lcu_sao_off, 0, sizeof(num_lcu_sao_off));
-//	memset(sao_disabled_rate, 0, sizeof(sao_disabled_rate));
-
-
-	//slice on/off 
-//	decide_pic_params(enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
-
-//	memset(recon_params, 0, sizeof(recon_params));
-
-	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
-	{
-#define SHIFT_QP	12
-		int		bitdepth_luma_qp_scale = 0;
-		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
-		double	qp_factor = 0.4624;
-//		double  weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
-		double	qp_temp = (double) ctu->qp[0] /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
-//		enc_engine->lambdas[0] = 0.4624*.95*qp_factor*pow( 2.0, qp_temp/3.0 );//((double)enc_engine->avg_dist+(double)ctu->distortion/((double)enc_engine->num_partitions_in_cu))/5.;
-//		enc_engine->lambdas[1] = enc_engine->lambdas[2] = enc_engine->lambdas[0]*weight;
-//		enc_engine->lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
-//		enc_engine->lambdas[1] =  enc_engine->lambdas[2] = qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
-	
-
-		memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
-		memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
-		//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-		//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
-		wnd_copy_ctu(enc_engine->thread[0], &enc_engine->curr_reference_frame->img, &enc_engine->sao_aux_wnd, ctu);
-		reference_picture_border_padding_ctu(&enc_engine->sao_aux_wnd, ctu);
-
-		//sao_get_ctu_stats(enc_engine->thread[0], currslice, ctu, ctu->stat_data);
-		enc_engine->thread[0]->funcs->get_sao_stats(enc_engine->thread[0], currslice, ctu, ctu->stat_data);
-		sao_decide_blk_params(enc_engine->thread[0], currslice, ctu, ctu->stat_data, enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
-
-		if(ctu_num>=(enc_engine->pict_width_in_ctu+1))
-		{
-			ctu_info_t* ctu_offset = &enc_engine->ctu_info[ctu_num-(enc_engine->pict_width_in_ctu+1)];
-			sao_offset_ctu(enc_engine->thread[0], ctu_offset , &ctu_offset ->recon_params);
-			reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu_offset);
-		}
-	}
-
-	for(ctu_num = enc_engine->pict_total_ctu-(enc_engine->pict_width_in_ctu+1);ctu_num < enc_engine->pict_total_ctu;ctu_num++)
-	{
-		ctu_info_t* ctu_offset = &enc_engine->ctu_info[ctu_num];
-		sao_offset_ctu(enc_engine->thread[0], ctu_offset , &ctu_offset ->recon_params);
-		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu_offset);
-	}
-
-/*	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
-	{
-		ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
-
-//		decide_blk_params(enc_engine->thread[0], currslice, ctu, ctu->stat_data, enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
-		offset_ctu(enc_engine->thread[0], ctu, &ctu->recon_params);
-		reference_picture_border_padding_ctu(&enc_engine->curr_reference_frame->img, ctu);
-	}
-*/
-	num_lcus_for_sao_off[Y_COMP ] = num_lcus_for_sao_off[U_COMP]= num_lcus_for_sao_off[V_COMP]= 0;
-
-	for (component=Y_COMP; component<NUM_PICT_COMPONENTS; component++)
-	{
-		for(ctu_num=0; ctu_num< enc_engine->pict_total_ctu; ctu_num++)
-		{
-			ctu_info_t* ctu = &enc_engine->ctu_info[ctu_num];
-			if( ctu->recon_params.offsetParam[component].modeIdc == SAO_MODE_OFF)
-			{
-				num_lcus_for_sao_off[component]++;
-			}
-		}
-	}
-//#if SAO_ENCODING_CHOICE_CHROMA
-/*	for (component=Y_COMP; component<NUM_PICT_COMPONENTS; component++)
-	{
-		sao_disabled_rate[component] = (double)num_lcus_for_sao_off[component]/(double)enc_engine->pict_total_ctu;
-	}
-*/
-
-}
-
 

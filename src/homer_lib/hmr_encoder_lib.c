@@ -196,7 +196,7 @@ void *HOMER_enc_init()
 		hvenc->funcs.get_sao_stats = sao_get_ctu_stats;		
 	}
 
-	MUTEX_INIT(hvenc->mutex_start_frame);
+//	MUTEX_INIT(hvenc->mutex_start_frame);
 
 	return hvenc;
 }
@@ -319,7 +319,7 @@ void HOMER_enc_close(void* h)
 			HMR_ALIGNED_FREE(henc_th->deblock_edge_filter[EDGE_VER])
 			HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_HOR])
 			HMR_ALIGNED_FREE(henc_th->deblock_filter_strength_bs[EDGE_VER])
-			HMR_FREE(henc_th->deblock_partition_info)
+//			HMR_FREE(henc_th->deblock_partition_info)
 
 			for(i=0;i<NUM_QUANT_WNDS;i++)
 				wnd_delete(&henc_th->transform_quant_wnd_[i]);
@@ -346,7 +346,7 @@ void HOMER_enc_close(void* h)
 			HMR_ALIGNED_FREE(henc_th->bottom_pred_buff)
 			HMR_ALIGNED_FREE(henc_th->right_pred_buff)
 
-			HMR_FREE(henc_th->partition_info)
+//			HMR_FREE(henc_th->partition_info)
 
 			SEM_DESTROY(henc_th->synchro_signal[1]);
 			SEM_DESTROY(henc_th->synchro_signal[0]);
@@ -371,6 +371,7 @@ void HOMER_enc_close(void* h)
 			HMR_FREE(phvenc_engine->ctu_info[i].inter_mode)
 			HMR_FREE(phvenc_engine->ctu_info[i].intra_mode[Y_COMP])
 			HMR_FREE(phvenc_engine->ctu_info[i].cbf[Y_COMP])
+			HMR_FREE(phvenc_engine->ctu_info[i].partition_list)
 		}
 
 		HMR_FREE(phvenc_engine->ctu_info)
@@ -398,13 +399,17 @@ void HOMER_enc_close(void* h)
 
 		HMR_FREE(phvenc_engine->sub_streams_entry_point_list)
 
-		for(i=0;i<NUM_OUTPUT_NALUS;i++)
+		for(i=0;i<STREAMS_PER_ENGINE;i++)
 			hmr_bitstream_free(&phvenc_engine->slice_nalu_list[i].bs);
 
 		hmr_bitstream_free(&phvenc_engine->slice_bs);
 
 		if(phvenc_engine->output_signal)
 			SEM_DESTROY(phvenc_engine->output_signal);
+
+		if(phvenc_engine->input_signal)
+			SEM_DESTROY(phvenc_engine->input_signal);
+
 
 		wnd_delete(&phvenc_engine->sao_aux_wnd);
 
@@ -429,7 +434,7 @@ void HOMER_enc_close(void* h)
 		wnd_delete(&hvenc->ref_wnds[i].img);
 	}
 
-	for(i=0;i<NUM_INPUT_FRAMES;i++)
+	for(i=0;i<NUM_INPUT_FRAMES(hvenc->num_encoder_engines);i++)
 	{
 		wnd_delete(&hvenc->input_frames[i].img);
 	}
@@ -463,7 +468,7 @@ void HOMER_enc_close(void* h)
 	HMR_FREE(hvenc->raster2abs_table)
 	HMR_FREE(hvenc->abs2raster_table)
 
-	MUTEX_CLOSE(hvenc->mutex_start_frame);
+//	MUTEX_CLOSE(hvenc->mutex_start_frame);
 
 	HMR_FREE(hvenc)
 }
@@ -497,13 +502,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				cfg->bitrate_mode = BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 				cfg->qp = 32;
 				cfg->performance_mode = PERF_FULL_COMPUTATION;//0 full computation(HM)
-				cfg->reinit_gop_on_scene_change = 0;
 				cfg->chroma_qp_offset = 0;
+				cfg->num_enc_engines = 1;
 				cfg->wfpp_num_threads = 1;
 				cfg->intra_period = 20;
 				num_merge_candidates = MERGE_MVP_MAX_NUM_CANDS;
 				cfg->num_enc_engines = 1;
 				calculate_preblock_stats = FALSE;
+				cfg->reinit_gop_on_scene_change = 0;
 #endif
 
 			if(hvenc->run==TRUE)
@@ -580,7 +586,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
 			{
 				int ithreads;
-
+				int depth_aux;
 				int prev_num_sub_streams, prev_num_ee, prev_num_ec;
 				unsigned int min_cu_size, min_cu_size_mask;
 
@@ -599,8 +605,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				if(phvenc_engine->output_signal!=NULL)
 					SEM_DESTROY(phvenc_engine->output_signal);
 
+				if(phvenc_engine->input_signal!=NULL)
+					SEM_DESTROY(phvenc_engine->input_signal);
+
 				SEM_INIT(phvenc_engine->output_sem, 0,1000);
-				SEM_COPY(phvenc_engine->output_signal, phvenc_engine->output_sem);
+				SEM_COPY(phvenc_engine->output_sem, phvenc_engine->output_signal);
+
+				SEM_INIT(phvenc_engine->input_sem, 0,1000);
+				SEM_COPY(phvenc_engine->input_sem, phvenc_engine->input_signal);
 
 				phvenc_engine->avg_dist = 1000;
 				phvenc_engine->ctu_width[0] = hvenc->ctu_width[0];
@@ -632,14 +644,14 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 #ifdef COMPUTE_AS_HM
 				bitstream_size = 0x4000000;
 #endif
-				for(i=0;i<NUM_OUTPUT_NALUS;i++)
+				for(i=0;i<STREAMS_PER_ENGINE;i++)
 					hmr_bitstream_free(&phvenc_engine->slice_nalu_list[i].bs);
 
 				hmr_bitstream_free(&phvenc_engine->slice_bs);
 
 				//bitstreams
 				hmr_bitstream_alloc(&phvenc_engine->slice_bs, bitstream_size);
-				for(i=0;i<NUM_OUTPUT_NALUS;i++)
+				for(i=0;i<STREAMS_PER_ENGINE;i++)
 					hmr_bitstream_alloc(&phvenc_engine->slice_nalu_list[i].bs, bitstream_size);
 
 
@@ -826,6 +838,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				{
 					for(i=0;i<phvenc_engine->pict_total_ctu;i++)
 					{
+						HMR_FREE(phvenc_engine->ctu_info[i].partition_list)
+
 						HMR_FREE(phvenc_engine->ctu_info[i].cbf[Y_COMP]);
 						//intra mode
 						HMR_FREE(phvenc_engine->ctu_info[i].intra_mode[Y_COMP]);
@@ -853,9 +867,19 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 				phvenc_engine->ctu_info = (ctu_info_t*)calloc (phvenc_engine->pict_total_ctu, sizeof(ctu_info_t));
 
+				aux = 1;
+				for(depth_aux=1;depth_aux<MAX_PARTITION_DEPTH;depth_aux++)//5 = max partition depth 
+				{
+					aux += (4<<(2*(depth_aux-1)));
+				}
+
 				for(i=0;i<phvenc_engine->pict_total_ctu;i++)
 				{
 					//------- ctu encoding info -------
+					phvenc_engine->ctu_info[i].partition_list = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
+					//init partition list info
+					init_partition_info(phvenc_engine, phvenc_engine->ctu_info[i].partition_list);
+
 					//cbf
 					phvenc_engine->ctu_info[i].cbf[Y_COMP] = (uint8_t*)calloc (NUM_PICT_COMPONENTS*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					phvenc_engine->ctu_info[i].cbf[U_COMP] = phvenc_engine->ctu_info[i].cbf[Y_COMP]+MAX_NUM_PARTITIONS;
@@ -898,7 +922,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				for(ithreads=0;ithreads<phvenc_engine->wfpp_num_threads;ithreads++)
 				{
-					int depth_aux;
+//					int depth_aux;
 					int j;
 					henc_thread_t* henc_th = (henc_thread_t*)calloc(1, sizeof(henc_thread_t));
 					int filter_buff_width, filter_buff_height;
@@ -921,13 +945,13 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 						SEM_DESTROY(henc_th->synchro_signal[0]);
 
 					SEM_INIT(henc_th->synchro_sem[0], 0,1000);
-					SEM_COPY(henc_th->synchro_signal[0], henc_th->synchro_sem[0]);
+					SEM_COPY(henc_th->synchro_sem[0], henc_th->synchro_signal[0]);
 				
 					if(henc_th->synchro_signal[1]!=NULL)
 						SEM_DESTROY(henc_th->synchro_signal[1]);
 
 					SEM_INIT(henc_th->synchro_sem[1], 0,1000);
-					SEM_COPY(henc_th->synchro_signal[1], henc_th->synchro_sem[1]);
+					SEM_COPY(henc_th->synchro_sem[1], henc_th->synchro_signal[1]);
 
 					henc_th->vps = &phvenc_engine->hvenc->vps;
 					henc_th->sps = &phvenc_engine->hvenc->sps;
@@ -967,15 +991,16 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->rd_mode = phvenc_engine->rd_mode;
 
 					henc_th->partition_depth_start = phvenc_engine->partition_depth_start;
-					aux = 1;//el CTU
-					for(depth_aux=1;depth_aux<MAX_PARTITION_DEPTH;depth_aux++)//5 = max partition depth 
-					{
-						aux += (4<<(2*(depth_aux-1)));
-					}
+//					aux = 1;//el CTU
 
-					henc_th->partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
+//					for(depth_aux=1;depth_aux<MAX_PARTITION_DEPTH;depth_aux++)//5 = max partition depth 
+//					{
+//						aux += (4<<(2*(depth_aux-1)));
+//					}
+
+//					henc_th->partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
 					//init partition list info
-					init_partition_info(henc_th, henc_th->partition_info);
+//					init_partition_info(henc_th, henc_th->partition_info);
 					//----------------------------current thread processing buffers allocation	-----
 					//alloc processing windows and buffers
 					henc_th->adi_size = 2*henc_th->ctu_height[0]+2*henc_th->ctu_width[0]+1;//left, top and left-top corner neighbours
@@ -1014,8 +1039,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 
 					//deblocking filter
-					henc_th->deblock_partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
-					init_partition_info(henc_th, henc_th->deblock_partition_info);
+//					henc_th->deblock_partition_info = (cu_partition_info_t*)calloc (aux, sizeof(cu_partition_info_t));
+//					init_partition_info(henc_th, henc_th->deblock_partition_info);
 					henc_th->deblock_filter_strength_bs[EDGE_VER] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->deblock_filter_strength_bs[EDGE_HOR] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					henc_th->deblock_edge_filter[EDGE_VER] = (uint8_t*) hmr_aligned_alloc (MAX_NUM_PARTITIONS, sizeof(uint8_t));
@@ -1085,13 +1110,13 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				//exterchange wait and signal semaphores between sucessive threads
 				if(phvenc_engine->wfpp_num_threads==1)
 				{
-					SEM_COPY(phvenc_engine->thread[0]->synchro_wait[0], phvenc_engine->thread[0]->synchro_sem[0]);
+					SEM_COPY(phvenc_engine->thread[0]->synchro_sem[0], phvenc_engine->thread[0]->synchro_wait[0]);
 				}
 				else
 				{
 					for(i=0;i<phvenc_engine->wfpp_num_threads;i++)
 					{
-						SEM_COPY(phvenc_engine->thread[i]->synchro_wait[0], phvenc_engine->thread[(i+phvenc_engine->wfpp_num_threads-1)%phvenc_engine->wfpp_num_threads]->synchro_sem[0]);
+						SEM_COPY(phvenc_engine->thread[(i+phvenc_engine->wfpp_num_threads-1)%phvenc_engine->wfpp_num_threads]->synchro_sem[0], phvenc_engine->thread[i]->synchro_wait[0]);
 					}
 				}
 
@@ -1115,10 +1140,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				hvenc_engine_t*  phvenc_signal_mod = hvenc->encoder_engines[(n_enc_engines+hvenc->num_encoder_engines-1)%hvenc->num_encoder_engines];
 				hvenc_engine_t*  phvenc_wait_mod = hvenc->encoder_engines[n_enc_engines];
 
-				SEM_COPY(phvenc_wait_mod->output_wait, phvenc_signal_mod->output_sem);
+				SEM_COPY(phvenc_signal_mod->input_sem, phvenc_wait_mod->input_wait);
+				SEM_COPY(phvenc_signal_mod->output_sem, phvenc_wait_mod->output_wait);
 				for(i=0;i<phvenc_wait_mod->wfpp_num_threads;i++)
 				{
-					SEM_COPY(phvenc_wait_mod->thread[i]->synchro_wait[1], phvenc_signal_mod->thread[i]->synchro_sem[1]);
+					SEM_COPY(phvenc_signal_mod->thread[i]->synchro_sem[1], phvenc_wait_mod->thread[i]->synchro_wait[1]);
 					if(hvenc->num_encoder_engines==1)
 						phvenc_wait_mod->thread[i]->num_wait_sem = 1;
 					else
@@ -1134,7 +1160,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->pict_height[1] = hvenc->pict_height[2] = phvenc_engine->pict_height[1];
 
 			sync_cont_reset(hvenc->input_hmr_container);
-			for(i=0;i<NUM_INPUT_FRAMES;i++)
+			for(i=0;i<NUM_INPUT_FRAMES(hvenc->num_encoder_engines);i++)
 			{
 				wnd_realloc(&hvenc->input_frames[i].img, hvenc->pict_width[0], hvenc->pict_height[0], 0, 0, sizeof(uint8_t));
 				sync_cont_put_empty(hvenc->input_hmr_container, &hvenc->input_frames[i]);
@@ -1708,7 +1734,7 @@ ctu_info_t* init_ctu(henc_thread_t* et)
 	ctu->size = et->max_cu_size;
 	ctu->num_part_in_ctu = et->num_partitions_in_cu;
 	ctu->num_part_in_ctu = et->num_partitions_in_cu;
-	ctu->partition_list = &et->partition_info[0];
+//	ctu->partition_list = &et->partition_info[0];
 
 	ctu_width = ((ctu->x[Y_COMP]+ctu->size)<et->pict_width[Y_COMP])?(ctu->size):et->pict_width[Y_COMP]-ctu->x[Y_COMP];
 	ctu_height = ((ctu->y[Y_COMP]+ctu->size)<et->pict_height[Y_COMP])?(ctu->size):et->pict_height[Y_COMP]-ctu->y[Y_COMP];
@@ -1867,7 +1893,6 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 	}
 */
 
-#ifndef COMPUTE_AS_HM
 	if(is_inter_gop)
 	{
 		if(sao_enabled)
@@ -1875,26 +1900,22 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
 			{
 				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
-				filter_ctu->partition_list = et->deblock_partition_info;
-				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//				filter_ctu->partition_list = et->deblock_partition_info;
+//				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
 				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
 					if(ctu_num_sao>=0 && (ctu_num_index)>=3)
 					{
 						filter_ctu = &et->enc_engine->ctu_info[ctu_num_sao];
-						if(filter_ctu->ctu_number==20)
-						{
-							int iiiii=0;
-						}
 
 						wfpp_encode_select_bitstream(et, filter_ctu);
 						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
@@ -1927,16 +1948,16 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -1947,8 +1968,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 					for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
 					{
 						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-						filter_ctu->partition_list = et->deblock_partition_info;
-						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//						filter_ctu->partition_list = et->deblock_partition_info;
+//						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 						wfpp_encode_select_bitstream(et, filter_ctu);
 						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
 						wfpp_encode_ctu(et, filter_ctu);
@@ -1992,8 +2013,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2003,8 +2024,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2014,8 +2035,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_sao+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					wfpp_encode_select_bitstream(et, filter_ctu);
 					hmr_wpp_sao_ctu(et, currslice, filter_ctu);
 					wfpp_encode_ctu(et, filter_ctu);
@@ -2050,16 +2071,16 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 			if(ctu_num_vertical>=0 && (ctu_num_index)>=1 && is_inter_gop)
 			{
 				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
-				filter_ctu->partition_list = et->deblock_partition_info;
-				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//				filter_ctu->partition_list = et->deblock_partition_info;
+//				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
 				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
@@ -2088,16 +2109,16 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2108,7 +2129,7 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 					for(ctu_num_aux=ctu_num_padding+1; ctu_num_aux<max_filter;ctu_num_aux++)
 					{
 						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-						filter_ctu->partition_list = et->deblock_partition_info;
+//						filter_ctu->partition_list = et->deblock_partition_info;
 						reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);
 						PRINTF_SAO("PADDING_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 					}
@@ -2138,8 +2159,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2149,8 +2170,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2160,7 +2181,7 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_padding+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
+//					filter_ctu->partition_list = et->deblock_partition_info;
 					reference_picture_border_padding_ctu(&et->enc_engine->curr_reference_frame->img, filter_ctu);				
 					PRINTF_SAO("PADDING_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2188,16 +2209,16 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
 			{
 				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
-				filter_ctu->partition_list = et->deblock_partition_info;
-				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//				filter_ctu->partition_list = et->deblock_partition_info;
+//				create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 				hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 				PRINTF_DEBLOCK("EDGE_VER_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
 				if(ctu_num_horizontal>=0 && (ctu_num_index)>=2)// && is_inter_gop)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_horizontal];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_0, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 
@@ -2224,16 +2245,16 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_1, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2245,8 +2266,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 					{
 						int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
 						filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-						filter_ctu->partition_list = et->deblock_partition_info;
-						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//						filter_ctu->partition_list = et->deblock_partition_info;
+//						create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 						wfpp_encode_select_bitstream(et, filter_ctu);
 						hmr_wpp_sao_ctu(et, currslice, filter_ctu);
 						wfpp_encode_ctu(et, filter_ctu);
@@ -2270,8 +2291,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_vertical+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_VER);
 					PRINTF_DEBLOCK("EDGE_VER_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2281,8 +2302,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				for(ctu_num_aux=ctu_num_horizontal+1; ctu_num_aux<max_filter;ctu_num_aux++)
 				{
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					hmr_deblock_filter_cu(et, currslice, filter_ctu, EDGE_HOR);
 					PRINTF_DEBLOCK("EDGE_HOR_2, filter_ctu_num:%d\r\n", filter_ctu->ctu_number);
 				}
@@ -2293,8 +2314,8 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 				{
 					int thread_idx = (ctu_num_aux/et->pict_width_in_ctu/*-(1+search_window_in_ctus_y)*/)%et->enc_engine->wfpp_num_threads;
 					filter_ctu = &et->enc_engine->ctu_info[ctu_num_aux];
-					filter_ctu->partition_list = et->deblock_partition_info;
-					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
+//					filter_ctu->partition_list = et->deblock_partition_info;
+//					create_partition_ctu_neighbours(et, filter_ctu, filter_ctu->partition_list);//ctu->partition_list);//this call should be removed
 					wfpp_encode_select_bitstream(et, filter_ctu);
 					hmr_wpp_sao_ctu(et, currslice, filter_ctu);
 					wfpp_encode_ctu(et, filter_ctu);
@@ -2314,7 +2335,6 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 			SEM_POST(et->enc_engine->thread[thread_idx]->synchro_signal[1]);
 		}
 	}
-#endif
 }
 
 
@@ -2441,8 +2461,9 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
 
-
+#ifndef COMPUTE_AS_HM
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
+#endif
 		if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)//notify next wpp thread
 		{
 			SEM_POST(et->synchro_signal[0]);
@@ -2555,15 +2576,9 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		int bits_allocated;// = hmr_bitstream_bitcount(et->ee->bs);
 		int ee_index = cu_current_y%et->enc_engine->wfpp_num_threads;//et->index;
 
-		if(enc_engine->num_encoded_frames == 5 && ctu_num==9)
-		{
-			int iiiii=0;
-		}
-
-
 		ctu = &enc_engine->ctu_info[ctu_num];
-		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 
 		if(cu_current_x==0 && et->wfpp_enable)
 		{
@@ -2647,10 +2662,6 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		et->dbg_sem_post_cnt = 0;
 
 
-extern int aux_dbg;
-extern int aux_dbg2;
-extern int aux_dbg3;
-
 THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 {
 //	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
@@ -2661,6 +2672,12 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 	slice_t *currslice = &currpict->slice;
 	int n, i, num_threads;
 
+	if(enc_engine->index==0)// && enc_engine->num_encoded_frames==0)
+	{
+		SEM_POST(enc_engine->output_wait);
+		SEM_POST(enc_engine->input_wait);
+	}
+
 	while(enc_engine->hvenc->run)
 	{
 		output_set_t* ouput_sets;// = &enc_engine->hvenc->output_sets[enc_engine->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
@@ -2668,12 +2685,14 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
 		int		engine;
-		MUTEX_LOCK(enc_engine->hvenc->mutex_start_frame); 
 
+//		MUTEX_LOCK(enc_engine->hvenc->mutex_start_frame); 
+		SEM_WAIT(enc_engine->input_wait);
 		//get next image
 		if(!get_frame_to_encode(enc_engine->hvenc, &enc_engine->current_pict.img2encode))//get next image to encode and init type
 		{
-			MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
+//			MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
+			SEM_POST(enc_engine->input_signal);
 			return THREAD_RETURN;
 		}
 		//entra seccion critica
@@ -2682,12 +2701,12 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		enc_engine->num_encoded_frames = enc_engine->hvenc->num_encoded_frames;
 		enc_engine->hvenc->num_encoded_frames++;
 
-		ouput_sets = &enc_engine->hvenc->output_sets[enc_engine->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
+		ouput_sets = &enc_engine->hvenc->output_sets[enc_engine->num_encoded_frames % NUM_OUTPUT_NALUS(enc_engine->hvenc->num_encoder_engines)];
 		output_nalu_list = ouput_sets->nalu_list;
 
 		memset(output_nalu_list, 0, (nalu_list_size)*sizeof(output_nalu_list[0]));
 
-		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[enc_engine->num_encoded_frames & NUM_OUTPUT_NALUS_MASK];
+		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[enc_engine->num_encoded_frames_in_engine % STREAMS_PER_ENGINE];
 		hmr_bitstream_init(&enc_engine->slice_nalu->bs);
 
 		hmr_slice_init(enc_engine, &enc_engine->current_pict, &currpict->slice);
@@ -2705,55 +2724,21 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 #define SHIFT_QP	12
 		{
 			int		bitdepth_luma_qp_scale = 0;
-			int qp = enc_engine->num_encoded_frames==0?enc_engine->pict_qp:hmr_rc_get_cu_qp(enc_engine->thread[0], &enc_engine->ctu_info[0], &enc_engine->thread[0]->partition_info[0], currslice);
+			int qp = enc_engine->num_encoded_frames==0?enc_engine->pict_qp:hmr_rc_get_cu_qp(enc_engine->thread[0], &enc_engine->ctu_info[0], enc_engine->ctu_info[0].partition_list, currslice);
 			double lambda;
 			double	qp_temp = (double) qp + bitdepth_luma_qp_scale - SHIFT_QP;//
 			double	qp_factor = 0.4624;//this comes from the cfg file of HM
 			double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 
-
-			currslice->qp = enc_engine->pict_qp = qp;
-//			lambda = pow( 1.5, qp/(2.25));//2
 			if(currslice->slice_type == I_SLICE)
 			{
 				qp_factor=0.57*lambda_scale;
 			}
-			if(aux_dbg3==0)
-			{
-//				qp_factor = 1;
-			}
 
-//			enc_engine->lambdas[0] = qp_factor*pow( 2.0, qp_temp/3.0 );	
-//			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = qp_factor*pow( 2.0, (qp_temp+enc_engine->chroma_qp_offset)/3.0 );	
+			enc_engine->sao_lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
+			enc_engine->sao_lambdas[1] =  enc_engine->sao_lambdas[2] = qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
 
-//			enc_engine->lambdas[0] = qp_factor*pow( 1.1+(.1*(double)aux_dbg2), qp_temp/(1.5+.1*(double)aux_dbg));	
-//			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = qp_factor*pow( 1.1+(.1*(double)aux_dbg2), (qp_temp+enc_engine->chroma_qp_offset)/(1.5+.1*(double)aux_dbg));	
-			aux_dbg = 10;
-			enc_engine->lambdas[0] = .1*(double)aux_dbg*qp_factor*pow( 1.4, qp_temp/(1.4));	
-			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = .1*(double)aux_dbg*qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
-
-
-
-//			enc_engine->lambdas[0] = .05*(double)aux_dbg*enc_engine->avg_dist;	
-//			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = .05*(double)aux_dbg*enc_engine->avg_dist;
-
-//			printf("aux_dbg:%d, aux_dbg2:%d, aux_dbg3:%d, ", aux_dbg, aux_dbg2, aux_dbg3);
-
-//			enc_engine->lambdas[0] = pow( 1.5, qp_temp/(1.25+(double)aux_dbg*.25));	//b
-//			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = pow( 1.5, (qp_temp+enc_engine->chroma_qp_offset)/(1.25+(double)aux_dbg*.25));	//b
-//a			enc_engine->lambdas[0] = (.75+.05*(double)aux_dbg)*pow( 1.15, qp );	
-//a			enc_engine->lambdas[1] =  enc_engine->lambdas[2] = (double)aux_dbg*pow( 1.15, (qp+enc_engine->chroma_qp_offset));
-/*			if(enc_engine->num_encoded_frames<200)
-			{
-				enc_engine->lambdas[0] = 65;//qp_factor*pow( 2.0, qp_temp/3.0 );	
-				enc_engine->lambdas[1] =  enc_engine->lambdas[2] = 65;//qp_factor*pow( 2.0, (qp_temp+enc_engine->chroma_qp_offset)/3.0 );								
-			}
-			else
-			{
-				enc_engine->lambdas[0] = 350;//qp_factor*pow( 2.0, qp_temp/3.0 );	
-				enc_engine->lambdas[1] =  enc_engine->lambdas[2] = 350;//qp_factor*pow( 2.0, (qp_temp+enc_engine->chroma_qp_offset)/3.0 );					
-			}
-*/
+			currslice->qp = enc_engine->pict_qp = qp;
 		}
 #endif
 
@@ -2801,8 +2786,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			SEM_RESET(enc_engine->thread[n]->synchro_wait[0])
 		}
 //		memset(enc_engine->dbg_num_posts,0,sizeof(enc_engine->dbg_num_posts));
-
-		MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
+		SEM_POST(enc_engine->input_signal);
+//		MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
 
 		CREATE_THREADS((&enc_engine->hthreads[0]), wfpp_encoder_thread, enc_engine->thread, enc_engine->wfpp_num_threads)
 		JOIN_THREADS(enc_engine->hthreads, enc_engine->wfpp_num_threads-1)
@@ -2873,10 +2858,6 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 
 		//----------------------------end calc average statistics (distortion, qp)----------------------------------
-
-		if(enc_engine->num_encoded_frames==0)
-			SEM_POST(enc_engine->output_wait);
-
 		SEM_WAIT(enc_engine->output_wait);
 
 		//slice header
@@ -2925,7 +2906,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
 #endif
 			printf("vbv: %.2f, avg_dist: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size, enc_engine->avg_dist);
-			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->lambdas[0]);
+			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->sao_lambdas[0]);
 //			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
 //#ifndef COMPUTE_AS_HM
 			printf("qp: %d, ", enc_engine->pict_qp);			
@@ -2954,6 +2935,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		ouput_sets->num_nalus = output_nalu_cnt;
 		ouput_sets->frame = enc_engine->curr_reference_frame;
 		cont_put(enc_engine->hvenc->output_hmr_container, ouput_sets);
+
+		enc_engine->num_encoded_frames_in_engine++;
 
 		SEM_POST(enc_engine->output_signal);
 	}

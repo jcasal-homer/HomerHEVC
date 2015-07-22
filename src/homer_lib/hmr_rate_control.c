@@ -63,15 +63,12 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 		if(et->enc_engine->gop_reinit_on_scene_change && enc_engine->rc.vbv_fullness<.5*enc_engine->rc.vbv_size)
 		{
 			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			pic_size_new = (1.5-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		else
 		{
 			pic_size_new = .75*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		enc_engine->rc.target_pict_size = min(pic_size_new, enc_engine->rc.vbv_fullness);
-//		enc_engine->rc.target_pict_size = pic_size_new;//.75*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 
 		enc_engine->rc.target_bits_per_ctu = enc_engine->rc.target_pict_size/enc_engine->pict_total_ctu;
 
@@ -101,10 +98,7 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	{
 		case  I_SLICE:
 		{
-//			enc_engine->rc.target_pict_size = (2.25-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			enc_engine->rc.target_pict_size = intra_avg_size;///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			enc_engine->rc.target_pict_size = min(intra_avg_size, enc_engine->rc.vbv_fullness);///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			enc_engine->rc.target_pict_size = /*(2.25-((double)enc_engine->avg_dist/15000.))**/2.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
 		case  P_SLICE:
@@ -268,7 +262,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 }
 
 
-int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice)
+int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partition_info_t *curr_cu_info*/, slice_t *currslice)
 {
 	hvenc_engine_t* enc_engine = curr_thread->enc_engine;
 	int ithreads;
@@ -287,16 +281,6 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	}
 
 	entropy = 3;//sqrt(((double)enc_engine->avg_dist/3000.)*(curr_cu_info->variance))/40;//25.0;
-
-	if(curr_thread->enc_engine->num_encoded_frames==36)
-	{
-		int iiiii=0;
-	}
-
-	if(enc_engine->num_encoded_frames == 30 && consumed_ctus>3)
-	{
-		int iiii=0;
-	}
 
 	consumed_bitrate += enc_engine->rc.extra_bits;
 
@@ -390,7 +374,7 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 //			qp = hmr_rc_calc_cu_qp(et);
 		if(curr_cu_info->depth <= et->enc_engine->qp_depth)
 		{
-			qp = hmr_rc_calc_cu_qp(et, ctu, curr_cu_info, currslice);	
+			qp = hmr_rc_calc_cu_qp(et, ctu, currslice);	
 		}
 		else
 			qp = curr_cu_info->parent->qp;

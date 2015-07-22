@@ -219,7 +219,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h);//void encoder_engine_thread(v
 
 //hmr_motion_intra.c
 #define ADI_POINTER_MIDDLE(ptr_adi_orig, size)  (ptr_adi_orig+(size>>1))	//points to the top left square
-void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list);
+void init_partition_info(hvenc_engine_t* enc_engine, cu_partition_info_t *partition_list);
 void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info);
 uint32_t motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 //void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size);

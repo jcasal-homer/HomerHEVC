@@ -2523,11 +2523,6 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 		//here we consolidate the bottom-up results being preferred to the top-down computation
 		PartSize part_size_type2 = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 
-		if(et->enc_engine->current_pict.slice.slice_type != I_SLICE && curr_depth==4)
-		{
-			int iiiii=0;
-		}
-
 		if(cost_sum!=NULL)
 		{
 			cost_sum[parent_part_info->depth] -= parent_cost;
@@ -2570,11 +2565,6 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 		//top-down computation results are prefered
 		PartSize part_size_type2 = (parent_part_info->depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;//
 		int parent_depth = parent_part_info->depth;//curr_depth-1
-
-		if(et->enc_engine->current_pict.slice.slice_type != I_SLICE && curr_depth==4)
-		{
-			int iiiii=0;
-		}
 
 		synchronize_motion_buffers_luma(et, parent_part_info, et->transform_quant_wnd[parent_depth+1], et->transform_quant_wnd[0], et->decoded_mbs_wnd[parent_depth+1], et->decoded_mbs_wnd[0], gcnt);
 		synchronize_motion_buffers_chroma(et, parent_part_info, et->transform_quant_wnd[parent_depth+1], et->transform_quant_wnd[0], et->decoded_mbs_wnd[parent_depth+1], et->decoded_mbs_wnd[0], gcnt);
@@ -2862,11 +2852,6 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 //	avg_distortion = et->enc_engine->avg_dist;
 #endif
-
-	if(et->enc_engine->num_encoded_frames == 4)
-	{
-		int iiiii=0;
-	}
 
 	//init rd auxiliar ctu
 	if(et->rd_mode != RD_DIST_ONLY)
@@ -3730,11 +3715,6 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 					{
 						uint motion_estimation_precision = ((et->enc_engine->motion_estimation_precision*2-1)&(~MOTION_PEL_MASK));//compute all precisions below the configured exept MOTION_PEL_MASK that has already been done
 						curr_cu_info->sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, part_size_type, threshold,motion_estimation_precision);//(MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
-					}
-
-					if(et->enc_engine->num_encoded_frames==4 &&  /*curr_cu_info->abs_index == 164 && */ctu->ctu_number == 15)
-					{
-						int iiiii=0;
 					}
 
 					curr_cu_info->prediction_mode = INTER_MODE;
