@@ -1260,8 +1260,8 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 {
 	int i, l; 
 	int xlow, xhigh, ylow, yhigh;
-	uint32_t prev_best_sad, prev_best_rd, curr_best_sad, curr_best_rd, best_sad, best_rd;
-	int prev_best_x, prev_best_y, curr_best_x, curr_best_y, best_x, best_y;
+	uint32_t prev_best_sad = 0, prev_best_rd = 0, curr_best_sad = 0, curr_best_rd = 0, best_sad = MAX_COST, best_rd = 0;
+	int prev_best_x, prev_best_y, curr_best_x, curr_best_y, best_x = 0, best_y = 0;
 	int dist = 1;
 	int end;
 	mv_candiate_list_t	*mv_candidate_list = &et->mv_search_candidates;//&et->mv_candidates[REF_PIC_LIST_0];
@@ -1935,7 +1935,7 @@ void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu,
 
 	if((ctu_left_bottom!=NULL && ctu_left_bottom->pred_mode[part_idx_lb] != INTRA_MODE)|| (ctu_left!=NULL && ctu_left->pred_mode[part_idx_l] != INTRA_MODE))
 	{
-		//reorder		¿?
+		//reorder		ï¿½?
 	}
 
 	if(mv_candidate_list->num_mv_candidates==2 && mv_candidate_list->mv_candidates[0].hor_vector == mv_candidate_list->mv_candidates[1].hor_vector && mv_candidate_list->mv_candidates[0].ver_vector == mv_candidate_list->mv_candidates[1].ver_vector)
@@ -3082,7 +3082,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 */
 #endif
 			}
-			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its father´s depth. So, intra NxN does not have to be compaired
+			else if(part_size_type == SIZE_NxN)//intra NxN is processed in its current depth, while inter NxN is processed in its fatherï¿½s depth. So, intra NxN does not have to be compaired
 			{
 				cost = dist = curr_cu_info->cost = curr_cu_info->distortion = MAX_COST;
 				if((curr_depth-1) == (et->max_cu_depth - et->mincu_mintr_shift_diff) && curr_cu_info->parent->size>8)	//SIZE_NxN

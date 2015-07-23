@@ -1090,7 +1090,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	double cost, best_cost = MAX_COST;
 	int min_mode = 0;
 	int max_mode = 1;
-	int best_bit_cost;
+	int best_bit_cost=0;
 	best_pred_modes[0] = best_pred_modes[1] = best_pred_modes[2] = PRED_MODE_INVALID;
 
 	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, TRUE);//create filtered and non filtered adi buf
@@ -1103,7 +1103,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	best_cost = MAX_COST;
 	for(nloops=0;nloops<NUM_SEARCH_LOOPS;nloops++)
 	{
-		uint bit_cost;
+		uint bit_cost = 0;
 
 		if(nloops==1)
 		{

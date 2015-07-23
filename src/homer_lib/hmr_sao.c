@@ -1412,14 +1412,12 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 
 extern const uint8_t chroma_scale_conversion_table[];
 
-
 void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu)
 {
 #define SHIFT_QP	12
 	int ctu_num = ctu->ctu_number;
 	int		bitdepth_luma_qp_scale = 0;
-//	double  weight = pow( 2.0, (ctu->qp[0]-chroma_scale_conversion_table[clip(ctu->qp[0]+wpp_thread->enc_engine->chroma_qp_offset,0,57)])/3.0 ); 
-	double	qp_temp = (double) ctu->qp[0] /* pict_qp */+ bitdepth_luma_qp_scale - SHIFT_QP;//
+	double	qp_temp = (double) ctu->qp[0] + bitdepth_luma_qp_scale - SHIFT_QP;//
 	int ithreads;
 	double avg_qp=0.;
 	int num_ctus=0;
@@ -1430,20 +1428,9 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	{
 		qp_factor=0.57*lambda_scale;
 	}
-/*	for(ithreads=0;ithreads<wpp_thread->wfpp_num_threads;ithreads++)
-	{
-		henc_thread_t* henc_th = wpp_thread->enc_engine->thread[ithreads];
-		avg_qp+=henc_th->acc_qp;
-		num_ctus+=henc_th->num_total_ctus;
-	}
-	avg_qp/=num_ctus;
-	qp_temp = (double) avg_qp + bitdepth_luma_qp_scale - SHIFT_QP;//
-*/	
 	wpp_thread->enc_engine->sao_lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
 	wpp_thread->enc_engine->sao_lambdas[1] =  wpp_thread->enc_engine->sao_lambdas[2] = qp_factor*pow( 1.4, (qp_temp+wpp_thread->enc_engine->chroma_qp_offset)/(1.4));
-	
-//	wpp_thread->enc_engine->sao_lambdas[0] = pow( 1.5, qp_temp/(2.));//0.4624*pow( 2.0, qp_temp/3.0 );//pow( 1.5, qp_temp/(2.));//((double)enc_engine->avg_dist+(double)ctu->distortion/((double)enc_engine->num_partitions_in_cu))/5.;
-//	wpp_thread->enc_engine->sao_lambdas[1] = wpp_thread->enc_engine->sao_lambdas[2] = pow( 1.5, qp_temp+wpp_thread->enc_engine->chroma_qp_offset/(2.));//wpp_thread->enc_engine->sao_lambdas[0]*weight;
+
 
 	memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
 	memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
@@ -1452,6 +1439,6 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	reference_picture_border_padding_ctu(&wpp_thread->enc_engine->sao_aux_wnd, ctu);
 
 	wpp_thread->funcs->get_sao_stats(wpp_thread, currslice, ctu, ctu->stat_data);
-	sao_decide_blk_params(wpp_thread, currslice, ctu, ctu->stat_data, wpp_thread->enc_engine->slice_enabled);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
+	sao_decide_blk_params(wpp_thread, currslice, ctu, ctu->stat_data, wpp_thread->enc_engine->slice_enabled);
 }
 

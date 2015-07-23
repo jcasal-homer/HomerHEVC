@@ -93,7 +93,7 @@ void print_help()
 	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
 	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
 	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
-	printf("-n_enc_engines: \t\t\t number of encoder engines encoding frames in parallel. default = 2\r\n");	
+	printf("-n_enc_engines: \t\t\t number of frame based parallelism engines. default = 2\r\n");	
 	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads. default = 10\r\n");	
 	printf("-max_pred_depth: \t\t\t [0-4]. default = 4\r\n");
 	printf("-max_intra_tr_depth: \t\t\t [0-4]. default = 2\r\n");
@@ -125,12 +125,13 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 	int args_parsed = 1;
 	double vbv_size = cfg->vbv_size/(double)cfg->bitrate;
 	double vbv_init = cfg->vbv_init/(double)cfg->vbv_size;
-/*	if(argc==1)
+
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -326,17 +327,7 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
 
-void get_debug_config(HVENC_Cfg *cfg)
-{
-	cfg->width = HOR_SIZE;
-	cfg->height = VER_SIZE;
-	cfg->frame_rate = FPS;
-	cfg->num_enc_engines = 3;
-	cfg->reinit_gop_on_scene_change = 0;
-	cfg->sample_adaptive_offset = 1;
-	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 1250;//in kbps
-}
+
 
 
 int main (int argc, char **argv)
@@ -366,7 +357,7 @@ int main (int argc, char **argv)
 //	strcpy(file_ref_name, FILE_REF);
 
 	get_default_config(&HmrCfg);
-	get_debug_config(&HmrCfg);
+//	get_debug_config(&HmrCfg);
 
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 	

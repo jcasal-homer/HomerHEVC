@@ -110,8 +110,8 @@ extern const uint8_t chroma_scale_conversion_table[];
 uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
 	int cu_mode, cu_mode_idx;
-	uint32_t distortion = 0, best_distortion=0, bit_cost, cost, best_cost = MAX_COST, best_mode, best_mode_idx;
-	uint sum = 0, best_sum;
+	uint32_t distortion = 0, best_distortion=0, bit_cost = 0, cost, best_cost = MAX_COST, best_mode = 0, best_mode_idx = 0;
+	uint sum = 0, best_sum = 0;
 	picture_t *currpict = &et->enc_engine->current_pict;
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;

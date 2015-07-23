@@ -97,6 +97,7 @@ typedef void* hmr_thread_t;
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <limits.h>
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>

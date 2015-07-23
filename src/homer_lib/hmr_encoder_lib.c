@@ -356,6 +356,8 @@ void HOMER_enc_close(void* h)
 
 		for(i=0;i<phvenc_engine->pict_total_ctu;i++)
 		{
+			wnd_delete(phvenc_engine->ctu_info[i].coeff_wnd);
+			HMR_FREE(phvenc_engine->ctu_info[i].coeff_wnd)
 			HMR_FREE(phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0])
 			HMR_FREE(phvenc_engine->ctu_info[i].mv_diff[REF_PIC_LIST_0])
 			HMR_FREE(phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0])
@@ -533,7 +535,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 			hvenc->profile = cfg->profile;
 			hvenc->intra_period = cfg->intra_period;
-			hvenc->gop_size = hvenc->intra_period==1?1:max(cfg->gop_size,1,cfg->gop_size);
+			hvenc->gop_size = hvenc->intra_period==1?1:max(cfg->gop_size,1);
 			hvenc->num_b = hvenc->intra_period==1?0:0;
 			hvenc->num_ref_frames = hvenc->gop_size>0?cfg->num_ref_frames:0;	
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
@@ -911,8 +913,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_1] = phvenc_engine->ctu_info[i].mv_diff_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 
 //#ifdef COMPUTE_AS_HM
-					phvenc_engine->ctu_info[i].coeff_wnd = (wnd_t*)calloc(1, sizeof(wnd_t));		
-					wnd_realloc(phvenc_engine->ctu_info[i].coeff_wnd, (phvenc_engine->ctu_width[0]), phvenc_engine->ctu_height[0], 0, 0, sizeof(int16_t));		
+					phvenc_engine->ctu_info[i].coeff_wnd = (wnd_t*)calloc(1, sizeof(wnd_t));
+					wnd_realloc(phvenc_engine->ctu_info[i].coeff_wnd, (phvenc_engine->ctu_width[0]), phvenc_engine->ctu_height[0], 0, 0, sizeof(int16_t));
 //#endif
 				}
 
@@ -2568,7 +2570,7 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 	henc_thread_t *et = enc_engine->thread[0];
 	int ctu_num;
-	ctu_info_t* ctu;
+	ctu_info_t* ctu = NULL;
 	int cu_current_x = 0, cu_current_y = 0;
 //	int dir;
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)

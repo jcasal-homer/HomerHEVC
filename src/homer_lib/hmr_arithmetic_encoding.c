@@ -205,7 +205,8 @@ void ee_copy_context(context_model_buff_t *cm_src, context_model_buff_t *cm_dst)
 
 void ee_copy_entropy_model(context_model_t *ctx_src, context_model_t *ctx_dst)
 {
-	memcpy(ctx_dst, ctx_src, NUM_CTXs*sizeof(context_model_t));
+	if(ctx_src!=ctx_dst)
+		memcpy(ctx_dst, ctx_src, NUM_CTXs*sizeof(context_model_t));
 }
 
 #define GET_CONTEXT_XYZ(cm, z, y, x) (&(cm.ctx[(z)*(cm.size_xy)+(y)*(cm.size_x)+(x)]))
@@ -1431,7 +1432,7 @@ ctu_info_t *get_qp_min_cu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partiti
 int get_ref_qp(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t*  curr_partition_info)
 {
 	int last_coded_qp, ref_qp;
-	uint abs_index_left, abs_index_top;
+	uint abs_index_left = 0, abs_index_top = 0;
 	ctu_info_t *ctu_left = get_qp_min_cu_left(ctu, curr_partition_info, &abs_index_left, et->enc_engine->hvenc->pps.diff_cu_qp_delta_depth);
 	ctu_info_t *ctu_top = get_qp_min_cu_top(ctu, curr_partition_info, &abs_index_top, et->enc_engine->hvenc->pps.diff_cu_qp_delta_depth);
 

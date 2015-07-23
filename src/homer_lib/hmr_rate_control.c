@@ -295,11 +295,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partitio
 		}
 		pic_corrector = clip(pic_corrector, 0, .5);
 
-//		if(currslice->slice_type != P_SLICE)
-//			pic_corrector *= 2.;//0125*(consumed_bitrate/(enc_engine->rc.target_bits_per_ctu*consumed_ctus));
 	}
-//	else
-//		pic_corrector = 0;
 
 	min_vbv_size = clip(enc_engine->rc.vbv_fullness,enc_engine->rc.vbv_fullness,enc_engine->rc.vbv_size*.95);
 
@@ -321,9 +317,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partitio
 	{
 		if(currslice->slice_type == I_SLICE || (enc_engine->is_scene_change && enc_engine->gop_reinit_on_scene_change))
 		{
-//			qp/=1.5-((double)enc_engine->avg_dist/15000.);
 			qp/=clip(1.5-((double)enc_engine->avg_dist/15000.),1.15,1.5);
-//			qp/=1.4-((double)enc_engine->avg_dist/50000.);
 		}
 		else if(enc_engine->is_scene_change)
 			qp/=1.1;
@@ -343,7 +337,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partitio
 		qp+=2;
 	}
 
-	return (int)clip(qp+.5,/*MIN_QP*/1.0,MAX_QP);
+	return (int)clip(qp+.5,1.0,MAX_QP);
 }
 
 
