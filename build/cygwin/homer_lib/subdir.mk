@@ -19,11 +19,13 @@ C_SRCS += \
 ../../../../src/homer_lib/hmr_deblocking_filter.c \
 ../../../../src/homer_lib/hmr_profiler.c \
 ../../../../src/homer_lib/hmr_quant.c \
+../../../../src/homer_lib/hmr_sao.c \
 ../../../../src/homer_lib/hmr_sse42_functions_pixel.c \
 ../../../../src/homer_lib/hmr_sse42_functions_prediction.c \
 ../../../../src/homer_lib/hmr_sse42_functions_quant.c \
 ../../../../src/homer_lib/hmr_sse42_functions_transform.c \
 ../../../../src/homer_lib/hmr_sse42_functions_inter_prediction.c \
+../../../../src/homer_lib/hmr_sse42_sao.c \
 ../../../../src/homer_lib/hmr_tables.c \
 ../../../../src/homer_lib/hmr_transform.c \
 
@@ -43,11 +45,13 @@ OBJS += \
 ./hmr_deblocking_filter.o \
 ./hmr_profiler.o \
 ./hmr_quant.o \
+./hmr_sao.o \
 ./hmr_sse42_functions_pixel.o \
 ./hmr_sse42_functions_prediction.o \
 ./hmr_sse42_functions_quant.o \
 ./hmr_sse42_functions_transform.o \
 ./hmr_sse42_functions_inter_prediction.o \
+./hmr_sse42_sao.o \
 ./hmr_tables.o \
 ./hmr_transform.o \
 
@@ -68,11 +72,13 @@ C_DEPS += \
 ./hmr_deblocking_filter.d \
 ./hmr_profiler.d \
 ./hmr_quant.d \
+./hmr_sao.d \
 ./hmr_sse42_functions_pixel.d \
 ./hmr_sse42_functions_prediction.d \
 ./hmr_sse42_functions_quant.d \
 ./hmr_sse42_functions_transform.d \
 ./hmr_sse42_functions_inter_prediction.d \
+./hmr_sse42_sao.d \
 ./hmr_tables.d \
 ./hmr_transform.d \
 
