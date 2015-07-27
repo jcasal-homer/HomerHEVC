@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -110,8 +110,8 @@ extern const uint8_t chroma_scale_conversion_table[];
 uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position,  int part_size_type)
 {
 	int cu_mode, cu_mode_idx;
-	uint32_t distortion = 0, best_distortion=0, bit_cost, cost, best_cost = MAX_COST, best_mode, best_mode_idx;
-	uint sum = 0, best_sum;
+	uint32_t distortion = 0, best_distortion=0, bit_cost = 0, cost, best_cost = MAX_COST, best_mode = 0, best_mode_idx = 0;
+	uint sum = 0, best_sum = 0;
 	picture_t *currpict = &et->enc_engine->current_pict;
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
@@ -333,14 +333,14 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, CHR_COMP, FALSE);//don't create filtered adi samples
 
 				if(cu_mode== PLANAR_IDX)
-					et->funcs->create_intra_planar_prediction(et, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, curr_part_size_shift);//creamos el array de prediccion planar
+					et->funcs->create_intra_planar_prediction(et, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, curr_part_size_shift);
 				else
-					et->funcs->create_intra_angular_prediction(et, ctu, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, cu_mode, FALSE);//creamos el array de prediccion angular
+					et->funcs->create_intra_angular_prediction(et, ctu, pred_buff, pred_buff_stride, et->adi_pred_buff, curr_adi_size, curr_part_size, cu_mode, FALSE);
 
 				//intra code
 				et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
-				et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, REG_DCT, quant_buff);//usamos quant buff como auxiliar
-				et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+				et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, REG_DCT, quant_buff);
+				et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, ch_component, cu_mode, 1, &curr_sum, curr_part_size, per, rem);
 
 				sum+=curr_sum;
 				//set cbf

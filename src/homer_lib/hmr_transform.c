@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -512,9 +512,9 @@ void partialButterflyInverse32(short *src, short *dst,int shift, int dst_stride)
 
 
 				
-void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux)
+void transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux)
 {
-	int shift_1st = width_shift - 2  + 1 + bitDepth-8;//g_aucConvertToBit[iWidth]  + 1 + bitDepth-8; // log2(iWidth) - 1 + g_bitDepth - 8
+	int shift_1st = width_shift - 2  + 1 + bit_depth-8;//g_aucConvertToBit[iWidth]  + 1 + bit_depth-8; // log2(iWidth) - 1 + g_bitDepth - 8
 	int shift_2nd = height_shift -2  + 8;//g_aucConvertToBit[iHeight]  + 8;                   // log2(iHeight) + 6
 
 	if(iWidth == 4 && iHeight == 4)
@@ -551,10 +551,10 @@ void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int 
 #define SHIFT_INV_1ST          7 // Shift after first inverse transform stage
 #define SHIFT_INV_2ND         12 // Shift after second inverse transform stage
 
-void itransform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux)
+void itransform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, unsigned int uiMode, int16_t *aux)
 {
-	int shift_1st = SHIFT_INV_1ST;//g_aucConvertToBit[iWidth]  + 1 + bitDepth-8; // log2(iWidth) - 1 + g_bitDepth - 8
-	int shift_2nd = SHIFT_INV_2ND - (bitDepth-8);//g_aucConvertToBit[iHeight]  + 8;                   // log2(iHeight) + 6
+	int shift_1st = SHIFT_INV_1ST;//g_aucConvertToBit[iWidth]  + 1 + bit_depth-8; // log2(iWidth) - 1 + g_bitDepth - 8
+	int shift_2nd = SHIFT_INV_2ND - (bit_depth-8);//g_aucConvertToBit[iHeight]  + 8;                   // log2(iHeight) + 6
 
 	if(iWidth == 4 && iHeight == 4)
 	{

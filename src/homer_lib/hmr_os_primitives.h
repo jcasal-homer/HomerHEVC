@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -48,12 +48,12 @@ typedef CRITICAL_SECTION hmr_mutex;
 typedef void* hmr_sem_t;
 typedef void* hmr_sem_ptr;
 
-#define SEM_COPY(a,b) a=b
+#define SEM_COPY(src,dst) dst=src;
 
 #define SEM_INIT(sem, count, max_count)									sem = CreateSemaphore(NULL,count,max_count,NULL);
 #define SEM_POST(sem)													ReleaseSemaphore(sem,1,NULL);
-#define SEM_WAIT(sem)													WaitForSingleObject(sem, INFINITE)
-#define SEM_WAIT_MULTIPLE(semaphores, n)								WaitForMultipleObjects(n, semaphores, TRUE, INFINITE)
+#define SEM_WAIT(sem)													WaitForSingleObject(sem, INFINITE);
+#define SEM_WAIT_MULTIPLE(semaphores, n)								WaitForMultipleObjects(n, semaphores, TRUE, INFINITE);
 #define SEM_RESET(sem)																		\
 {																							\
 	while(WaitForSingleObject(sem, 0)!=WAIT_TIMEOUT);										\
@@ -97,6 +97,7 @@ typedef void* hmr_thread_t;
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <limits.h>
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -130,10 +131,10 @@ typedef pthread_mutex_t hmr_mutex;
 typedef sem_t 	hmr_sem_t;
 typedef sem_t* 	hmr_sem_ptr;
 
-#define SEM_COPY(a,b) a=&b
-#define SEM_INIT(sem, count, max_count)									sem_init(&sem, 0, count)
+#define SEM_COPY(src,dst) dst=&src;
+#define SEM_INIT(sem, count, max_count)									sem_init(&sem, 0, count);
 #define SEM_POST(sem)													sem_post(sem);
-#define SEM_WAIT(sem)													sem_wait(sem)
+#define SEM_WAIT(sem)													sem_wait(sem);
 
 #define SEM_WAIT_MULTIPLE(semaphores, n)								\
 {																		\

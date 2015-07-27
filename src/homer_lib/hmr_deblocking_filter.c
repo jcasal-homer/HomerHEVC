@@ -13,9 +13,9 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
@@ -110,8 +110,6 @@ void set_edge_filter_0_subdiv(henc_thread_t* et, cu_partition_info_t*	curr_cu_in
 void set_edge_filter(hvenc_engine_t* enc_engine, cu_partition_info_t*	curr_cu_info, uint8_t *edge_buff , uint8_t *bs_buff , int depht, int abs_index, int cu_width, int cu_height, int deblock_dir, int deblock_internal_edge, int deblock_edge_idx, int num_elements, int max_cu_width_units)
 {
 	int i;
-//	int num_elements = (max(cu_width, cu_height)>>2);
-//	int max_cu_width_units = (enc_engine->max_cu_size>>2);
 	int aux0, aux1;
 
 	if(deblock_dir==EDGE_VER)
@@ -127,7 +125,6 @@ void set_edge_filter(hvenc_engine_t* enc_engine, cu_partition_info_t*	curr_cu_in
 
 	for( i = 0; i < num_elements; i++ )
 	{
-//			uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*max_cu_width_units+deblock_edge_idx];
 		uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+i*aux0+aux1];
 		edge_buff[bs_idx] = deblock_internal_edge;
 		if (deblock_edge_idx == 0)
@@ -135,20 +132,6 @@ void set_edge_filter(hvenc_engine_t* enc_engine, cu_partition_info_t*	curr_cu_in
 			bs_buff[bs_idx] = deblock_internal_edge;
 		}
 	}
-/*	}
-	else
-	{
-		for( i = 0; i < num_elements; i++ )
-		{
-			uint bs_idx = enc_engine->raster2abs_table[enc_engine->abs2raster_table[curr_cu_info->abs_index]+deblock_edge_idx*max_cu_width_units+i];
-			edge_buff[bs_idx] = deblock_internal_edge;
-			if (deblock_edge_idx == 0)
-			{
-				bs_buff[bs_idx] = deblock_internal_edge;
-			}
-		}
-	}
-*/
 }
 
 //xGetBoundaryStrengthSingle
@@ -849,15 +832,15 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
 		ctu = &enc_engine->ctu_info[ctu_num];
-		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_VER);
 		if(ctu_num>=1*enc_engine->pict_width_in_ctu)
 		{
 			int ctu_num_horizontal = ctu_num-1*enc_engine->pict_width_in_ctu;
 			ctu = &enc_engine->ctu_info[ctu_num_horizontal];
-			ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-			create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+//			ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+//			create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 			hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_HOR);
 		}
 	}
@@ -866,8 +849,8 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 	for(ctu_num = (enc_engine->pict_total_ctu-1*enc_engine->pict_width_in_ctu) ; ctu_num < enc_engine->pict_total_ctu ; ctu_num++)
 	{
 		ctu = &enc_engine->ctu_info[ctu_num];
-		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
+//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
+//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_HOR);		
 	}
 }

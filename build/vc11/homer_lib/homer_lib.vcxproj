@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_prediction.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_quant.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_transform.c" />
+    <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_sao.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_tables.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_transform.c" />
     <ClCompile Include="..\..\..\src\homer_lib\hmr_sse42_functions_inter_prediction.c" />
@@ -160,13 +161,14 @@
       </PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

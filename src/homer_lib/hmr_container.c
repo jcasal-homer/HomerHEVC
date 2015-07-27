@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -109,9 +109,9 @@ void sync_cont_init(void** h)
 {
 	sync_hmr_container_t* cont = (sync_hmr_container_t *)calloc(1,sizeof(sync_hmr_container_t));
 	SEM_INIT(cont->buffs_clean.semaphore, 0,MAX_CONT_ELEMENTS);
-	SEM_COPY(cont->buffs_clean.sem, cont->buffs_clean.semaphore);
+	SEM_COPY(cont->buffs_clean.semaphore, cont->buffs_clean.sem);
 	SEM_INIT(cont->buffs_filled.semaphore, 0,MAX_CONT_ELEMENTS);
-	SEM_COPY(cont->buffs_filled.sem, cont->buffs_filled.semaphore);
+	SEM_COPY(cont->buffs_filled.semaphore, cont->buffs_filled.sem);
 
 	*h = cont; 
 }

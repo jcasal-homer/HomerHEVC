@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -50,21 +50,25 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 {
 	hvenc_engine_t* enc_engine = et->enc_engine;
 	int clipped_intra_period = (enc_engine->intra_period==0)?20:enc_engine->intra_period;
-	if(enc_engine->is_scene_change)
+	double pic_size_new;
+	int consumed_bitrate = 0;
+	int consumed_ctus = 0;
+	int current_pic_size = enc_engine->rc.target_pict_size;
+
+//	if(enc_engine->is_scene_change)
 	{
 		int ithreads;
-		double pic_size_new;
+
+
 		if(et->enc_engine->gop_reinit_on_scene_change && enc_engine->rc.vbv_fullness<.5*enc_engine->rc.vbv_size)
 		{
 			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			pic_size_new = (1.5-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			pic_size_new = 1.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
 		else
 		{
 			pic_size_new = .75*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
 		}
-		enc_engine->rc.target_pict_size = pic_size_new;//.75*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);	
+		enc_engine->rc.target_pict_size = min(pic_size_new, enc_engine->rc.vbv_fullness);
 
 		enc_engine->rc.target_bits_per_ctu = enc_engine->rc.target_pict_size/enc_engine->pict_total_ctu;
 
@@ -73,8 +77,12 @@ void hmr_rc_change_pic_mode(henc_thread_t* et, slice_t *currslice)
 			henc_thread_t* henc_th = enc_engine->thread[ithreads];
 		
 			henc_th->target_pict_size = (uint32_t)enc_engine->rc.target_pict_size;
+			consumed_bitrate += henc_th->num_bits;
+			consumed_ctus += henc_th->num_encoded_ctus;
 		}
+		enc_engine->rc.extra_bits = enc_engine->rc.target_pict_size*((double)consumed_ctus/et->enc_engine->pict_total_ctu)-consumed_bitrate;//clip(((double)pic_size_new/current_pic_size)*consumed_bitrate - consumed_bitrate, 0, pic_size_new/2);
 	}
+
 	enc_engine->hvenc->rc = enc_engine->rc;
 }
 
@@ -85,19 +93,16 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	double intra_avg_size = 2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 
 	enc_engine->rc = enc_engine->hvenc->rc;
+	enc_engine->rc.extra_bits = 0;
 	switch(currslice->slice_type)
 	{
 		case  I_SLICE:
 		{
-			currslice->qp = enc_engine->pict_qp;
-//			enc_engine->rc.target_pict_size = (2.25-((double)enc_engine->avg_dist/15000.))*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-			enc_engine->rc.target_pict_size = intra_avg_size;///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
-//			enc_engine->rc.target_pict_size = /*(2.25-((double)enc_engine->avg_dist/15000.))**/2.*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			enc_engine->rc.target_pict_size = min(intra_avg_size, enc_engine->rc.vbv_fullness);///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
 			break;
 		}
 		case  P_SLICE:
 		{
-			currslice->qp = enc_engine->pict_qp;
 			enc_engine->rc.target_pict_size = (enc_engine->rc.average_pict_size*clipped_intra_period-intra_avg_size)/(clipped_intra_period-1);//.5*enc_engine->rc.average_pict_size;
 			break;	
 		}
@@ -130,7 +135,15 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	enc_engine->hvenc->rc = enc_engine->rc;
 }
 
+double hmr_rc_compensate_qp_for_intra(double avg_dist, double qp)
+{
+	return clip(qp/(clip(1.5-((double)avg_dist/15000.),1.15,1.5)),/*MIN_QP*/1.0,MAX_QP);
+}
 
+double hmr_rc_compensate_qp_from_intra(double avg_dist, double qp)
+{
+	return clip(qp*(clip(1.5-((double)avg_dist/15000.),1.15,1.5)),/*MIN_QP*/1.0,MAX_QP);
+}
 
 void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
@@ -146,22 +159,18 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 		
 		consumed_bitrate += henc_th->num_bits;
 		consumed_ctus += henc_th->num_encoded_ctus;
-		avg_qp+=henc_th->acc_qp;
+//		avg_qp+=henc_th->acc_qp;
 	}
 
-#ifndef COMPUTE_AS_HM
-	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
-	enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
-#endif
 	enc_engine->rc.vbv_fullness += enc_engine->rc.average_pict_size;
 	
 
-	if(currslice->slice_type == I_SLICE && enc_engine->intra_period!=1)
+	if((currslice->slice_type == I_SLICE && enc_engine->intra_period!=1))// || (enc_engine->is_scene_change))
 	{
 		if(1)//enc_engine->rc.vbv_fullness<.5*enc_engine->rc.vbv_size)
 		{
-			enc_engine->rc.acc_rate += consumed_bitrate - enc_engine->rc.average_pict_size;
-			consumed_bitrate = enc_engine->rc.average_pict_size;
+			enc_engine->rc.acc_rate += consumed_bitrate/2;// - enc_engine->rc.average_pict_size;
+			consumed_bitrate /=2; //consumed_bitrate = enc_engine->rc.average_pict_size;
 		}
 		else
 		{
@@ -182,8 +191,8 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 		}
 		else
 		{
-			enc_engine->rc.acc_rate += consumed_bitrate/2;// - 2*enc_engine->rc.average_pict_size;
-			consumed_bitrate /=2;// 2*enc_engine->rc.average_pict_size;			
+			enc_engine->rc.acc_rate += consumed_bitrate/3;// - 2*enc_engine->rc.average_pict_size;
+			consumed_bitrate = 2*consumed_bitrate/3;// 2*enc_engine->rc.average_pict_size;			
 		}
 		enc_engine->rc.acc_avg = enc_engine->rc.acc_rate/avg_rate_period;
 		enc_engine->rc.vbv_fullness -= consumed_bitrate+enc_engine->rc.acc_avg;	
@@ -249,7 +258,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 }
 
 
-int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice)
+int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partition_info_t *curr_cu_info*/, slice_t *currslice)
 {
 	hvenc_engine_t* enc_engine = curr_thread->enc_engine;
 	int ithreads;
@@ -269,16 +278,20 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 
 	entropy = 3;//sqrt(((double)enc_engine->avg_dist/3000.)*(curr_cu_info->variance))/40;//25.0;
 
-	if(consumed_ctus>0)
-	{
-		if(consumed_bitrate>1.5*enc_engine->rc.target_bits_per_ctu)//*consumed_ctus && currslice->slice_type != I_SLICE)
-			pic_corrector = .0125*(consumed_bitrate/(enc_engine->rc.target_bits_per_ctu*consumed_ctus));
+	consumed_bitrate += enc_engine->rc.extra_bits;
 
-		if(currslice->slice_type != P_SLICE)
-			pic_corrector *= 2.;//0125*(consumed_bitrate/(enc_engine->rc.target_bits_per_ctu*consumed_ctus));
+//	if(consumed_ctus>0 && (currslice->slice_type != P_SLICE || enc_engine->is_scene_change))
+	{
+		if(consumed_bitrate>1.5*enc_engine->rc.target_bits_per_ctu*consumed_ctus)//*consumed_ctus && currslice->slice_type != I_SLICE)
+		{
+			if(currslice->slice_type == I_SLICE)
+				pic_corrector = 2.5*.0125*(consumed_bitrate/(enc_engine->rc.target_bits_per_ctu*consumed_ctus));
+			else
+				pic_corrector = .0125*(consumed_bitrate/(enc_engine->rc.target_bits_per_ctu*consumed_ctus));
+		}
+		pic_corrector = clip(pic_corrector, 0, .5);
+
 	}
-	else
-		pic_corrector = 0;
 
 	min_vbv_size = clip(enc_engine->rc.vbv_fullness,enc_engine->rc.vbv_fullness,enc_engine->rc.vbv_size*.95);
 
@@ -300,11 +313,10 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 	{
 		if(currslice->slice_type == I_SLICE || (enc_engine->is_scene_change && enc_engine->gop_reinit_on_scene_change))
 		{
-			qp/=1.5-((double)enc_engine->avg_dist/15000.);
-//			qp/=1.4-((double)enc_engine->avg_dist/50000.);
+			qp/=clip(1.5-((double)enc_engine->avg_dist/15000.),1.15,1.5);
 		}
 		else if(enc_engine->is_scene_change)
-			qp/=1.15;
+			qp/=1.1;
 	}
 
 	if((enc_engine->is_scene_change) && qp<=5)
@@ -321,7 +333,7 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu, cu_partition_
 		qp+=2;
 	}
 
-	return (int)clip(qp+.5,/*MIN_QP*/1.0,MAX_QP);
+	return (int)clip(qp+.5,1.0,MAX_QP);
 }
 
 
@@ -348,12 +360,9 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 	}
 	else//cbr, vbr
 	{
-//		if(et->enc_engine->qp_depth==0 )
-//			qp = hmr_rc_calc_cu_qp(et);
 		if(curr_cu_info->depth <= et->enc_engine->qp_depth)
 		{
-			qp = hmr_rc_calc_cu_qp(et, ctu, curr_cu_info, currslice);
-			et->acc_qp+=qp;
+			qp = hmr_rc_calc_cu_qp(et, ctu, currslice);	
 		}
 		else
 			qp = curr_cu_info->parent->qp;

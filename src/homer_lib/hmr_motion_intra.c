@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -707,12 +707,12 @@ void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_part
 }
 
 
-void get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partition_info)
+void get_partition_neigbours(hvenc_engine_t* enc_engine, cu_partition_info_t* curr_partition_info)
 {
-	int ctu_partitions_in_line = (et->max_cu_size)>>(et->num_partitions_in_cu_shift>>1);
+	int ctu_partitions_in_line = (enc_engine->max_cu_size)>>(enc_engine->num_partitions_in_cu_shift>>1);
 	int ctu_partitions_in_line_mask = ctu_partitions_in_line-1;
-	int ctu_partitions_in_ctu_mask = et->num_partitions_in_cu-1;
-	int ctu_partition_top_line_offset = et->num_partitions_in_cu-ctu_partitions_in_line;
+	int ctu_partitions_in_ctu_mask = enc_engine->num_partitions_in_cu-1;
+	int ctu_partition_top_line_offset = enc_engine->num_partitions_in_cu-ctu_partitions_in_line;
 	int left_raster_index, left_bottom_raster_index, top_raster_index, top_right_raster_index, top_left_raster_index;
 	int	raster_index = curr_partition_info->raster_index;
 
@@ -745,23 +745,23 @@ void get_partition_neigbours(henc_thread_t* et, cu_partition_info_t* curr_partit
 	//top left
 	top_left_raster_index = (left_raster_index + ctu_partition_top_line_offset) & ctu_partitions_in_ctu_mask;
 
-	curr_partition_info->abs_index_left_partition = et->enc_engine->raster2abs_table[left_raster_index];
-	curr_partition_info->abs_index_left_bottom_partition = et->enc_engine->raster2abs_table[left_bottom_raster_index];
-	curr_partition_info->abs_index_top_partition = et->enc_engine->raster2abs_table[top_raster_index];
-	curr_partition_info->abs_index_top_right_partition = et->enc_engine->raster2abs_table[top_right_raster_index];
-	curr_partition_info->abs_index_top_left_partition = et->enc_engine->raster2abs_table[top_left_raster_index];
+	curr_partition_info->abs_index_left_partition = enc_engine->raster2abs_table[left_raster_index];
+	curr_partition_info->abs_index_left_bottom_partition = enc_engine->raster2abs_table[left_bottom_raster_index];
+	curr_partition_info->abs_index_top_partition = enc_engine->raster2abs_table[top_raster_index];
+	curr_partition_info->abs_index_top_right_partition = enc_engine->raster2abs_table[top_right_raster_index];
+	curr_partition_info->abs_index_top_left_partition = enc_engine->raster2abs_table[top_left_raster_index];
 }
 
 
 
 //creates tree depencies
-void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
+void init_partition_info(hvenc_engine_t* enc_engine, cu_partition_info_t *partition_list)
 {
 	int curr_depth = 0;
 	int next_depth_change = 0;
 	int num_qtree_partitions;
 	int curr_part_x, curr_part_y;
-	int curr_part_size = et->max_cu_size, parent_size;
+	int curr_part_size = enc_engine->max_cu_size, parent_size;
 	int num_part_in_cu;
 	int curr_cu_part;
 	int parent_cnt, child_cnt;
@@ -775,9 +775,9 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 	parent_part_info->size_chroma = curr_part_size>>1;
 	parent_part_info->depth = curr_depth;
 	parent_part_info->abs_index = 0;
-	parent_part_info->num_part_in_cu = ((curr_part_size*curr_part_size)>>et->num_partitions_in_cu_shift);
+	parent_part_info->num_part_in_cu = ((curr_part_size*curr_part_size)>>enc_engine->num_partitions_in_cu_shift);
 	parent_part_info->parent = NULL;//pointer to parent partition
-	get_partition_neigbours(et, parent_part_info);
+	get_partition_neigbours(enc_engine, parent_part_info);
 
 	num_qtree_partitions = 0;
 	//calculate the number of iterations needed to cover all the tree elements (nodes and leaves)
@@ -799,11 +799,11 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 		{
 			curr_depth++;
 			next_depth_change += (1<<(2*(curr_depth-1)));
-			et->partition_depth_start[curr_depth] = next_depth_change;
+			enc_engine->partition_depth_start[curr_depth] = next_depth_change;
 			parent_size = curr_part_size;
-			curr_part_size = et->max_cu_size>>curr_depth;
+			curr_part_size = enc_engine->max_cu_size>>curr_depth;
 //			curr_part_size_shift = et->max_cu_size_shift-curr_depth;
-			num_part_in_cu =  ((curr_part_size*curr_part_size)>>et->num_partitions_in_cu_shift);
+			num_part_in_cu =  ((curr_part_size*curr_part_size)>>enc_engine->num_partitions_in_cu_shift);
 		}
 
 		curr_part_x = 0;//these are partial coordiatens inside the CU
@@ -824,8 +824,8 @@ void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list)
 			curr_partition_info->size_chroma = curr_part_size>>1;
 			curr_partition_info->depth = curr_depth;
 			curr_partition_info->abs_index = parent_part_info->abs_index+child_cnt*num_part_in_cu;
-			curr_partition_info->raster_index = et->enc_engine->abs2raster_table[curr_partition_info->abs_index];
-			get_partition_neigbours(et, curr_partition_info);
+			curr_partition_info->raster_index = enc_engine->abs2raster_table[curr_partition_info->abs_index];
+			get_partition_neigbours(enc_engine, curr_partition_info);
 
 
 			curr_partition_info->num_part_in_cu = num_part_in_cu;
@@ -861,50 +861,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 }
 
 
-void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd)
-{
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
-
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
-	{
-		int num_partitions = comp==Y_COMP?(curr_part->abs_index<<et->num_partitions_in_cu_shift):(curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2;
-		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
-		int16_t * buff_dst = WND_POSITION_1D(int16_t  *, *wnd, comp, gcnt, et->ctu_width, num_partitions);
-
-		for(j=0;j<size;j++)
-		{
-			memset(buff_dst, 0, size*sizeof(buff_dst[0]));
-			buff_dst += size;
-		}
-	}
-}
-
-void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
-{
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
-
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
-	{
-		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
-		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
-		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
-		int src_buff_stride = WND_STRIDE_2D(*wnd_src, comp);
-		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
-		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, et->ctu_width);
-		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, et->ctu_width);
-
-		for(j=0;j<size;j++)
-		{
-			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
-			buff_src += src_buff_stride;
-			buff_dst += dst_buff_stride;
-		}
-	}
-}
 
 //this function is used to consolidate buffers from bottom to top
 void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
@@ -1067,11 +1023,11 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 
 	//2D -> 1D buffer
 	PROFILER_RESET(intra_luma_tr)
-	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);//usamos quant buff como auxiliar
+	et->funcs->transform(et->bit_depth, residual_buff, et->pred_aux_buff, residual_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, curr_part_size_shift, cu_mode, quant_buff);
 	PROFILER_ACCUMULATE(intra_luma_tr)
 
 	PROFILER_RESET(intra_luma_q)
-	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size, per, rem);//Si queremos quitar el bit de signo necesitamos hacerlo en dos arrays distintos
+	et->funcs->quant(et, et->pred_aux_buff, quant_buff, curr_scan_mode, curr_depth, Y_COMP, cu_mode, 1, curr_sum, curr_part_size, per, rem);
 	curr_partition_info->sum = *curr_sum;
 	PROFILER_ACCUMULATE(intra_luma_q)
 
@@ -1134,7 +1090,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	double cost, best_cost = MAX_COST;
 	int min_mode = 0;
 	int max_mode = 1;
-	int best_bit_cost;
+	int best_bit_cost=0;
 	best_pred_modes[0] = best_pred_modes[1] = best_pred_modes[2] = PRED_MODE_INVALID;
 
 	fill_reference_samples(et, ctu, curr_partition_info, curr_adi_size, decoded_buff-decoded_buff_stride-1, decoded_buff_stride, curr_part_size, Y_COMP, TRUE);//create filtered and non filtered adi buf
@@ -1147,7 +1103,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 	best_cost = MAX_COST;
 	for(nloops=0;nloops<NUM_SEARCH_LOOPS;nloops++)
 	{
-		uint bit_cost;
+		uint bit_cost = 0;
 
 		if(nloops==1)
 		{

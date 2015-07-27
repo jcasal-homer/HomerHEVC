@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -158,6 +158,22 @@ void hmr_bitstream_align_bits_0(bitstream_t* bs);
 void hmr_bitstream_write2file(bitstream_t* bs);
 
 
+void hmr_bc_bitstream_alloc(bitstream_t* bs, int size);
+void hmr_bc_bitstream_free(bitstream_t* bs);
+void hmr_bc_bitstream_init(bitstream_t* bs);
+void hmr_bc_bitstream_write_bits(bitstream_t* bs, unsigned int val,int n);
+int  hmr_bc_bitstream_bitcount(bitstream_t* bs);
+void hmr_bc_bitstream_write_bits_uvlc(bitstream_t* bs, unsigned int val);
+void hmr_bc_bitstream_write_bits_svlc(bitstream_t* bs, int val);
+void hmr_bc_bitstream_rbsp_trailing_bits(bitstream_t* bs);
+void hmr_bc_bitstream_put_nal_unit_header(bitstream_t* bs, unsigned int nalu_type, ushort temporal_id, ushort rsvd_zero6bits);
+void hmr_bc_bitstream_nalu_ebsp(bitstream_t* in_bs, bitstream_t* out_bs);
+void hmr_bc_bitstream_align_bits_1(bitstream_t* bs);
+void hmr_bc_bitstream_align_bits_0(bitstream_t* bs);
+void hmr_bc_bitstream_write2file(bitstream_t* bs);
+
+
+
 //hmr_headers.c
 void hmr_put_vps_header(hvenc_enc_t* hvenc);
 void hmr_put_seq_header(hvenc_enc_t* hvenc);
@@ -171,6 +187,10 @@ void hmr_aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
+void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu);
+void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 void wnd_write2file(wnd_t *wnd_t, FILE* file);
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
@@ -199,7 +219,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h);//void encoder_engine_thread(v
 
 //hmr_motion_intra.c
 #define ADI_POINTER_MIDDLE(ptr_adi_orig, size)  (ptr_adi_orig+(size>>1))	//points to the top left square
-void init_partition_info(henc_thread_t* et, cu_partition_info_t *partition_list);
+void init_partition_info(hvenc_engine_t* enc_engine, cu_partition_info_t *partition_list);
 void create_partition_ctu_neighbours(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t* curr_partition_info);
 uint32_t motion_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt);
 //void cu_partition_get_neighbours(cu_partition_info_t *curr_part, int cu_size);
@@ -225,9 +245,6 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 uint32_t encode_intra(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int curr_depth, int position, PartSize part_size_type);
 uint32_t motion_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_partition_info);
 void consolidate_info_buffers_for_rd(henc_thread_t* et, ctu_info_t* ctu, int dest_depth, int abs_index, int num_part_in_cu);
-//void synchronize_cu_wnd(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
-void copy_cu_wnd_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
-void zero_cu_wnd_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 
 
 //hmr_motion_intra_chroma.c
@@ -249,8 +266,8 @@ void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t 
 
 
 //hmr_transform.c
-void transform(int bitDepth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
-void itransform(int bitDepth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
+void transform(int bit_depth, int16_t *block,int16_t *coeff, int block_size, int iWidth, int iHeight, int width_shift, int height_shift, unsigned short uiMode, int16_t *aux);
+void itransform(int bit_depth, short *block,short *coeff, int block_size, int iWidth, int iHeight, uint uiMode, short *aux);
 
 //hmr_quant.c
 void sign_bit_hidding( short * dst, short * src, uint const *scan, short* deltaU, int width, int height );
@@ -262,10 +279,22 @@ void iquant(henc_thread_t* et, short * src, short * dst, int depth, int comp, in
 void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, int dir);
 
+
+//hmr_sao.c
+void sao_init(int bit_depth);
+void sao_decide_pic_params(int *slice_enable, int sao_enable_luma, int sao_enable_chroma);
+void sao_offset_ctu(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param_t* sao_blk_param);
+void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES]);
+void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t *ctu, sao_stat_data_t stats[][NUM_SAO_NEW_TYPES], int *slice_enable);
+void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu);
+void hmr_wpp_sao_offset_remaining_ctu(henc_thread_t *wpp_thread, slice_t *currslice);
+void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
+
+
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);
 void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag);
-void ee_copy_entropy_model(enc_env_t *ee_src, enc_env_t *ee_dst);
+void ee_copy_entropy_model(context_model_t *ctx_src, context_model_t *ctx_dst);
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* cu, int gcnt);
 void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt);
 void ee_end_slice(enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
@@ -278,6 +307,10 @@ ctu_info_t *get_pu_left_bottom(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 ctu_info_t *get_pu_top(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx, int planarAtLCUBoundary);
 ctu_info_t *get_pu_top_right(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
 ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, uint *aux_part_idx);
+void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
+uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled, context_model_t *ctx_src, binary_model_t *bm_src);
+uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo, context_model_t *ctx_src, binary_model_t *bm_src);
+
 
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);
@@ -298,4 +331,6 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice);
 int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, slice_t *currslice);
 void hmr_rc_change_pic_mode(henc_thread_t* enc_engine, slice_t *currslice);
+double hmr_rc_compensate_qp_for_intra(double avg_dist, double qp);
+double hmr_rc_compensate_qp_from_intra(double avg_dist, double qp);
 #endif //__HOMER_HEVC_COMMON_H__
