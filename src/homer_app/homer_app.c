@@ -101,7 +101,7 @@ void print_help()
 	printf("-sign_hiding: \t\t\t\t 0=off, 1=on. Default = 1\r\n");
 	printf("-sao: \t\t\t\t\t 0=off, 1=on. Default = 1\r\n");
 	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate). Default = VBR\r\n");
-	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1000\r\n");
+	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1250\r\n");
 	printf("-vbv_size: \t\t\t\t in terms of the specified bitrate. Used in CBR and VBR. Default = 1.0\r\n");
 	printf("-vbv_init: \t\t\t\t in terms of the specified vbv_size. Default = 0.35\r\n");
 	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change. Default = 1\r\n");
@@ -126,12 +126,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 	double vbv_size = cfg->vbv_size/(double)cfg->bitrate;
 	double vbv_init = cfg->vbv_init/(double)cfg->vbv_size;
 
-	if(argc==1)
+/*	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-
+*/
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -319,7 +319,7 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->sample_adaptive_offset = 1;
 	cfg->rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
 	cfg->bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 1000;//in kbps
+	cfg->bitrate = 1250;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
 	cfg->chroma_qp_offset = 2;
@@ -327,7 +327,22 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
 
-
+void get_debug_config(HVENC_Cfg *cfg)
+{
+	cfg->width = HOR_SIZE;
+	cfg->height = VER_SIZE;
+	cfg->frame_rate = FPS;
+	cfg->intra_period = 1;//1;
+	cfg->num_enc_engines = 3;
+	cfg->wfpp_num_threads = 10;
+	cfg->reinit_gop_on_scene_change = 0;
+	cfg->sample_adaptive_offset = 0;
+	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate = 12500;//in kbps
+	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
+	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
+	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+}
 
 
 int main (int argc, char **argv)
@@ -339,7 +354,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 1600;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -436,8 +451,8 @@ int main (int argc, char **argv)
 
 		if(bCoding)
 		{
-			int bEndOfFile = bytes_read!=frame_size;
-			if(!bEndOfFile)//if EOF is reached don´t try to encode
+			int bAllFilesFilled = (bytes_read!=frame_size) || (num_frames==frames_read-skipped_frames);
+			if(!bAllFilesFilled)//if EOF is reached don´t try to encode
 			{
 				num_nalus = 8;
 				HOMER_enc_encode(pEncoder, &input_frame);//, nalu_out, &num_nalus);
@@ -449,10 +464,12 @@ int main (int argc, char **argv)
 
 			if(num_nalus>0)
 			{
+//				printf("homer_app: slice_nalu:0x%x\r\n", nalu_out[num_nalus-1]);
 				HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
 				fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
 				fflush(outfile);
 				totalbits+=output_stream.stream.data_size[0];
+
 
 				if(reffile!=NULL)
 				{
@@ -463,7 +480,7 @@ int main (int argc, char **argv)
 
 				encoded_frames++;
 			}
-			if(encoded_frames == num_frames || (bEndOfFile && encoded_frames==frames_read-skipped_frames))
+			if(encoded_frames == num_frames || (bAllFilesFilled && encoded_frames==frames_read-skipped_frames))
 			{
 				bCoding = 0;
 			}

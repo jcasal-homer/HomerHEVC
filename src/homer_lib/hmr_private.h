@@ -32,7 +32,8 @@
 
 #define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1	//to debug against HM
-#define DBG_TRACE				1
+//#define DBG_TRACE				1
+#define DBG_TRACE_RESULTS		1
 //#define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1184,9 +1185,9 @@ struct henc_thread_t
 
 
 #define MAX_NUM_ENCODER_ENGINES				8
-#define STREAMS_PER_ENGINE					3
+#define STREAMS_PER_ENGINE					2
 #define MAX_NUM_THREADS						32
-#define NUM_INPUT_FRAMES(num_engines)		((STREAMS_PER_ENGINE-1)*num_engines)
+#define NUM_INPUT_FRAMES(num_engines)		(num_engines)//((STREAMS_PER_ENGINE-1)*num_engines)
 #define NUM_OUTPUT_NALUS(num_engines)		(2*NUM_INPUT_FRAMES(num_engines))
 //#define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
 struct hvenc_engine_t

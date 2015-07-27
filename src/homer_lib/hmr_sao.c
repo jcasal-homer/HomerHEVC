@@ -1414,13 +1414,10 @@ extern const uint8_t chroma_scale_conversion_table[];
 
 void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* ctu)
 {
+#ifndef COMPUTE_AS_HM
 #define SHIFT_QP	12
-	int ctu_num = ctu->ctu_number;
 	int		bitdepth_luma_qp_scale = 0;
 	double	qp_temp = (double) ctu->qp[0] + bitdepth_luma_qp_scale - SHIFT_QP;//
-	int ithreads;
-	double avg_qp=0.;
-	int num_ctus=0;
 	double	qp_factor = 0.4624;//this comes from the cfg file of HM
 	double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (wpp_thread->enc_engine->gop_size-1)/2 : (wpp_thread->enc_engine->gop_size-1)), 0.0, 0.5);
 
@@ -1430,7 +1427,7 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	}
 	wpp_thread->enc_engine->sao_lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
 	wpp_thread->enc_engine->sao_lambdas[1] =  wpp_thread->enc_engine->sao_lambdas[2] = qp_factor*pow( 1.4, (qp_temp+wpp_thread->enc_engine->chroma_qp_offset)/(1.4));
-
+#endif
 
 	memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
 	memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));

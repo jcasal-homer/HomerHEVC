@@ -1321,7 +1321,7 @@ config_error:
 
 int get_nal_unit_type(hvenc_engine_t* enc_engine, slice_t *curr_slice, int curr_poc)
 {
-	if(curr_slice->slice_type == I_SLICE)//(curr_poc == 0)
+	if(curr_slice->slice_type == I_SLICE && (enc_engine->intra_period!=1 || (enc_engine->intra_period==1 && (curr_poc%(3*enc_engine->hvenc->num_encoder_engines+1)) == 0)))//if this condition is removed extended bitstream control is needed
 	{
 		return NALU_CODED_SLICE_IDR_W_RADL;
 	}
@@ -2070,7 +2070,7 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 		{
 			wfpp_encode_select_bitstream(et, ctu);
 			wfpp_encode_ctu(et, ctu);
-			if(ctu_num_vertical>=0 && (ctu_num_index)>=1 && is_inter_gop)
+			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)// && is_inter_gop)
 			{
 				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
 //				filter_ctu->partition_list = et->deblock_partition_info;
@@ -2204,9 +2204,9 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 	{
 		if(sao_enabled)
 		{
-			int ctu_num_sao = (ctu_num_horizontal - (et->pict_width_in_ctu+1));
+//			int ctu_num_sao = (ctu_num_horizontal - (et->pict_width_in_ctu+1));
 //			int ctu_num_sao_offset = ctu_num_sao - (et->pict_width_in_ctu+1);
-			int ctu_num_post_semaphore = ctu_num_sao;
+//			int ctu_num_post_semaphore = ctu_num_sao;
 
 			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
 			{
@@ -2687,7 +2687,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
 		int		engine;
-
+		int		bitstream_index = enc_engine->num_encoded_frames_in_engine % STREAMS_PER_ENGINE;
 //		MUTEX_LOCK(enc_engine->hvenc->mutex_start_frame); 
 		SEM_WAIT(enc_engine->input_wait);
 		//get next image
@@ -2703,12 +2703,14 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		enc_engine->num_encoded_frames = enc_engine->hvenc->num_encoded_frames;
 		enc_engine->hvenc->num_encoded_frames++;
 
-		ouput_sets = &enc_engine->hvenc->output_sets[enc_engine->num_encoded_frames % NUM_OUTPUT_NALUS(enc_engine->hvenc->num_encoder_engines)];
+		ouput_sets = &enc_engine->hvenc->output_sets[enc_engine->num_encoded_frames % NUM_OUTPUT_NALUS(enc_engine->hvenc->num_encoder_engines)];//relative to encoder
 		output_nalu_list = ouput_sets->nalu_list;
 
 		memset(output_nalu_list, 0, (nalu_list_size)*sizeof(output_nalu_list[0]));
 
-		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[enc_engine->num_encoded_frames_in_engine % STREAMS_PER_ENGINE];
+		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[bitstream_index];//relative to engine
+//		printf("\r\n engine:%d, nalu_idx:%d, nalu_ptr:0x%x\r\n", enc_engine->index, (bitstream_index), enc_engine->slice_nalu);
+
 		hmr_bitstream_init(&enc_engine->slice_nalu->bs);
 
 		hmr_slice_init(enc_engine, &enc_engine->current_pict, &currpict->slice);
@@ -2722,7 +2724,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			hmr_rc_init_pic(enc_engine, &currpict->slice);
 		}
 		hmr_rd_init(enc_engine, &currpict->slice);
-#ifndef COMPUTE_AS_HM
+/*#ifndef COMPUTE_AS_HM
 #define SHIFT_QP	12
 		{
 			int		bitdepth_luma_qp_scale = 0;
@@ -2730,7 +2732,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			double lambda;
 			double	qp_temp = (double) qp + bitdepth_luma_qp_scale - SHIFT_QP;//
 			double	qp_factor = 0.4624;//this comes from the cfg file of HM
-			double	lambda_scale = 1.0 - clip(0.05*(double)(/*enc_engine->mb_interlaced*/0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
+			double	lambda_scale = 1.0 - clip(0.05*(double)(0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);//enc_engine->mb_interlaced ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 
 			if(currslice->slice_type == I_SLICE)
 			{
@@ -2742,8 +2744,9 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 			currslice->qp = enc_engine->pict_qp = qp;
 		}
-#endif
 
+#endif
+*/
 		//get free img for decoded blocks
 		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
 		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
@@ -2756,28 +2759,6 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 		enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index] = enc_engine->curr_reference_frame;
 		enc_engine->hvenc->reference_list_index = (enc_engine->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
-
-		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
-		{
-			hmr_bitstream_init(&enc_engine->hvenc->vps_nalu.bs);
-			hmr_bitstream_init(&enc_engine->hvenc->sps_nalu.bs);
-			hmr_bitstream_init(&enc_engine->hvenc->pps_nalu.bs);
-
-			enc_engine->hvenc->vps_nalu.nal_unit_type = NALU_TYPE_VPS;
-			enc_engine->hvenc->vps_nalu.temporal_id = enc_engine->hvenc->vps_nalu.rsvd_zero_bits = 0;
-			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->vps_nalu;
-			hmr_put_vps_header(enc_engine->hvenc);//vps header
-
-			enc_engine->hvenc->sps_nalu.nal_unit_type = NALU_TYPE_SPS;
-			enc_engine->hvenc->sps_nalu.temporal_id = enc_engine->hvenc->sps_nalu.rsvd_zero_bits = 0;
-			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->sps_nalu;
-			hmr_put_seq_header(enc_engine->hvenc);//seq header
-
-			enc_engine->hvenc->pps_nalu.nal_unit_type = NALU_TYPE_PPS;
-			enc_engine->hvenc->pps_nalu.temporal_id = enc_engine->hvenc->pps_nalu.rsvd_zero_bits = 0;
-			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->pps_nalu;
-			hmr_put_pic_header(enc_engine->hvenc);//pic header
-		}
 
 		enc_engine->avg_dist = enc_engine->hvenc->avg_dist;
 
@@ -2859,9 +2840,32 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		}
 
 
+
+
 		//----------------------------end calc average statistics (distortion, qp)----------------------------------
 		SEM_WAIT(enc_engine->output_wait);
+		
+		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
+		{
+			hmr_bitstream_init(&enc_engine->hvenc->vps_nalu.bs);
+			hmr_bitstream_init(&enc_engine->hvenc->sps_nalu.bs);
+			hmr_bitstream_init(&enc_engine->hvenc->pps_nalu.bs);
 
+			enc_engine->hvenc->vps_nalu.nal_unit_type = NALU_TYPE_VPS;
+			enc_engine->hvenc->vps_nalu.temporal_id = enc_engine->hvenc->vps_nalu.rsvd_zero_bits = 0;
+			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->vps_nalu;
+			hmr_put_vps_header(enc_engine->hvenc);//vps header
+
+			enc_engine->hvenc->sps_nalu.nal_unit_type = NALU_TYPE_SPS;
+			enc_engine->hvenc->sps_nalu.temporal_id = enc_engine->hvenc->sps_nalu.rsvd_zero_bits = 0;
+			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->sps_nalu;
+			hmr_put_seq_header(enc_engine->hvenc);//seq header
+
+			enc_engine->hvenc->pps_nalu.nal_unit_type = NALU_TYPE_PPS;
+			enc_engine->hvenc->pps_nalu.temporal_id = enc_engine->hvenc->pps_nalu.rsvd_zero_bits = 0;
+			output_nalu_list[output_nalu_cnt++] = &enc_engine->hvenc->pps_nalu;
+			hmr_put_pic_header(enc_engine->hvenc);//pic header
+		}
 		//slice header
 		enc_engine->slice_nalu->nal_unit_type = currslice->nalu_type;
 		enc_engine->slice_nalu->temporal_id = enc_engine->slice_nalu->rsvd_zero_bits = 0;
@@ -2887,7 +2891,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 #endif
 
 //		enc_engine->num_encoded_frames++;
-#ifdef DBG_TRACE
+#ifdef DBG_TRACE_RESULTS
 		{
 			char stringI[] = "I";
 			char stringP[] = "P";
@@ -2895,7 +2899,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			char *frame_type_str;
 			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
 
-			printf("\r\nmodule:%d, frame:%d, %s, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
+			printf("\r\nengine:%d, frame:%d, %s, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
 			//printf("\r\nmodule:%d, frame:%d, %s, target:%.0f, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->rc.target_pict_size, enc_engine->slice_bs.streambytecnt*8);
 #ifdef COMPUTE_METRICS
 
