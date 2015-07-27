@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -39,7 +39,7 @@
 
 
 #define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
-//#define FILE_IN  "C:\\Patrones\\TestEBU720p50Train.yuv"//TestEBU720p50.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU720p50Train.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"

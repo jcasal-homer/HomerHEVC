@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -162,10 +162,6 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 //		avg_qp+=henc_th->acc_qp;
 	}
 
-#ifndef COMPUTE_AS_HM
-//	avg_qp = (avg_qp+(consumed_ctus>>1))/consumed_ctus;
-//	enc_engine->pict_qp = clip(avg_qp,/*MIN_QP*/1,MAX_QP);
-#endif
 	enc_engine->rc.vbv_fullness += enc_engine->rc.average_pict_size;
 	
 
@@ -364,8 +360,6 @@ int hmr_rc_get_cu_qp(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t *cu
 	}
 	else//cbr, vbr
 	{
-//		if(et->enc_engine->qp_depth==0 )
-//			qp = hmr_rc_calc_cu_qp(et);
 		if(curr_cu_info->depth <= et->enc_engine->qp_depth)
 		{
 			qp = hmr_rc_calc_cu_qp(et, ctu, currslice);	

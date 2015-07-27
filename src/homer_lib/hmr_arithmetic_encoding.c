@@ -13,7 +13,7 @@
 * This program is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
+* GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License
 * along with this program; if not, write to the Free Software
@@ -1312,7 +1312,7 @@ void encode_residual(henc_thread_t* et, enc_env_t *ee, ctu_info_t *ctu, cu_parti
 }
 
 
-//Int TComDataCU::getLastValidPartIdx( Int iAbsPartIdx )
+//TComDataCU::getLastValidPartIdx
 int get_last_valid_partition_idx(henc_thread_t* et, ctu_info_t* ctu, int abs_index)
 {
 	int last_valid_partition_index = abs_index-1;
@@ -1443,7 +1443,7 @@ int get_ref_qp(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t*  curr_pa
 	return ref_qp;
 }
 
-//Void TEncSbac::codeDeltaQP( TComDataCU* pcCU, UInt uiAbsPartIdx )
+//TEncSbac::codeDeltaQP
 void encode_delta_qp(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t*  curr_partition_info)
 {
 	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_delta_qp_model, 0, 0, 0);
@@ -1772,18 +1772,15 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 }
 
 //------------------------ sao arithmetic encoding ---------------------------------
-//extern sao_blk_param_t coded_params[12];
-//extern int slice_enabled[NUM_PICT_COMPONENTS];
 extern uint g_saoMaxOffsetQVal[NUM_PICT_COMPONENTS];
 extern uint m_offsetStepLog2[NUM_PICT_COMPONENTS];
 
-//Void TEncSbac::codeSAOOffsetParam(Int compIdx, SAOOffset& ctbParam, Bool sliceEnabled)
+//TEncSbac::codeSAOOffsetParam
 void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, int sliceEnabled)
 {
   uint uiSymbol;
   if(!sliceEnabled)
   {
-//    assert(ctbParam.modeIdc == SAO_MODE_OFF);
     return;
   }
 
@@ -1802,19 +1799,14 @@ void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, i
     }
     else
     {
-//      assert(ctbParam->typeIdc < SAO_TYPE_START_BO); //EO
       uiSymbol = 2;
     }
-//    codeSaoTypeIdx(uiSymbol); 
 	if (uiSymbol == 0)
 	{
-//		m_pcBinIf->encodeBin( 0, m_cSaoTypeIdxSCModel.get( 0, 0, 0 ) );
 		ee->ee_encode_bin(ee, cm, 0);
 	}
 	else
 	{
-//		m_pcBinIf->encodeBin( 1, m_cSaoTypeIdxSCModel.get( 0, 0, 0 ) );
-		//m_pcBinIf->encodeBinEP( uiSymbol == 1 ? 0 : 1 );
 		ee->ee_encode_bin(ee, cm, 1);
 		ee->ee_encode_bin_EP(ee, uiSymbol == 1 ? 0 : 1 );
 	}
@@ -1857,21 +1849,17 @@ void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, i
 
 		if ( code == 0 )
 		{
-//			m_pcBinIf->encodeBinEP( 0 );
 			ee->ee_encode_bin_EP(ee, 0);
 		}
 		else
 		{
-//			m_pcBinIf->encodeBinEP( 1 );
 			ee->ee_encode_bin_EP(ee, 1);
 			for ( j=0; j<code-1; j++ )
 			{
-//				m_pcBinIf->encodeBinEP( 1 );
 				ee->ee_encode_bin_EP(ee, 1);
 			}
 			if( code_last )
 			{
-				//m_pcBinIf->encodeBinEP( 0 );
 				ee->ee_encode_bin_EP(ee, 0);
 			}
 		}
@@ -1886,20 +1874,16 @@ void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, i
       {
         if(offset[i] != 0)
         {
-//          codeSAOSign((offset[i]< 0)?1:0);
 			ee->ee_encode_bin_EP(ee, (offset[i]< 0)?1:0 );
         }
       }
 
-//      codeSaoUflc(NUM_SAO_BO_CLASSES_LOG2, ctbParam.typeAuxInfo ); //sao_band_position
 	    ee->ee_encode_bins_EP(ee, ctbParam->typeAuxInfo, NUM_SAO_BO_CLASSES_LOG2);
     }
     else //EO
     {
       if(compIdx == Y_COMP || compIdx == U_COMP)
       {
-//        assert(ctbParam.typeIdc - SAO_TYPE_START_EO >=0);
-//        codeSaoUflc(NUM_SAO_EO_TYPES_LOG2, ctbParam.typeIdc - SAO_TYPE_START_EO ); //sao_eo_class_luma or sao_eo_class_chroma
 		  ee->ee_encode_bins_EP(ee, ctbParam->typeIdc - SAO_TYPE_START_EO, NUM_SAO_EO_TYPES_LOG2);
       }
     }
@@ -1908,24 +1892,22 @@ void code_sao_offset_param(enc_env_t *ee, int compIdx, sao_offset_t *ctbParam, i
 }
 
 
-//Void TEncSbac::codeSaoMerge       ( UInt uiCode )
+//TEncSbac::codeSaoMerge
 void code_sao_merge(enc_env_t *ee, uint code)
 {
 	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->sao_merge_model, 0, 0, 0); 
 	if (code == 0)
 	{
-		//m_pcBinIf->encodeBin(0,  m_cSaoMergeSCModel.get( 0, 0, 0 ));
 		ee->ee_encode_bin(ee, cm, code);
 	}
 	else
 	{
-		//m_pcBinIf->encodeBin(1,  m_cSaoMergeSCModel.get( 0, 0, 0 ));
 		ee->ee_encode_bin(ee, cm, code);
 	}
 }
 
 
-//Void TEncSbac::codeSAOBlkParam(SAOBlkParam& saoBlkParam
+//TEncSbac::codeSAOBlkParam
 void code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
 {
 	int isLeftMerge = FALSE;
@@ -1956,7 +1938,6 @@ void code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceE
 		for(component=0; component < NUM_PICT_COMPONENTS; component++)
 		{
 			code_sao_offset_param(ee, component, &saoBlkParam->offsetParam[component], sliceEnabled[component]);
-//			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
 		}
 	}
 }
@@ -1990,7 +1971,6 @@ void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 			above_merge_avail = TRUE;//rpcPic->getSAOMergeAvailability(ctu_idx, ctu_idx-pic_width_in_ctu);
 		}	
 
-//		code_sao_blk_param(enc_env_t* ee, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo)
 		code_sao_blk_param(ee, sao_blk_param, et->enc_engine->slice_enabled, left_merge_avail, above_merge_avail, FALSE);
 	}
 }
@@ -2034,7 +2014,6 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 			if(depth_state[curr_depth] == 1 && curr_depth == currslice->pps->diff_cu_qp_delta_depth && currslice->pps->cu_qp_delta_enabled_flag)//if( (g_uiMaxCUWidth>>uiDepth) >= pcCU->getSlice()->getPPS()->getMinCuDQPSize() && pcCU->getSlice()->getPPS()->getUseDQP())
 			{
 				et->write_qp_flag = TRUE;
-		//		setdQPFlag(true);
 			}
 
 			curr_depth++;
@@ -2044,11 +2023,9 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 		{	
 			if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 			{
-//				if(pcCU->getCbf( absPartIdx, TEXT_LUMA ) || pcCU->getCbf( absPartIdx, TEXT_CHROMA_U ) || pcCU->getCbf( absPartIdx, TEXT_CHROMA_V ) )
 				if(currslice->pps->cu_qp_delta_enabled_flag && !et->found_zero_cbf)
 				{
 					int tr_depth = curr_partition_info->depth-pred_depth;
-//					if(CBF(ctu, curr_partition_info->abs_index, Y_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, U_COMP, tr_depth) || CBF(ctu, curr_partition_info->abs_index, V_COMP, tr_depth))
 					if(ctu->cbf[Y_COMP][curr_partition_info->abs_index] || ctu->cbf[U_COMP][curr_partition_info->abs_index] || ctu->cbf[V_COMP][curr_partition_info->abs_index])
 					{
 						et->found_zero_cbf = TRUE;
@@ -2065,12 +2042,10 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 				if(curr_partition_info->depth <= currslice->pps->diff_cu_qp_delta_depth && currslice->pps->cu_qp_delta_enabled_flag)// (g_uiMaxCUWidth>>uiDepth) == pcCU->getSlice()->getPPS()->getMinCuDQPSize() && pcCU->getSlice()->getPPS()->getUseDQP())
 				{
 					et->write_qp_flag = TRUE;
-	//				setdQPFlag(true);
 				}
 
 				ee_encode_coding_unit(et, ee, ctu, curr_partition_info, gcnt);
 
-//				encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 			}
 			while(depth_state[curr_depth]==4)
 			{
@@ -2121,7 +2096,7 @@ void rd_encode_intra_dir_luma_ang(enc_env_t* ee, cu_partition_info_t* curr_parti
 		}
 	}
 	else
-	{//ordenamos de menor a mayor
+	{//short from higher to lower
 		int i;
 		if (preds[0] > preds[1])
 		{ 
@@ -2339,20 +2314,15 @@ uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ct
 	int init_bits;
 	bm_copy_binary_model(bm_src, et->ec->b_ctx);
 	ee_copy_entropy_model(ctx_src, et->ec->contexts);
-//	hmr_bc_bitstream_init(et->ec->bs);
-//	et->ec->b_ctx->m_binCountIncrement = 1;
 
 	init_bits = et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
-//	et->ec->ee_reset_bits(et->ec->b_ctx);
 	code_sao_offset_param(et->ec, component, ctbParam, sliceEnabled);
-//	et->ec->b_ctx->m_binCountIncrement = 0;
 	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx) - init_bits;
 }
 
 
 
-//Void TEncSbac::codeSAOBlkParam(SAOBlkParam& saoBlkParam
-
+//TEncSbac::codeSAOBlkParam
 uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo, context_model_t *ctx_src, binary_model_t *bm_src)
 {
 	int init_bits;
@@ -2362,23 +2332,19 @@ uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int*
 
 	bm_copy_binary_model(bm_src, et->ec->b_ctx);
 	ee_copy_entropy_model(ctx_src, et->ec->contexts);
-//	hmr_bc_bitstream_init(et->ec->bs);
 
 	init_bits = et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx);
-//	et->ec->b_ctx->m_binCountIncrement = 1;
 
 	if(leftMergeAvail)
 	{
 		isLeftMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_LEFT));
 		code_sao_merge(et->ec, isLeftMerge?1:0);
-//		codeSaoMerge( isLeftMerge?1:0  ); //sao_merge_left_flag
 	}
 
 	if( aboveMergeAvail && !isLeftMerge)
 	{
 		isAboveMerge = ((saoBlkParam->offsetParam[Y_COMP].modeIdc == SAO_MODE_MERGE) && (saoBlkParam->offsetParam[Y_COMP].typeIdc == SAO_MERGE_ABOVE)); 
 		code_sao_merge(et->ec, isAboveMerge?1:0);
-//		codeSaoMerge( isAboveMerge?1:0  ); //sao_merge_left_flag
 	}
 
 	if(onlyEstMergeInfo)
@@ -2391,10 +2357,8 @@ uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int*
 		for(component=0; component < NUM_PICT_COMPONENTS; component++)
 		{
 			code_sao_offset_param(et->ec, component, &saoBlkParam->offsetParam[component], sliceEnabled[component]);
-//			codeSAOOffsetParam(compIdx, saoBlkParam[compIdx], sliceEnabled[compIdx]);
 		}
 	}
-//	et->ec->b_ctx->m_binCountIncrement = 0;
 
 	return et->ec->ee_bitcnt(et->ec->bs, et->ec->b_ctx) - init_bits;
 }

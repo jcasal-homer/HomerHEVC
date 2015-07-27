@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -1863,7 +1863,6 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 	int sao_enabled = currslice->sps->sample_adaptive_offset_enabled_flag;
 	int search_window_in_ctus_x = (MOTION_SEARCH_RANGE_X+et->max_cu_size-1)>>et->max_cu_size_shift;
 	int search_window_in_ctus_y = (MOTION_SEARCH_RANGE_Y+et->max_cu_size-1)>>et->max_cu_size_shift;
-//borrar - Creo que en la sincronizacion, el eje y de la ventana de movimiento podria ser de tamaÃ±o (search_window_in_ctus_y) en vez de (1+search_window_in_ctus_y). De esto depende tambien un limite de mas abajo en esta funcion
 	int sem_post_ref_wnd_limit = (search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x+1;//(1+search_window_in_ctus_y)*et->pict_width_in_ctu+search_window_in_ctus_x;
 	int ctu_num_index = ctu_num%et->pict_width_in_ctu;
 	int ctu_num_vertical = ctu_num - (et->pict_width_in_ctu+1);//- et->pict_total_ctu;//take into account that intra prediction is done previous to deblocking the references
@@ -1873,27 +1872,6 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 	int ctu_num_sao = ctu_num_padding;//only used if sao is enabled
 	int ctu_num_sao_offset = ctu_num_sao - (et->pict_width_in_ctu+1);
 	int ctu_num_post_semaphore = sao_enabled?(ctu_num_sao_offset - sem_post_ref_wnd_limit):(ctu_num_padding - sem_post_ref_wnd_limit);
-	//WPP syncchronization
-	//notify first synchronization as this line must go two ctus ahead from next line in wfpp
-/*	if(et->cu_current_x+1==2 && et->cu_current_y+1 != et->pict_height_in_ctu)
-	{
-//		if(et->wfpp_enable)
-//			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
-		SEM_POST(et->synchro_signal[0]);
-	}
-
-	//wpp synchronization (take into account that intra prediction is done previous to deblocking the references)
-	if(et->cu_current_x>=2 && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
-	{
-		SEM_POST(et->synchro_signal[0]);
-	}
-
-	//notify last synchronization as this line goes two ctus ahead from next line in wfpp
-	if(et->cu_current_x+1==et->pict_width_in_ctu && et->cu_current_y+1 != et->pict_height_in_ctu)// && ((et->cu_current_x & GRAIN_MASK) == 0))
-	{
-		SEM_POST(et->synchro_signal[0]);
-	}
-*/
 
 	if(is_inter_gop)
 	{
@@ -2204,10 +2182,6 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 	{
 		if(sao_enabled)
 		{
-//			int ctu_num_sao = (ctu_num_horizontal - (et->pict_width_in_ctu+1));
-//			int ctu_num_sao_offset = ctu_num_sao - (et->pict_width_in_ctu+1);
-//			int ctu_num_post_semaphore = ctu_num_sao;
-
 			if(ctu_num_vertical>=0 && (ctu_num_index)>=1)
 			{
 				filter_ctu = &et->enc_engine->ctu_info[ctu_num_vertical];
@@ -2353,11 +2327,8 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 	//printf("		+wfpp_encoder_thread %d\r\n", et->index);
 
-//	et->acc_dist = 0;
-//	et->cu_current = 0;
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
-//	et->num_intra_partitions = 0;
 
 	ctu = &et->enc_engine->ctu_info[et->cu_current_y*et->pict_width_in_ctu];
 
@@ -2393,29 +2364,10 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 			SEM_POST(et->synchro_wait[1]);
 		}
 
-//		if(et->cu_current_y > 0)// && ((et->cu_current_x & GRAIN_MASK) == 0))
 		{
 			SEM_WAIT_MULTIPLE(et->synchro_wait, et->num_wait_sem);
-//			SEM_WAIT(et->synchro_wait[0]);
 		}
 
-//#ifndef COMPUTE_AS_HM
-/*		if(et->cu_current_x==0 && et->wfpp_enable)
-		{
-			if(et->cu_current_y > 0)
-			{
-				ptrswap(enc_env_t*, et->enc_engine->ee_list[(2*et->index)], et->enc_engine->ee_list[(2*et->index+et->enc_engine->num_ee-1)%et->enc_engine->num_ee]);//get inherited enviroment, leave current as avaliable for the previous thread of the list
-			}
-
-			et->ec = &et->enc_engine->ec_list[et->index];
-			et->ee = et->enc_engine->ee_list[(2*et->index)];
-			et->ee->bs = &et->enc_engine->aux_bs[et->cu_current_y];
-			hmr_bitstream_init(et->ee->bs);
-			et->ee->ee_start(et->ee->b_ctx);
-			et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
-		}
-//#endif
-*/
 		ctu = init_ctu(et);
 
 		//Prepare Memory
@@ -2479,8 +2431,6 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		//sync entropy contexts between wpp
 		if(et->cu_current_x == 2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
-//			if(et->wfpp_enable)
-//				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*et->index+1)%et->enc_engine->num_ee]);
 			SEM_POST(et->synchro_signal[0]);
 			et->dbg_sem_post_cnt++;
 			PRINTF_SYNC("SEM_POST3: ctu_num:%d, thread_id:%d, dbg_sem_post_cnt:%d\r\n", et->cu_current, et->index, et->dbg_sem_post_cnt);
@@ -2497,23 +2447,12 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		if(et->cu_current_x==et->pict_width_in_ctu)
 		{
-//#ifndef COMPUTE_AS_HM
-//			if(et->wfpp_enable)
-//				ee_end_slice(et->ee, currslice, ctu);
-//#endif
 			et->cu_current_y+=et->wfpp_num_threads;
 			et->cu_current_x=0;
 		}
 
 		et->cu_current = et->pict_width_in_ctu*(et->cu_current_y)+et->cu_current_x;
 	}
-
-//#ifndef COMPUTE_AS_HM	
-//	if(!et->wfpp_enable)
-//	{
-//		ee_end_slice(et->ee, currslice, ctu);
-//	}
-//#endif
 
 	return THREAD_RETURN;
 }
@@ -2572,15 +2511,12 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 	int ctu_num;
 	ctu_info_t* ctu = NULL;
 	int cu_current_x = 0, cu_current_y = 0;
-//	int dir;
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
 		int bits_allocated;// = hmr_bitstream_bitcount(et->ee->bs);
 		int ee_index = cu_current_y%et->enc_engine->wfpp_num_threads;//et->index;
 
 		ctu = &enc_engine->ctu_info[ctu_num];
-//		ctu->partition_list = enc_engine->thread[0]->deblock_partition_info;
-//		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 
 		if(cu_current_x==0 && et->wfpp_enable)
 		{
@@ -2633,7 +2569,6 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		{
 			if(et->wfpp_enable)
 				ee_copy_entropy_model(et->ee->contexts, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]->contexts);
-//			SEM_POST(et->synchro_signal[0]);
 		}
 
 		if(cu_current_x==et->pict_width_in_ctu)
@@ -2666,8 +2601,6 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 {
-//	hvenc_enc_t* hvenc = (hvenc_enc_t*)h;
-//	hvenc_engine_t* enc_engine = (hvenc_engine_t*)hvenc->encoder_engines[0];
 	int avg_qp = 0.0;
 	hvenc_engine_t* enc_engine = (hvenc_engine_t*)h;
 	picture_t *currpict = &enc_engine->current_pict;
@@ -2687,13 +2620,10 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
 		int		engine;
-		int		bitstream_index = enc_engine->num_encoded_frames_in_engine % STREAMS_PER_ENGINE;
-//		MUTEX_LOCK(enc_engine->hvenc->mutex_start_frame); 
 		SEM_WAIT(enc_engine->input_wait);
 		//get next image
 		if(!get_frame_to_encode(enc_engine->hvenc, &enc_engine->current_pict.img2encode))//get next image to encode and init type
 		{
-//			MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
 			SEM_POST(enc_engine->input_signal);
 			return THREAD_RETURN;
 		}
@@ -2708,8 +2638,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 		memset(output_nalu_list, 0, (nalu_list_size)*sizeof(output_nalu_list[0]));
 
-		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[bitstream_index];//relative to engine
-//		printf("\r\n engine:%d, nalu_idx:%d, nalu_ptr:0x%x\r\n", enc_engine->index, (bitstream_index), enc_engine->slice_nalu);
+		enc_engine->slice_nalu = &enc_engine->slice_nalu_list[enc_engine->num_encoded_frames_in_engine % STREAMS_PER_ENGINE];//relative to engine
 
 		hmr_bitstream_init(&enc_engine->slice_nalu->bs);
 
@@ -2724,36 +2653,14 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			hmr_rc_init_pic(enc_engine, &currpict->slice);
 		}
 		hmr_rd_init(enc_engine, &currpict->slice);
-/*#ifndef COMPUTE_AS_HM
-#define SHIFT_QP	12
-		{
-			int		bitdepth_luma_qp_scale = 0;
-			int qp = enc_engine->num_encoded_frames==0?enc_engine->pict_qp:hmr_rc_get_cu_qp(enc_engine->thread[0], &enc_engine->ctu_info[0], enc_engine->ctu_info[0].partition_list, currslice);
-			double lambda;
-			double	qp_temp = (double) qp + bitdepth_luma_qp_scale - SHIFT_QP;//
-			double	qp_factor = 0.4624;//this comes from the cfg file of HM
-			double	lambda_scale = 1.0 - clip(0.05*(double)(0 ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);//enc_engine->mb_interlaced ? (enc_engine->gop_size-1)/2 : (enc_engine->gop_size-1)), 0.0, 0.5);
 
-			if(currslice->slice_type == I_SLICE)
-			{
-				qp_factor=0.57*lambda_scale;
-			}
-
-			enc_engine->sao_lambdas[0] = qp_factor*pow( 1.4, qp_temp/(1.4));	
-			enc_engine->sao_lambdas[1] =  enc_engine->sao_lambdas[2] = qp_factor*pow( 1.4, (qp_temp+enc_engine->chroma_qp_offset)/(1.4));
-
-			currslice->qp = enc_engine->pict_qp = qp;
-		}
-
-#endif
-*/
 		//get free img for decoded blocks
 		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
 		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
 
 		apply_reference_picture_set(enc_engine->hvenc, currslice);		
 
-		//prunning of references must be done in a selective way
+		//reference prunning must be done in a selective way
 		if(enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]!=NULL)
 			cont_put(enc_engine->hvenc->cont_empty_reference_wnds,enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]);
 
@@ -2768,9 +2675,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			//reset remafore
 			SEM_RESET(enc_engine->thread[n]->synchro_wait[0])
 		}
-//		memset(enc_engine->dbg_num_posts,0,sizeof(enc_engine->dbg_num_posts));
 		SEM_POST(enc_engine->input_signal);
-//		MUTEX_UNLOCK(enc_engine->hvenc->mutex_start_frame); 
 
 		CREATE_THREADS((&enc_engine->hthreads[0]), wfpp_encoder_thread, enc_engine->thread, enc_engine->wfpp_num_threads)
 		JOIN_THREADS(enc_engine->hthreads, enc_engine->wfpp_num_threads-1)

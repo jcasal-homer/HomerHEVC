@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -310,6 +310,8 @@ ctu_info_t *get_pu_top_left(ctu_info_t* ctu, cu_partition_info_t* curr_partition
 void ee_encode_sao(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* ctu);
 uint rd_code_sao_offset_param(henc_thread_t* et, int component, sao_offset_t *ctbParam, int sliceEnabled, context_model_t *ctx_src, binary_model_t *bm_src);
 uint rd_code_sao_blk_param(henc_thread_t* et, sao_blk_param_t *saoBlkParam, int* sliceEnabled, int leftMergeAvail, int aboveMergeAvail, int onlyEstMergeInfo, context_model_t *ctx_src, binary_model_t *bm_src);
+
+
 //hmr_binary_encoding.c //bm = binary model, be = bienary encoder, bc = binary counter
 void bm_copy_binary_model(binary_model_t *bm_src, binary_model_t *bm_dst);
 void bm_map_funcs(enc_env_t* ee);

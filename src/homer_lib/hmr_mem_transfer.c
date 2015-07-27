@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
@@ -102,19 +102,9 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 {
 	int component;
 
-/*	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
-	{
-		int src_wnd_size = wnd_src->window_size_x[comp]*wnd_src->window_size_y[comp];
-//		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
-		int16_t * buff_src = (int16_t *)wnd_src->palloc[comp];//WND_POSITION_2D(int16_t *, *wnd_src, comp, 0, 0, gcnt, et->ctu_width);
-		int16_t * buff_dst = (int16_t *)wnd_dst->palloc[comp];//WND_POSITION_2D(int16_t *, *wnd_dst, comp, 0, 0, gcnt, et->ctu_width);
-
-		memcpy(buff_dst, buff_src, src_wnd_size*sizeof(buff_src[0]));
-	}
-*/
 	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])
 	{
-		printf("wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
+		printf("error: wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
 		return;
 	}
 
