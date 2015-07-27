@@ -57,7 +57,6 @@
     <ClInclude Include="..\..\..\src\homer_lib\hmr_sse42_primitives.h" />
     <ClInclude Include="..\..\..\src\homer_lib\hmr_tables.h" />
     <ClInclude Include="..\..\..\src\homer_lib\homer_hevc_enc_api.h" />
-    <ClInclude Include="..\..\..\src\homer_lib\stdint.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{7967D053-C61E-44F9-8068-475C85D9F95B}</ProjectGuid>

@@ -121,8 +121,5 @@
     <ClInclude Include="..\..\..\src\homer_lib\homer_hevc_enc_api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\homer_lib\stdint.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

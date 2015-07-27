@@ -93,7 +93,7 @@ void print_help()
 	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
 	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
 	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
-	printf("-n_enc_engines: \t\t\t number of frame based parallelism engines. default = 2\r\n");	
+	printf("-n_enc_engines: \t\t\t number of frame based parallelism engines. default = 3\r\n");	
 	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads. default = 10\r\n");	
 	printf("-max_pred_depth: \t\t\t [0-4]. default = 4\r\n");
 	printf("-max_intra_tr_depth: \t\t\t [0-4]. default = 2\r\n");
@@ -126,12 +126,12 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 	double vbv_size = cfg->vbv_size/(double)cfg->bitrate;
 	double vbv_init = cfg->vbv_init/(double)cfg->vbv_size;
 
-/*	if(argc==1)
+	if(argc==1)
 	{
 		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
-*/
+
 	while(args_parsed<argc)
 	{
 		if(strcmp(argv[args_parsed] , "-h")==0)//input
@@ -312,7 +312,7 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->max_pred_partition_depth = 4;
 	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_enc_engines = 2;
+	cfg->num_enc_engines = 3;
 	cfg->wfpp_enable = 1;
 	cfg->wfpp_num_threads = 10;
 	cfg->sign_hiding = 1;
@@ -367,13 +367,26 @@ int main (int argc, char **argv)
 
 	HVENC_Cfg	HmrCfg;
 
+	printf("---------------------------------------------------------------------------------------------\r\n");	
+	printf("---------------- HomerHEVC - The Open-Source H265-HEVC encoder under LGPL license -----------\r\n");
+	printf("------------------------- Copyright (C) 2014-2015 homerHEVC project -------------------------\r\n");
+	printf("---------------------- see www.homerhevc.com for extended information------------------------\r\n");
+	printf("---------------------------------------------------------------------------------------------\r\n\r\n");	
+
+	printf("*********************************************************************************************\r\n");
+	printf("                                     HomerHEVC console App					\r\n");
+	printf("*********************************************************************************************\r\n");
+	printf("*********************************************************************************************\r\n");
+
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
 //	strcpy(file_ref_name, FILE_REF);
 
-	get_default_config(&HmrCfg);
-//	get_debug_config(&HmrCfg);
 
+	//get default config
+	get_default_config(&HmrCfg);//	get_debug_config(&HmrCfg);
+
+	//get app arguments
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
 	
 	if(!(infile = fopen(file_in_name, "rb")))
@@ -417,8 +430,17 @@ int main (int argc, char **argv)
 
 	pEncoder = HOMER_enc_init();
 
+	
+	printf("HomerApp:\r\n");
+	printf("Input file: %s\r\n", file_in_name);
+	printf("Output file: %s\r\n", file_out_name);
+	
 	if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
 		return -1;
+
+
+	printf("Allocation: %d engines with %d processing threads each\r\n\r\n", HmrCfg.num_enc_engines, HmrCfg.wfpp_enable?HmrCfg.wfpp_num_threads:1);
+	printf("*********************************************************************************************\r\n");
 
 	msInit = get_ms();
 	fseek_64(infile, 0, SEEK_SET);

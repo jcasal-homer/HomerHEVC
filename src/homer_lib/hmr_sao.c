@@ -1,7 +1,7 @@
 /*****************************************************************************
 * hmr_sao.c : homerHEVC encoding library
 /*****************************************************************************
-* Copyright (C) 2014 homerHEVC project
+* Copyright (C) 2014-2015 homerHEVC project
 *
 * Juan Casal <jcasal@homerhevc.com>
 *

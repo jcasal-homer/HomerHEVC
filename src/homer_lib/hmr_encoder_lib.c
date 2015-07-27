@@ -2816,8 +2816,9 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			printf("PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->current_psnr[Y_COMP], enc_engine->current_psnr[U_COMP], enc_engine->current_psnr[V_COMP]);
 			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
 #endif
-			printf("vbv: %.2f, avg_dist: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size, enc_engine->avg_dist);
-			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->sao_lambdas[0]);
+			printf("vbv: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size);
+//			printf("avg_dist: %.2f, ", enc_engine->avg_dist);
+//			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->sao_lambdas[0]);
 //			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
 //#ifndef COMPUTE_AS_HM
 			printf("qp: %d, ", enc_engine->pict_qp);			
