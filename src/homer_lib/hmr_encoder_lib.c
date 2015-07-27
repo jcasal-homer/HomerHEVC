@@ -1821,7 +1821,7 @@ void wfpp_encode_ctu(henc_thread_t* et, ctu_info_t *ctu)
 	if(ctu_x==1 && ctu_y+1 != et->pict_height_in_ctu)
 	{
 		if(et->wfpp_enable)
-			ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
+			ee_copy_entropy_model(et->ee->contexts, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]->contexts);
 		PRINTF_CTU_ENCODE("ee_copy, ctu_num:%d, ee_index_dst:%d\r\n", ctu_num, (2*ee_index+1)%et->enc_engine->num_ee);			
 	}
 
@@ -2476,7 +2476,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 
 		et->cu_current_x++;
 
-		//sync entrophy contexts between wpp
+		//sync entropy contexts between wpp
 		if(et->cu_current_x == 2 && et->cu_current_y+1 != et->pict_height_in_ctu)
 		{
 //			if(et->wfpp_enable)
@@ -2630,7 +2630,7 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 		if(cu_current_x==2 && cu_current_y+1 != et->pict_height_in_ctu)
 		{
 			if(et->wfpp_enable)
-				ee_copy_entropy_model(et->ee, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]);
+				ee_copy_entropy_model(et->ee->contexts, et->enc_engine->ee_list[(2*ee_index+1)%et->enc_engine->num_ee]->contexts);
 //			SEM_POST(et->synchro_signal[0]);
 		}
 
