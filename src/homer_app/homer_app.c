@@ -367,10 +367,12 @@ int main (int argc, char **argv)
 
 	HVENC_Cfg	HmrCfg;
 
-	printf("---------------------------------------------------------------------------------------------\r\n");	
+	printf("\r\n\r\n---------------------------------------------------------------------------------------------\r\n");	
 	printf("---------------- HomerHEVC - The Open-Source H265-HEVC encoder under LGPL license -----------\r\n");
+	printf("---------------------- see www.homerhevc.com for extended information------------------------\r\n");	
 	printf("------------------------- Copyright (C) 2014-2015 homerHEVC project -------------------------\r\n");
-	printf("---------------------- see www.homerhevc.com for extended information------------------------\r\n");
+	printf("---------------------------- by Juan Casal: jcasal@homerhevc.com ----------------------------\r\n");
+
 	printf("---------------------------------------------------------------------------------------------\r\n\r\n");	
 
 	printf("*********************************************************************************************\r\n");
@@ -439,8 +441,8 @@ int main (int argc, char **argv)
 		return -1;
 
 
-	printf("Allocation: %d engines with %d processing threads each\r\n\r\n", HmrCfg.num_enc_engines, HmrCfg.wfpp_enable?HmrCfg.wfpp_num_threads:1);
-	printf("*********************************************************************************************\r\n");
+	printf("\r\nAllocation: %d engines with %d processing threads each\r\n", HmrCfg.num_enc_engines, HmrCfg.wfpp_enable?HmrCfg.wfpp_num_threads:1);
+	printf("\r\n*********************************************************************************************\r\n");
 
 	msInit = get_ms();
 	fseek_64(infile, 0, SEEK_SET);
