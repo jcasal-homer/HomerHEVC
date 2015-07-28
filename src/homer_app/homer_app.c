@@ -379,6 +379,7 @@ int main (int argc, char **argv)
 	printf("                                     HomerHEVC console App					\r\n");
 	printf("*********************************************************************************************\r\n");
 	printf("*********************************************************************************************\r\n");
+	printf("HomerApp:\r\n");
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
@@ -432,8 +433,6 @@ int main (int argc, char **argv)
 
 	pEncoder = HOMER_enc_init();
 
-	
-	printf("HomerApp:\r\n");
 	printf("Input file: %s\r\n", file_in_name);
 	printf("Output file: %s\r\n", file_out_name);
 	
