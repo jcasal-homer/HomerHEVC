@@ -8,7 +8,7 @@ HOMER (Hevc Open Mpeg EncodeR) is an open-source HEVC encoder to encode YUV420 v
 It is published under the LPGLv2.1 license, and is therefore Free Software according to the Free Software Foundation.
 
 Development is guided by three main aspects:
-- Easy portability.
+- Easy customization and portability.
 - Multiplatform (currently tested in Windows and Linux). 
 - Performance.
 
@@ -16,7 +16,7 @@ Code style of the development is C'99 and recursive functions have been implemen
 
 HomerHEVC is still under development and will improve in quality and performance during the development.
 
-Current Features (latest version is HomerHEVC_v1.2)
+Current Features (latest version is HomerHEVC_v2.0)
 --------------------------------------------------------
 - Multiplatform (Linux,Windows)
 - 8 bit-depth.
@@ -28,6 +28,7 @@ Current Features (latest version is HomerHEVC_v1.2)
 - All transform sizes (32,16,8,4).
 - Fixed QP, CBR (Constant Bit Rate), and VBR (Variable Bit Rate).
 - Deblocking filter.
+- SAO (Sample adaptive offset).
 - Wpp and Frame based parallelization for massive parallelism
 - Sign hiding bit enabled.
 - intra RDO.
@@ -42,6 +43,7 @@ Optimizations (SSE42):
 - SAD, SSD.
 - Transforms.
 - Quantization.
+- SAO
 
 
 Version Releases and Expected Evolution
@@ -63,7 +65,7 @@ homerHEVC_V2.0 (April 2015)
 - Half pixel and quarter pixel precission motion estimation.
 - Further SSE/AVX optimizations & quality improvements.
 
-homerHEVC_V3.0 (July 2015)
+homerHEVC_V3.0 (September 2015)
 - B frames.
 
 Donwnload
@@ -110,16 +112,17 @@ These are a list of the configuration variables currently supported:
 	-qp:                            qp[0-51], default = 32
 	-motion_estimation_precision    0=pel, 1=half_pel, 2=quarter_pel, default = 2
 	-chroma_qp_offset:              chroma_qp_offset[-12,12], default = 2
-	-n_enc_engines:                 number of encoder engines encoding frames in parallel, default = 2
-	-n_wpp_threads:                 0:no wpp, >0-number of wpp threads, default = 10
+	-n_enc_engines:                 number of encoder engines encoding frames in parallel, default = 3
+	-n_wpp_threads:                 0:no wpp, [1-n]:number of wpp threads, default = 10
 	-max_pred_depth:                [0-4], default = 4
 	-max_intra_tr_depth:            [0-4], default = 2
 	-max_inter_tr_depth:            [0-4], default = 1
 	-sign_hiding:                   0=off, 1=on, default = 1
+	-sao:                           0=off, 1=on. Default = 1
 	-bitrate_mode:                  0=fixed qp, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate), default = VBR
-	-bitrate:                       in kbps when bitrate_mode=CBR, default = 1250
-	-vbv_size:                      in kbps when bitrate_mode=CBR, default = 1.*bitrate
-	-vbv_init:                      in kbps when bitrate_mode=CBR, default = .25*vbv_size
+	-bitrate:                       in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1250
+	-vbv_size:                      in terms of the specified bitrate. Used in CBR and VBR. Default = 1.0
+	-vbv_init:                      in terms of the specified vbv_size. Default = 0.35
 	-performance_mode:              0=full computation, 1=fast , 2= ultra fast, default = ufast
 	-scene_change:                  0=do not reinit, 1=reinit gop on scene change, default = 1;
 	-rd:                            0=off, 1=full rd (only in intra) , 2= fast rd, default = fast
