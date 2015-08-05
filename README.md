@@ -24,7 +24,7 @@ Current Features (latest version is HomerHEVC_v2.0)
 - All intra prediction modes.
 - 2Nx2N and NxN inter prediction modes.
 - Half pixel and quarter pixel precission motion estimation.
-- CTU size 64 (Intra mode supports CTU size 64, 32 and 16).
+- All prediction sizes (32,16,8,4).
 - All transform sizes (32,16,8,4).
 - Fixed QP, CBR (Constant Bit Rate), and VBR (Variable Bit Rate).
 - Deblocking filter.
