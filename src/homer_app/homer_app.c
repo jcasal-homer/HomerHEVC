@@ -367,13 +367,8 @@ int main (int argc, char **argv)
 
 	HVENC_Cfg	HmrCfg;
 
-	printf("\r\n\r\n---------------------------------------------------------------------------------------------\r\n");	
-	printf("---------------- HomerHEVC - The Open-Source H265-HEVC encoder under LGPL license -----------\r\n");
-	printf("---------------------- see www.homerhevc.com for extended information------------------------\r\n");	
-	printf("------------------------- Copyright (C) 2014-2015 homerHEVC project -------------------------\r\n");
-	printf("---------------------------- by Juan Casal: jcasal@homerhevc.com ----------------------------\r\n");
 
-	printf("---------------------------------------------------------------------------------------------\r\n\r\n");	
+	pEncoder = HOMER_enc_init();
 
 	printf("*********************************************************************************************\r\n");
 	printf("                                     HomerHEVC console App					\r\n");
@@ -395,13 +390,13 @@ int main (int argc, char **argv)
 	if(!(infile = fopen(file_in_name, "rb")))
 	{
 		printf("Error opening input file: %s\r\n", file_in_name);
-		exit(0);
+		return -1;
 	}
 
 	if((outfile = fopen(file_out_name, "wb")) == NULL)
 	{
 		printf("Error opening output file: %s\r\n", file_out_name);
-		exit(0);
+		return -1;
 	}
 
 	if((strlen(file_ref_name)>0) && !(reffile = fopen(file_ref_name, "wb")))
@@ -430,8 +425,6 @@ int main (int argc, char **argv)
 		output_frame.stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 		output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	}
-
-	pEncoder = HOMER_enc_init();
 
 	printf("Input file: %s\r\n", file_in_name);
 	printf("Output file: %s\r\n", file_out_name);
