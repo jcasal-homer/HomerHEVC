@@ -31,15 +31,25 @@
 #ifdef _MSC_VER
 #include <Windows.h>
 #include <io.h>
-#define fseek_64 _fseeki64
+#include <fcntl.h>
+#include <share.h>
+#include <errno.h>
+#include <sys\stat.h>
+
+#define homer_sopen_wb(handle, filename) _sopen_s(&handle, filename, _O_WRONLY | _O_BINARY | _O_CREAT | _O_TRUNC, _SH_DENYRD, _S_IWRITE)
+#define homer_sopen_rb(filename) _sopen_s(&handle, filename, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
+#define homer_sclose _close
+#define homer_sseek _lseek
+#define homer_sset_mode	_setmode
+
 #else
 #include <sys/time.h>
 #define fseek_64 fseek
 #endif
 
 
-#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
-//#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU720p50Train.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
+//#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
+#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU720p50Train.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
@@ -120,7 +130,9 @@ void print_help()
 
 
 
-void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames)
+
+
+void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *skipped_frames, int* is_pipe_input, int* is_pipe_output)
 {
 	int args_parsed = 1;
 	double vbv_size = cfg->vbv_size/(double)cfg->bitrate;
@@ -141,12 +153,25 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		}
 		else if(strcmp(argv[args_parsed] , "-i")==0 && args_parsed+1<argc)//input
 		{
+			char* found;
 			args_parsed++;
+
+			//check if is pipe input
+			found = strstr(argv[args_parsed], "pipe:");
+			if(found==argv[args_parsed])
+				*is_pipe_input = TRUE;
+
 			strcpy(file_in_name, argv[args_parsed++]);
 		}
 		else if(strcmp(argv[args_parsed], "-o")==0 && args_parsed+1<argc)//output
 		{
+			char* found;
 			args_parsed++;
+
+			found = strstr(argv[args_parsed], "pipe:");
+			if(found==argv[args_parsed])
+				*is_pipe_output = TRUE;
+
 			strcpy(file_out_name, argv[args_parsed++]);
 		}
 		else if(strcmp(argv[args_parsed], "-o-raw")==0 && args_parsed+1<argc)//output
@@ -332,13 +357,13 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->width = HOR_SIZE;
 	cfg->height = VER_SIZE;
 	cfg->frame_rate = FPS;
-	cfg->intra_period = 1;//1;
+	cfg->intra_period = 100;//1;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;
-	cfg->sample_adaptive_offset = 0;
-	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 12500;//in kbps
+	cfg->sample_adaptive_offset = 1;
+	cfg->bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate = 2000;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
 	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
@@ -347,13 +372,13 @@ void get_debug_config(HVENC_Cfg *cfg)
 
 int main (int argc, char **argv)
 {
-	int totalbits=0;
+	int totalbytes=0;
 	unsigned int msInit=0, msTotal=0;
 	int bCoding = 1;
 	int bytes_read = 0;
 	int frames_read = 0, encoded_frames = 0;
-	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
-	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
+	int infile = -1, reffile = -1, outfile = -1;
+	int skipped_frames = 100;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
 	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
@@ -366,15 +391,16 @@ int main (int argc, char **argv)
 	unsigned int num_nalus = 8;
 
 	HVENC_Cfg	HmrCfg;
-
+	int is_pipe_input = 0, is_pipe_output = 0;
+	int result = 0;
 
 	pEncoder = HOMER_enc_init();
 
-	printf("*********************************************************************************************\r\n");
-	printf("                                     HomerHEVC console App					\r\n");
-	printf("*********************************************************************************************\r\n");
-	printf("*********************************************************************************************\r\n");
-	printf("HomerApp:\r\n");
+	fprintf(stderr,"*********************************************************************************************\r\n");
+	fprintf(stderr,"                                     HomerHEVC console App					\r\n");
+	fprintf(stderr,"*********************************************************************************************\r\n");
+	fprintf(stderr,"*********************************************************************************************\r\n");
+	fprintf(stderr,"HomerApp:\r\n");
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
@@ -382,26 +408,56 @@ int main (int argc, char **argv)
 
 
 	//get default config
-	get_default_config(&HmrCfg);//	get_debug_config(&HmrCfg);
+	get_default_config(&HmrCfg);//	
+	get_debug_config(&HmrCfg);
 
 	//get app arguments
-	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);
+	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames, &is_pipe_input, &is_pipe_output);
 	
-	if(!(infile = fopen(file_in_name, "rb")))
-	{
-		printf("Error opening input file: %s\r\n", file_in_name);
-		return -1;
-	}
 
-	if((outfile = fopen(file_out_name, "wb")) == NULL)
+	if(is_pipe_input)
 	{
-		printf("Error opening output file: %s\r\n", file_out_name);
-		return -1;
+		infile = _fileno(stdin);
+		fprintf(stderr,"input: stdin\r\n");
 	}
-
-	if((strlen(file_ref_name)>0) && !(reffile = fopen(file_ref_name, "wb")))
+	else
 	{
-		printf("Error opening raw output file: %s\r\n", file_ref_name);
+		//if(!(infile = fopen(file_in_name, "rb")))
+		if(_sopen_s(&infile, file_in_name, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
+		{
+			fprintf(stderr,"Error opening input file: %s\r\n", file_in_name);
+			return -1;
+		}
+		fprintf(stderr,"input: %s\r\n", file_in_name);
+	}
+	homer_sset_mode( infile, _O_BINARY );
+
+	if(is_pipe_output)
+	{
+		outfile = _fileno( stdout );
+		fprintf(stderr,"input: stdout\r\n");
+	}
+	else
+	{
+		//if((outfile = fopen(file_out_name, "wb")) == NULL)
+		//if(_sopen_s(&outfile, file_out_name, _O_WRONLY | _O_BINARY | _O_CREAT | _O_TRUNC, _SH_DENYRD, _S_IWRITE))
+		if(homer_sopen_wb(outfile, file_out_name))
+		{
+			int error = errno;
+			fprintf(stderr,"Error opening output file: %s, error:%d\r\n", file_out_name, strerror(errno));
+			if(errno == EACCES)
+			{
+				int iiiii=0;
+			}
+			return -1;
+		}
+		fprintf(stderr,"output: %s\r\n", file_out_name);
+	}
+	result = homer_sset_mode( outfile, _O_BINARY );
+
+	if((strlen(file_ref_name)>0) && homer_sopen_wb(reffile, file_ref_name)!=0)//  _sopen_s(&reffile, file_ref_name, _O_WRONLY | _O_BINARY | _O_CREAT | _O_TRUNC, _SH_DENYRD, _S_IWRITE)!=0)//!(reffile = fopen(file_ref_name, "wb")))
+	{
+		fprintf(stderr,"Error opening raw output file: %s\r\n", file_ref_name);
 //		exit(0);
 	}
 
@@ -425,27 +481,26 @@ int main (int argc, char **argv)
 		output_frame.stream.streams[1] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 		output_frame.stream.streams[2] = (unsigned char *)calloc(HmrCfg.width*HmrCfg.height>>1,1);
 	}
-
-	printf("Input file: %s\r\n", file_in_name);
-	printf("Output file: %s\r\n", file_out_name);
 	
 	if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
 		return -1;
 
-
-	printf("\r\nAllocation: %d engines with %d processing threads each\r\n", HmrCfg.num_enc_engines, HmrCfg.wfpp_enable?HmrCfg.wfpp_num_threads:1);
-	printf("\r\n*********************************************************************************************\r\n");
+	fprintf(stderr,"\r\nAllocation: %d engines with %d processing threads each\r\n", HmrCfg.num_enc_engines, HmrCfg.wfpp_enable?HmrCfg.wfpp_num_threads:1);
+	fprintf(stderr,"\r\n*********************************************************************************************\r\n");
 
 	msInit = get_ms();
-	fseek_64(infile, 0, SEEK_SET);
+	homer_sseek(infile, 0, SEEK_SET);
+	//fseek_64(infile, 0, SEEK_SET);
 	while(bCoding)
 	{
+		int bytes_read_y = 0, bytes_read_u = 0, bytes_read_v = 0;
 		int frame_size = (int) (HmrCfg.width*HmrCfg.height*1.5);
 //		fpos_t pos = frame_size*skipped_frames;
 //		long long frame_size = ;
 		if(frames_read<skipped_frames)
 		{
-			fseek_64(infile, frame_size, SEEK_CUR); // move to first frame
+			homer_sseek(infile, frame_size, SEEK_CUR);
+//			fseek_64(infile, frame_size, SEEK_CUR); // move to first frame
 			frames_read++;
 			msInit = get_ms();
 			continue;
@@ -454,9 +509,32 @@ int main (int argc, char **argv)
 		frame[1] = (unsigned char*)stream.streams[1];
 		frame[2] = (unsigned char*)stream.streams[2];
 
-		bytes_read = fread(frame[0],HmrCfg.width,HmrCfg.height,infile)*HmrCfg.width;
-		bytes_read += fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
-		bytes_read += fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
+//		bytes_read = fread(frame[0],HmrCfg.width,HmrCfg.height,infile)*HmrCfg.width;
+//		bytes_read += fread(frame[1],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
+//		bytes_read += fread(frame[2],HmrCfg.width>>1,HmrCfg.height>>1,infile)*(HmrCfg.width>>1);
+
+		while(bCoding && bytes_read_y<HmrCfg.width*HmrCfg.height)
+		{
+			int aux_bytes_read = bytes_read_y; 
+			bytes_read_y += _read(infile,frame[0]+bytes_read_y,HmrCfg.width*HmrCfg.height-bytes_read_y);
+			if(aux_bytes_read == bytes_read_y)
+				bCoding = FALSE;
+		}
+		while(bCoding && bytes_read_u<((HmrCfg.width>>1)*(HmrCfg.height>>1)))
+		{
+			int aux_bytes_read = bytes_read_u; 
+			bytes_read_u += _read(infile,frame[1]+bytes_read_u,((HmrCfg.width>>1)*(HmrCfg.height>>1))-bytes_read_u);
+			if(aux_bytes_read == bytes_read_y)
+				bCoding = FALSE;
+		}
+		while(bCoding && bytes_read_v<((HmrCfg.width>>1)*(HmrCfg.height>>1)))
+		{
+			int aux_bytes_read = bytes_read_v; 
+			bytes_read_v += _read(infile,frame[2]+bytes_read_v,((HmrCfg.width>>1)*(HmrCfg.height>>1))-bytes_read_v);
+			if(aux_bytes_read == bytes_read_y)
+				bCoding = FALSE;
+		}
+		bytes_read = bytes_read_y + bytes_read_u + bytes_read_v;
 
 		stream.data_stride[0] = HmrCfg.width;
 		stream.data_stride[1] = stream.data_stride[2]  = stream.data_stride[0]/2;
@@ -468,6 +546,7 @@ int main (int argc, char **argv)
 		if(bCoding)
 		{
 			int bAllFilesFilled = (bytes_read!=frame_size) || (num_frames==frames_read-skipped_frames);
+//			fprintf(stderr,"bytes_read:%d, frame_size:%d\r\n", bytes_read, frame_size);
 			if(!bAllFilesFilled)//if EOF is reached don´t try to encode
 			{
 				num_nalus = 8;
@@ -480,18 +559,24 @@ int main (int argc, char **argv)
 
 			if(num_nalus>0)
 			{
-//				printf("homer_app: slice_nalu:0x%x\r\n", nalu_out[num_nalus-1]);
+//				fprintf(stderr,"homer_app: slice_nalu:0x%x\r\n", nalu_out[num_nalus-1]);
 				HOMER_enc_write_annex_b_output(nalu_out, num_nalus, &output_stream);
-				fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
-				fflush(outfile);
-				totalbits+=output_stream.stream.data_size[0];
+//				fwrite(output_stream.stream.streams[0], sizeof(unsigned char), output_stream.stream.data_size[0], outfile);
+//				fprintf(stderr,"escribimos %d datos\r\n", output_stream.stream.data_size[0]);
+				_write(outfile, output_stream.stream.streams[0], output_stream.stream.data_size[0]*sizeof(unsigned char));
+//				_flush(outfile);
+				totalbytes += output_stream.stream.data_size[0];
 
 
-				if(reffile!=NULL)
+				if(reffile!=-1)
 				{
-					fwrite(output_frame.stream.streams[0], HmrCfg.width, HmrCfg.height, reffile); 
-					fwrite(output_frame.stream.streams[1], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
-					fwrite(output_frame.stream.streams[2], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+					_write(reffile, output_frame.stream.streams[0], HmrCfg.width*HmrCfg.height); 
+					_write(reffile, output_frame.stream.streams[1], (HmrCfg.width>>1)*(HmrCfg.height>>1)); 
+					_write(reffile, output_frame.stream.streams[2], (HmrCfg.width>>1)*(HmrCfg.height>>1)); 
+
+//					fwrite(output_frame.stream.streams[0], HmrCfg.width, HmrCfg.height, reffile); 
+//					fwrite(output_frame.stream.streams[1], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
+//					fwrite(output_frame.stream.streams[2], HmrCfg.width>>1, HmrCfg.height>>1, reffile); 
 				}
 
 				encoded_frames++;
@@ -506,13 +591,13 @@ int main (int argc, char **argv)
 		{
 			HOMER_enc_close(pEncoder);
 			msTotal += get_ms()-msInit;
-			printf("\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
+			fprintf(stderr,"\r\n%d frames in %d milliseconds: %f fps", encoded_frames, msTotal, 1000.0*(encoded_frames)/(double)msTotal);
 
 			break;
 		}
 	}
 
-//	printf("\r\npulse una tecla\r\n");
+//	fprintf(stderr,"\r\npulse una tecla\r\n");
 //	getchar();
 
 
@@ -528,9 +613,11 @@ int main (int argc, char **argv)
 		free(output_frame.stream.streams[2]);
 	}
 
-	fclose(infile);
-	fclose(outfile);
-	if(reffile!=NULL)
-		fclose(reffile);
+	if(!is_pipe_input)
+		homer_sclose(infile);
+	if(!is_pipe_output)
+		homer_sclose(outfile);
+	if(reffile!=-1)
+		homer_sclose(reffile);
 	return 0;
 }

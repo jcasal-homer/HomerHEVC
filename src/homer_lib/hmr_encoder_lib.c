@@ -2333,7 +2333,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu;
 
-	//printf("		+wfpp_encoder_thread %d\r\n", et->index);
+	//fprintf(stderr,"		+wfpp_encoder_thread %d\r\n", et->index);
 
 	et->cu_current_x = 0;
 	et->cu_current_y = et->index;
