@@ -813,7 +813,7 @@ void hmr_quarter_pixel_estimation_luma_fast(henc_thread_t* et, int16_t *referenc
 		}
 	}
 	if(processed!=3)
-		printf("processed=%d", processed);
+		fprintf(stderr,"processed=%d", processed);
 
 }
 
@@ -2844,7 +2844,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 			et->enc_engine->last_gop_reinit = currslice->poc;
 			et->enc_engine->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
-			printf("\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
+			fprintf(stderr,"\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
 #endif
 
 		}
@@ -2926,7 +2926,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				}
 				else
 				{
-//					printf("64x64 inter computation skipped");
+//					fprintf(stderr,"64x64 inter computation skipped");
 					mv_cost = 0;
 					dist = MAX_COST;
 					curr_cu_info->sum = 0;
@@ -3512,7 +3512,7 @@ uint32_t motion_inter_fast(henc_thread_t* et, ctu_info_t* ctu)
 			et->enc_engine->last_gop_reinit = currslice->poc;
 			et->enc_engine->hvenc->last_gop_reinit = currslice->poc;
 #ifdef DBG_TRACE
-			printf("\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
+			fprintf(stderr,"\r\n---------------------scene change detected. frame:%d, total_intra_partitions:%d, total_partitions:%d , enc_engine->avg_dist:%.2f, avg_distortion:%.2f, ----------------------\r\n", et->enc_engine->num_encoded_frames, total_intra_partitions, total_partitions, et->enc_engine->avg_dist, avg_distortion);
 #endif
 
 		}

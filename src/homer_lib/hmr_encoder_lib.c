@@ -74,12 +74,12 @@ void *HOMER_enc_init()
 
 	//int max_width = 1920, max_height = 1080;
 
-	printf("\r\n\r\n---------------------------------------------------------------------------------------------\r\n");	
-	printf("---------------- HomerHEVC - The Open-Source H265-HEVC encoder under LGPL license -----------\r\n");
-	printf("---------------------- see www.homerhevc.com for extended information------------------------\r\n");	
-	printf("------------------------- Copyright (C) 2014-2015 homerHEVC project -------------------------\r\n");
-	printf("---------------------------- by Juan Casal: jcasal@homerhevc.com ----------------------------\r\n");
-	printf("---------------------------------------------------------------------------------------------\r\n\r\n");	
+	fprintf(stderr,"\r\n\r\n---------------------------------------------------------------------------------------------\r\n");	
+	fprintf(stderr,"---------------- HomerHEVC - The Open-Source H265-HEVC encoder under LGPL license -----------\r\n");
+	fprintf(stderr,"---------------------- see www.homerhevc.com for extended information------------------------\r\n");	
+	fprintf(stderr,"------------------------- Copyright (C) 2014-2015 homerHEVC project -------------------------\r\n");
+	fprintf(stderr,"---------------------------- by Juan Casal: jcasal@homerhevc.com ----------------------------\r\n");
+	fprintf(stderr,"---------------------------------------------------------------------------------------------\r\n\r\n");	
 
 
 	hvenc->num_encoded_frames = 0;
@@ -157,7 +157,7 @@ void *HOMER_enc_init()
 #endif
 	if(cpu_info[2] & 0x100000)////
 	{
-		printf("SSE42 avaliable!!\r\n");
+		fprintf(stderr,"SSE42 avaliable!!\r\n");
 
 		hvenc->funcs.sad = sse_aligned_sad;
 		hvenc->funcs.ssd = sse_aligned_ssd;
@@ -685,7 +685,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->num_merge_mvp_candidates = num_merge_candidates;//MERGE_MVP_MAX_NUM_CANDS;
 				if(cfg->width%(phvenc_engine->max_cu_size>>(phvenc_engine->max_pred_partition_depth-1)) || cfg->height%(phvenc_engine->max_cu_size>>(phvenc_engine->max_pred_partition_depth-1)))
 				{
-					printf("HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
+					fprintf(stderr,"HENC_SETCFG Error- size is not multiple of minimum cu size\r\n");
 					goto config_error;
 				}
 
@@ -1769,11 +1769,11 @@ ctu_info_t* init_ctu(henc_thread_t* et)
 	return ctu;
 }
 
-#define PRINTF //printf 
-#define PRINTF_POST	//printf 
-#define PRINTF_DEBLOCK //printf
-#define PRINTF_SAO //printf
-#define PRINTF_CTU_ENCODE //printf
+#define PRINTF //fprintf(stderr, 
+#define PRINTF_POST	//fprintf(stderr, 
+#define PRINTF_DEBLOCK //fprintf(stderr,
+#define PRINTF_SAO //fprintf(stderr,
+#define PRINTF_CTU_ENCODE //fprintf(stderr,
 
 void wfpp_encode_select_bitstream(henc_thread_t* et, ctu_info_t *ctu)
 {
@@ -2323,7 +2323,7 @@ void hmr_deblock_sao_pad_sync_ctu(henc_thread_t* et, slice_t *currslice, ctu_inf
 
 
 
-#define PRINTF_SYNC //printf 
+#define PRINTF_SYNC //fprintf(stderr, 
 
 THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 {
@@ -2812,8 +2812,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			char *frame_type_str;
 			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
 
-			printf("\r\nengine:%d, frame:%d, %s, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
-			//printf("\r\nmodule:%d, frame:%d, %s, target:%.0f, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->rc.target_pict_size, enc_engine->slice_bs.streambytecnt*8);
+			fprintf(stderr,"\r\nengine:%d, frame:%d, %s, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
+			//fprintf(stderr,"\r\nmodule:%d, frame:%d, %s, target:%.0f, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->rc.target_pict_size, enc_engine->slice_bs.streambytecnt*8);
 #ifdef COMPUTE_METRICS
 
 			homer_psnr(&enc_engine->current_pict, &enc_engine->curr_reference_frame->img, enc_engine->pict_width, enc_engine->pict_height, enc_engine->current_psnr); 
@@ -2821,17 +2821,17 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			enc_engine->accumulated_psnr[1] += enc_engine->current_psnr[U_COMP];
 			enc_engine->accumulated_psnr[2] += enc_engine->current_psnr[V_COMP];
 
-			printf("PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->current_psnr[Y_COMP], enc_engine->current_psnr[U_COMP], enc_engine->current_psnr[V_COMP]);
-			printf("Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
+			fprintf(stderr,"PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->current_psnr[Y_COMP], enc_engine->current_psnr[U_COMP], enc_engine->current_psnr[V_COMP]);
+			fprintf(stderr,"Average PSNRY: %.2f, PSNRU: %.2f,PSNRV: %.2f, ", enc_engine->accumulated_psnr[Y_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[U_COMP]/(enc_engine->num_encoded_frames+1), enc_engine->accumulated_psnr[V_COMP]/(enc_engine->num_encoded_frames+1));
 #endif
-			printf("vbv: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size);
-//			printf("avg_dist: %.2f, ", enc_engine->avg_dist);
-//			printf("sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->sao_lambdas[0]);
-//			printf("rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
+			fprintf(stderr,"vbv: %.2f, ", enc_engine->rc.vbv_fullness/enc_engine->rc.vbv_size);
+//			fprintf(stderr,"avg_dist: %.2f, ", enc_engine->avg_dist);
+//			fprintf(stderr,"sao_mode:[%d,%d,%d],sao_type:[%d,%d,%d,%d,%d] lambda:%.2f, ", enc_engine->sao_debug_mode[0],enc_engine->sao_debug_mode[1],enc_engine->sao_debug_mode[2],enc_engine->sao_debug_type[0],enc_engine->sao_debug_type[1],enc_engine->sao_debug_type[2],enc_engine->sao_debug_type[3],enc_engine->sao_debug_type[4], enc_engine->sao_lambdas[0]);
+//			fprintf(stderr,"rc.target_pict_size: %.2f", enc_engine->rc.target_pict_size);
 //#ifndef COMPUTE_AS_HM
-			printf("qp: %d, ", enc_engine->pict_qp);			
+			fprintf(stderr,"qp: %d, ", enc_engine->pict_qp);			
 //#endif
-			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
+			fprintf(stderr,"pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
 			fflush(stdout);
 		}
 #endif

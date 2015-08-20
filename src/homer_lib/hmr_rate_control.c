@@ -241,7 +241,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	if(enc_engine->rc.vbv_fullness>enc_engine->rc.vbv_size)
 	{
 #ifdef DBG_TRACE
-		printf("HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
+		fprintf(stderr,"HomerHEVC - vbv_overflow: efective bitrate is lower than expected\r\n");
 #endif // DBG_TRACE
 
 		enc_engine->rc.vbv_fullness=enc_engine->rc.vbv_size;
@@ -250,7 +250,7 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	if(enc_engine->rc.vbv_fullness<0)
 	{
 #ifdef DBG_TRACE
-		printf("HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
+		fprintf(stderr,"HomerHEVC - vbv_underflow: efective bitrate is higher than expected\r\n");
 #endif
 		enc_engine->rc.vbv_fullness=0;
 	}

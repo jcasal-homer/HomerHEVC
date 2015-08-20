@@ -59,7 +59,7 @@ double profiler_get_result(profiler_t* p)
 
 void profiler_print_result(profiler_t* p)
 {
-	printf("Counter %s, time = %f ms\r\n", p->name, (double)p->count/p->pc_freq);	
+	fprintf(stderr,"Counter %s, time = %f ms\r\n", p->name, (double)p->count/p->pc_freq);	
 }
 
 #else
@@ -116,7 +116,7 @@ double profiler_get_result(profiler_t* p)
 
 void profiler_print_result(profiler_t* p)
 {
-	printf("Counter %s, time = %f ms\r\n", p->name, (double)p->count/p->pc_freq);
+	fprintf(stderr,"Counter %s, time = %f ms\r\n", p->name, (double)p->count/p->pc_freq);
 }
 
 #endif

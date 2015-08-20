@@ -87,45 +87,45 @@ char file_ref_name[256] = "";
 
 void print_help()
 {
-	printf("\r\nhomer_app [-option] [value]...\r\n");
+	fprintf(stderr,"\r\nhomer_app [-option] [value]...\r\n");
 
-	printf("options:\r\n");
-	printf("-h: \t\t\t\t\t help\r\n");
-	printf("-i: \t\t\t\t\t input yuv file\r\n");
-	printf("-o: \t\t\t\t\t output 265 file\r\n");
-	printf("-o-raw: \t\t\t\t output raw frames in yuv format\r\n");
-	printf("-widthxheight: \t\t\t\t Default = 1280x720\r\n");
-	printf("-frame_rate: \t\t\t\t Default = 25 fps\r\n");	
-	printf("-cu_size: \t\t\t\t cu size [16,32 or 64]. Default = 64 (only 64 supported for inter prediction)\r\n");
-	printf("-intra_period: \t\t\t\t [0-....], 0=infinite. Default = 100 \r\n");
-	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile. Default = 1\r\n");
-	printf("-num_ref_frame: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
-	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
-	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
-	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
-	printf("-n_enc_engines: \t\t\t number of frame based parallelism engines. default = 3\r\n");	
-	printf("-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads. default = 10\r\n");	
-	printf("-max_pred_depth: \t\t\t [0-4]. default = 4\r\n");
-	printf("-max_intra_tr_depth: \t\t\t [0-4]. default = 2\r\n");
-	printf("-max_inter_tr_depth: \t\t\t [0-4]. Default = 1\r\n");
-	printf("-sign_hiding: \t\t\t\t 0=off, 1=on. Default = 1\r\n");
-	printf("-sao: \t\t\t\t\t 0=off, 1=on. Default = 1\r\n");
-	printf("-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate). Default = VBR\r\n");
-	printf("-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1250\r\n");
-	printf("-vbv_size: \t\t\t\t in terms of the specified bitrate. Used in CBR and VBR. Default = 1.0\r\n");
-	printf("-vbv_init: \t\t\t\t in terms of the specified vbv_size. Default = 0.35\r\n");
-	printf("-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change. Default = 1\r\n");
-	printf("-performance_mode: \t\t\t 0=full, 1=fast, 2= ultra fast. Default = ufast\r\n");
-	printf("-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd. Default = fast\r\n");
-	printf("-n_frames: \t\t\t\t Default = 1000\r\n");
-	printf("-skipped_frames: \t\t\t Default = 0\r\n");
+	fprintf(stderr,"options:\r\n");
+	fprintf(stderr,"-h: \t\t\t\t\t help\r\n");
+	fprintf(stderr,"-i: \t\t\t\t\t input yuv file\r\n");
+	fprintf(stderr,"-o: \t\t\t\t\t output 265 file\r\n");
+	fprintf(stderr,"-o-raw: \t\t\t\t output raw frames in yuv format\r\n");
+	fprintf(stderr,"-widthxheight: \t\t\t\t Default = 1280x720\r\n");
+	fprintf(stderr,"-frame_rate: \t\t\t\t Default = 25 fps\r\n");	
+	fprintf(stderr,"-cu_size: \t\t\t\t cu size [16,32 or 64]. Default = 64 (only 64 supported for inter prediction)\r\n");
+	fprintf(stderr,"-intra_period: \t\t\t\t [0-....], 0=infinite. Default = 100 \r\n");
+	fprintf(stderr,"-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile. Default = 1\r\n");
+	fprintf(stderr,"-num_ref_frame: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
+	fprintf(stderr,"-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
+	fprintf(stderr,"-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
+	fprintf(stderr,"-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
+	fprintf(stderr,"-n_enc_engines: \t\t\t number of frame based parallelism engines. default = 3\r\n");	
+	fprintf(stderr,"-n_wpp_threads: \t\t\t 0:no wpp, >0-number of wpp threads. default = 10\r\n");	
+	fprintf(stderr,"-max_pred_depth: \t\t\t [0-4]. default = 4\r\n");
+	fprintf(stderr,"-max_intra_tr_depth: \t\t\t [0-4]. default = 2\r\n");
+	fprintf(stderr,"-max_inter_tr_depth: \t\t\t [0-4]. Default = 1\r\n");
+	fprintf(stderr,"-sign_hiding: \t\t\t\t 0=off, 1=on. Default = 1\r\n");
+	fprintf(stderr,"-sao: \t\t\t\t\t 0=off, 1=on. Default = 1\r\n");
+	fprintf(stderr,"-bitrate_mode: \t\t\t\t 0=FIXED_QP, 1=CBR (Constant bitrate), 2=VBR (Variable bitrate). Default = VBR\r\n");
+	fprintf(stderr,"-bitrate: \t\t\t\t in kbps when bitrate_mode=CBR or bitrate_mode=VBR. Default = 1250\r\n");
+	fprintf(stderr,"-vbv_size: \t\t\t\t in terms of the specified bitrate. Used in CBR and VBR. Default = 1.0\r\n");
+	fprintf(stderr,"-vbv_init: \t\t\t\t in terms of the specified vbv_size. Default = 0.35\r\n");
+	fprintf(stderr,"-scene_change: \t\t\t\t 0=do not reinit, 1=reinit gop on scene change. Default = 1\r\n");
+	fprintf(stderr,"-performance_mode: \t\t\t 0=full, 1=fast, 2= ultra fast. Default = ufast\r\n");
+	fprintf(stderr,"-rd: \t\t\t\t\t 0=off, 1=full rd (only in intra) , 2= fast rd. Default = fast\r\n");
+	fprintf(stderr,"-n_frames: \t\t\t\t Default = 1000\r\n");
+	fprintf(stderr,"-skipped_frames: \t\t\t Default = 0\r\n");
 
-	printf("\r\nexamples:\r\n\r\n");
-	printf("intra:\r\n");
-	printf("homer_app -i /homerhevc_test/demo.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 25 -intra_period 1 -gop_size 0 -max_pred_depth 4 -max_intra_tr_depth 3 -bitrate 25000 -vbv_size 1000 -vbv_init 1000 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
+	fprintf(stderr,"\r\nexamples:\r\n\r\n");
+	fprintf(stderr,"intra:\r\n");
+	fprintf(stderr,"homer_app -i /homerhevc_test/demo.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 25 -intra_period 1 -gop_size 0 -max_pred_depth 4 -max_intra_tr_depth 3 -bitrate 25000 -vbv_size 1000 -vbv_init 1000 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
 
-	printf("inter:\r\n");
-	printf("homer_app -i /homerhevc_test/demo.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 25 -intra_period 100 -gop_size 1 -max_pred_depth 4 -max_intra_tr_depth 3 -max_inter_tr_depth 1 -bitrate 1500 -vbv_size 2500 -vbv_init 750 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
+	fprintf(stderr,"inter:\r\n");
+	fprintf(stderr,"homer_app -i /homerhevc_test/demo.yuv -o output0.265 -widthxheight 1280x720 -frame_rate 25 -intra_period 100 -gop_size 1 -max_pred_depth 4 -max_intra_tr_depth 3 -max_inter_tr_depth 1 -bitrate 1500 -vbv_size 2500 -vbv_init 750 -n_wpp_threads 10 -performance_mode 1 -rd_mode 2 -n_frames 400\r\n\r\n");
 }
 
 
@@ -140,7 +140,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 
 	if(argc==1)
 	{
-		printf ("\r\nno args passed!\r\ntype -h for help\r\n");
+		fprintf(stderr,"\r\nno args passed!\r\ntype -h for help\r\n");
 		exit(0);
 	}
 
@@ -310,7 +310,7 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		}
 		else	//arg not recognized. Continue to next
 		{
-			printf("\r\nunrecognized argument: %s\r\n",argv[args_parsed]);
+			fprintf(stderr,"\r\nunrecognized argument: %s\r\n",argv[args_parsed]);
 			args_parsed++;
 		}
 	}

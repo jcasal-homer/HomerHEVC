@@ -67,7 +67,7 @@ void wnd_alloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y, i
 		wnd->window_size_y[comp] = padding_size_y+height+padding_size_y;
 
 		if((wnd->palloc[comp] = (void*)hmr_aligned_alloc((wnd->window_size_x[comp]*wnd->window_size_y[comp])*pix_size+16, sizeof(byte)))==NULL)
-			printf("wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
+			fprintf(stderr,"wnd_alloc - unable to allocate memory for wnd->pwnd[%d]\r\n", comp);
 
 		wnd->pwnd[comp]=(void*)((uint8_t*)wnd->palloc[comp]+((padding_size_y*wnd->window_size_x[comp]+aligned_padding_x)*wnd->pix_size));
 
@@ -104,7 +104,7 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 
 	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])
 	{
-		printf("error: wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
+		fprintf(stderr,"error: wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
 		return;
 	}
 

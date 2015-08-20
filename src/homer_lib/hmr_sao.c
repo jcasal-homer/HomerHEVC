@@ -336,7 +336,7 @@ void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t
 				break;
 			default:
 				{
-					printf("Not a supported SAO types\n");
+					fprintf(stderr,"Not a supported SAO types\n");
 //					assert(0);
 					exit(-1);
 				}
@@ -405,7 +405,7 @@ int sao_get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param
 			break;
 		default:
 			{
-				printf("not a supported merge type");
+				fprintf(stderr,"not a supported merge type");
 //				//assert(0);
 				exit(-1);
 			}
@@ -579,7 +579,7 @@ void sao_derive_offsets(henc_thread_t *wpp_thread, int component, int type_idc, 
 		break;
 	default:
 		{
-			printf("Not a supported type");
+			fprintf(stderr,"Not a supported type");
 			//assert(0);
 			exit(-1);
 		}
@@ -649,7 +649,7 @@ int64_t sao_get_distortion(int typeIdc, int typeAuxInfo, int* invQuantOffset, sa
       break;
     default:
       {
-        printf("Not a supported type");
+        fprintf(stderr,"Not a supported type");
 //        assert(0);
         exit(-1);
       }
@@ -946,7 +946,7 @@ void reconstruct_blk_sao_param(sao_blk_param_t *rec_param, sao_blk_param_t* merg
       break;
     default:
       {
-        printf("Not a supported mode");
+        fprintf(stderr,"Not a supported mode");
 //        assert(0);
         exit(-1);
       }
@@ -1199,7 +1199,7 @@ void offset_block(henc_thread_t *wpp_thread, int compIdx, int typeIdx, int* offs
 		break;
 	default:
 		{
-			printf("Not a supported SAO types\n");
+			fprintf(stderr,"Not a supported SAO types\n");
 //			assert(0);
 			exit(-1);
 		}
@@ -1356,7 +1356,7 @@ void sao_decide_blk_params(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 				break;
 			default:
 				{
-					printf("Not a supported SAO mode\n");
+					fprintf(stderr,"Not a supported SAO mode\n");
 					//assert(0);
 					exit(-1);
 				}
