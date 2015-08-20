@@ -37,7 +37,7 @@
 #include <sys\stat.h>
 
 #define homer_sopen_wb(handle, filename) _sopen_s(&handle, filename, _O_WRONLY | _O_BINARY | _O_CREAT | _O_TRUNC, _SH_DENYRD, _S_IWRITE)
-#define homer_sopen_rb(filename) _sopen_s(&handle, filename, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
+#define homer_sopen_rb(handle, filename) _sopen_s(&handle, filename, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD)
 #define homer_sclose _close
 #define homer_sseek _lseek
 #define homer_sset_mode	_setmode
@@ -423,7 +423,7 @@ int main (int argc, char **argv)
 	else
 	{
 		//if(!(infile = fopen(file_in_name, "rb")))
-		if(_sopen_s(&infile, file_in_name, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
+		if(homer_sopen_rb(infile, file_in_name))//, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
 		{
 			fprintf(stderr,"Error opening input file: %s\r\n", file_in_name);
 			return -1;
