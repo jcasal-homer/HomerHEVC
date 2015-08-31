@@ -38,19 +38,19 @@
 #endif
 
 
-#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
+//#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
 //#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU720p50Train.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-//#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"//DebugPattern_208x144.yuv"//
+#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"//DebugPattern_208x144.yuv"//
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	248//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	184//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -332,16 +332,17 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->width = HOR_SIZE;
 	cfg->height = VER_SIZE;
 	cfg->frame_rate = FPS;
-	cfg->intra_period = 1;//1;
-	cfg->num_enc_engines = 3;
-	cfg->wfpp_num_threads = 10;
+	cfg->num_ref_frames = 2;
+	cfg->intra_period = 100;//1;
+	cfg->num_enc_engines = 1;
+	cfg->wfpp_num_threads = 1;
 	cfg->reinit_gop_on_scene_change = 0;
 	cfg->sample_adaptive_offset = 0;
 	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	cfg->bitrate = 12500;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
-	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	cfg->performance_mode = PERF_FULL_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
 
 
@@ -382,7 +383,8 @@ int main (int argc, char **argv)
 
 
 	//get default config
-	get_default_config(&HmrCfg);//	get_debug_config(&HmrCfg);
+	get_default_config(&HmrCfg);//	
+	get_debug_config(&HmrCfg);
 
 	//get app arguments
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);

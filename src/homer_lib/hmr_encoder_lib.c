@@ -1536,9 +1536,15 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 					if(refpic->is_reference)
 					{
 						if(currslice->ref_pic_set->delta_poc_s0[j] < 0)
+						{
 							currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic;
+							currslice->ref_pic_list_cnt[REF_PIC_LIST_0]++;
+						}
 						else
+						{
 							currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic;
+							currslice->ref_pic_list_cnt[REF_PIC_LIST_1]++;
+						}
 					}
 				}
 			}
@@ -2672,6 +2678,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		if(enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]!=NULL)
 			cont_put(enc_engine->hvenc->cont_empty_reference_wnds,enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]);
 
+		//add the current decoded frame to the reference global list
 		enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index] = enc_engine->curr_reference_frame;
 		enc_engine->hvenc->reference_list_index = (enc_engine->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
 
@@ -2692,6 +2699,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		if(enc_engine->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || enc_engine->intra_period==1)
 		{
 			enc_engine->avg_dist = 0;
+			avg_qp = 0;
 			for(n = 0;n<enc_engine->wfpp_num_threads;n++)
 			{
 				henc_thread_t* henc_th = enc_engine->thread[n];

@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-//#define COMPUTE_AS_HM			1	//to debug against HM
+#define COMPUTE_AS_HM			1	//to debug against HM
 //#define DBG_TRACE				1
 #define DBG_TRACE_RESULTS		1
 //#define COMPUTE_METRICS			1
