@@ -32,8 +32,8 @@
 
 #define COMPUTE_SSE_FUNCS		1
 //#define COMPUTE_AS_HM			1	//to debug against HM
-//#define DBG_TRACE				1
-#define DBG_TRACE_RESULTS		1
+#define DBG_TRACE				1
+//#define DBG_TRACE_RESULTS		1
 //#define COMPUTE_METRICS			1
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -73,7 +73,7 @@
 
 #define     MAX_NUM_PARTITIONS		256							//(1<<MAX_CU_PARTITIONS_SHIFT)*(1<<MAX_CU_PARTITIONS_SHIFT) - 16 particiones por eje - se corresponde con el peor caso
 
-#define     MOTION_SEARCH_RANGE_X		(64)
+#define     MOTION_SEARCH_RANGE_X		(128)
 #define     MOTION_SEARCH_RANGE_Y		(64)
 
 #define QUANT_DEFAULT_DC	16
@@ -1272,6 +1272,8 @@ struct hvenc_engine_t
 	//intra predicition
 	ctu_info_t			*ctu_info;//[MAX_MB_GROUP_SIZE];
 	int					performance_mode;
+	int					performance_fast_skip_loop;//fast skip loops for faster performance
+	int					performance_min_depth;//starting depth for faster performance
 	int					rd_mode;
 	int					bitrate_mode;
 	double				bitrate;
