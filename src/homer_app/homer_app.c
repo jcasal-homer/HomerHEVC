@@ -324,26 +324,27 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
 	cfg->chroma_qp_offset = 2;
 	cfg->reinit_gop_on_scene_change = 1;
-	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	cfg->performance_mode = PERF_FASTER_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
+
 
 void get_debug_config(HVENC_Cfg *cfg)
 {
 	cfg->width = HOR_SIZE;
 	cfg->height = VER_SIZE;
 	cfg->frame_rate = FPS;
-	cfg->intra_period = 1;//1;
+//	cfg->num_ref_frames = 2;
+	cfg->intra_period = 100;//1;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;
-	cfg->sample_adaptive_offset = 0;
+	cfg->sample_adaptive_offset = 1;
 	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 12500;//in kbps
+	cfg->bitrate = 800;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
-	cfg->performance_mode = PERF_UFAST_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	cfg->performance_mode = PERF_FASTER_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
-
 
 int main (int argc, char **argv)
 {
@@ -382,7 +383,8 @@ int main (int argc, char **argv)
 
 
 	//get default config
-	get_default_config(&HmrCfg);//	get_debug_config(&HmrCfg);
+	get_default_config(&HmrCfg);//	
+	get_debug_config(&HmrCfg);
 
 	//get app arguments
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);

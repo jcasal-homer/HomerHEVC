@@ -631,6 +631,35 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				phvenc_engine->ctu_height[1] = phvenc_engine->ctu_height[2] = hvenc->ctu_height[1];
 
 				phvenc_engine->performance_mode = clip(cfg->performance_mode,0,NUM_PERF_MODES-1);
+
+				switch(phvenc_engine->performance_mode)
+				{ 
+					case PERF_FULL_COMPUTATION:
+					{
+						phvenc_engine->performance_fast_skip_loop = FALSE;
+						phvenc_engine->performance_min_depth = 0;
+					}
+					break;
+					case PERF_FAST_COMPUTATION:
+					{
+						phvenc_engine->performance_fast_skip_loop = TRUE;
+						phvenc_engine->performance_min_depth = 0;
+					}
+					break;
+					case PERF_FASTER_COMPUTATION:
+					{
+						phvenc_engine->performance_fast_skip_loop = TRUE;
+						phvenc_engine->performance_min_depth = 1;
+					}
+					break;
+					case PERF_FASTEST_COMPUTATION:
+					{
+						phvenc_engine->performance_fast_skip_loop = TRUE;
+						phvenc_engine->performance_min_depth = 2;
+					}
+					break;
+				}
+
 				phvenc_engine->rd_mode = clip(cfg->rd_mode,0,NUM_RD_MODES-1);
 				phvenc_engine->bitrate_mode = clip(cfg->bitrate_mode,0,NUM_BR_MODES-1);
 				phvenc_engine->bitrate = cfg->bitrate;
@@ -1536,9 +1565,15 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 					if(refpic->is_reference)
 					{
 						if(currslice->ref_pic_set->delta_poc_s0[j] < 0)
+						{
 							currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic;
+							currslice->ref_pic_list_cnt[REF_PIC_LIST_0]++;
+						}
 						else
+						{
 							currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic;
+							currslice->ref_pic_list_cnt[REF_PIC_LIST_1]++;
+						}
 					}
 				}
 			}
@@ -2597,6 +2632,7 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 #define INIT_SYNC_THREAD_CONTEXT(enc_engine, et)							\
 		et->rd = enc_engine->rd;											\
+		et->performance_mode = enc_engine->performance_mode;				\
 		et->acc_dist = 0;													\
 		et->cu_current = 0;													\
 		et->cu_current_x = 0;												\
@@ -2683,7 +2719,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			//reset remafore
 			SEM_RESET(enc_engine->thread[n]->synchro_wait[0])
 		}
-		SEM_POST(enc_engine->input_signal);
+		SEM_POST(enc_engine->input_signal);		
 
 		CREATE_THREADS((&enc_engine->hthreads[0]), wfpp_encoder_thread, enc_engine->thread, enc_engine->wfpp_num_threads)
 		JOIN_THREADS(enc_engine->hthreads, enc_engine->wfpp_num_threads-1)
@@ -2692,6 +2728,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		if(enc_engine->num_encoded_frames == 0 || currslice->slice_type != I_SLICE || enc_engine->intra_period==1)
 		{
 			enc_engine->avg_dist = 0;
+			avg_qp = 0.0;
 			for(n = 0;n<enc_engine->wfpp_num_threads;n++)
 			{
 				henc_thread_t* henc_th = enc_engine->thread[n];

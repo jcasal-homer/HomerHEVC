@@ -169,8 +169,9 @@ void hmr_rc_end_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 	{
 		if(1)//enc_engine->rc.vbv_fullness<.5*enc_engine->rc.vbv_size)
 		{
-			enc_engine->rc.acc_rate += consumed_bitrate/2;// - enc_engine->rc.average_pict_size;
-			consumed_bitrate /=2; //consumed_bitrate = enc_engine->rc.average_pict_size;
+			double aux = 3.*consumed_bitrate/5.;
+			enc_engine->rc.acc_rate += aux;// - enc_engine->rc.average_pict_size;
+			consumed_bitrate -=aux; //consumed_bitrate = enc_engine->rc.average_pict_size;
 		}
 		else
 		{
