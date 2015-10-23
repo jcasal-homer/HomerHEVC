@@ -1800,7 +1800,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	cu_partition_info_t *partition_tl = &ctu->partition_list[et->partition_depth_start[et->max_cu_depth]]+abs_index_tl;
 	cu_partition_info_t *partition_tr = &ctu->partition_list[et->partition_depth_start[et->max_cu_depth]]+abs_index_tr;
 //	int left_pixel_x = ctu->x[Y_COMP]+curr_cu_info->x_position+curr_cu_info->size;
-	int num_ref_idx;
+	int num_ref_idx, r, ref_cnt;
 	mv_candidate_list->num_mv_candidates = 0;
 
 	ctu_left = get_pu_left(ctu, partition_info_lb, &part_idx_l);//ctu->ctu_left;
@@ -1853,10 +1853,23 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 	num_ref_idx = currslice->num_ref_idx[ref_pic_list];
 
+	r = 0;
+	ref_cnt = 0;
 	while(mv_candidate_list->num_mv_candidates < currslice->max_num_merge_candidates)
 	{
 		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].hor_vector = 0;
 		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ver_vector = 0;
+//		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = r;
+
+		if (ref_cnt == num_ref_idx - 1)
+		{
+			r = 0;
+		}
+		else
+		{
+			r++;
+			ref_cnt++;
+		}
 	}
 }
 
@@ -2653,6 +2666,12 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 	int chr_qp_offset = et->enc_engine->chroma_qp_offset;
 	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 );
 	int motion_compensation_done = FALSE;
+
+	if(currslice->poc==2 && ctu->ctu_number==1)
+	{
+		int iiiii=0;
+	}
+
 	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 
 	curr_depth = curr_cu_info->depth;
@@ -3288,6 +3307,7 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 	int chr_qp_offset = et->enc_engine->chroma_qp_offset;
 	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 );
 	int motion_compensation_done = FALSE;
+
 	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 
 	curr_depth = curr_cu_info->depth;

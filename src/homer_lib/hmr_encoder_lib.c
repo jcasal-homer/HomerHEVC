@@ -545,7 +545,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->intra_period = cfg->intra_period;
 			hvenc->gop_size = hvenc->intra_period==1?1:max(cfg->gop_size,1);
 			hvenc->num_b = hvenc->intra_period==1?0:0;
-			hvenc->num_ref_frames = hvenc->gop_size>0?cfg->num_ref_frames:0;	
+			hvenc->num_ref_frames = hvenc->intra_period==1?0:cfg->num_ref_frames;	
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
 			hvenc->num_encoder_engines = cfg->num_enc_engines;
@@ -563,7 +563,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hmr_bitstream_free(&hvenc->pps_nalu.bs);
 			hmr_bitstream_alloc(&hvenc->pps_nalu.bs, 256);
 
-			hvenc->num_short_term_ref_pic_sets = hvenc->gop_size+1;
+			hvenc->num_short_term_ref_pic_sets = hvenc->gop_size+(hvenc->intra_period==1?1:hvenc->num_ref_frames);//gop size does not mean the same as HM. Here it means numB+1
 			if(hvenc->ref_pic_set_list)
 				memset(hvenc->ref_pic_set_list, 0, sizeof(ref_pic_set_t));
 			else
@@ -576,7 +576,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				else if(hvenc->num_b == 0)
 				{
 					int j;
-					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames;
+					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-i;
 					for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
 					{
 						hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
@@ -1161,8 +1161,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 				//reference picture lists
 				phvenc_engine->num_ref_lists = 2;
-				phvenc_engine->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc_engine->intra_period==1?4:1;//this will need to be a consistent decission taken depending on the configuration
-				phvenc_engine->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc_engine->intra_period==1?4:1;
+				phvenc_engine->num_refs_idx_active_list[REF_PIC_LIST_0] = phvenc_engine->intra_period==1?4:phvenc_engine->num_ref_frames;//this will need to be a consistent decission taken depending on the configuration
+				phvenc_engine->num_refs_idx_active_list[REF_PIC_LIST_1] = phvenc_engine->intra_period==1?4:phvenc_engine->num_ref_frames;
 
 				hmr_rc_init(phvenc_engine);
 			}// end for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
@@ -1538,7 +1538,20 @@ void reference_picture_border_padding_ctu(wnd_t *wnd, ctu_info_t* ctu)
 void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 {
 	currslice->ref_pic_set_index = 0;
-	
+
+	if(hvenc->intra_period>0)// && getDecodingRefreshType() > 0)
+	{
+		if(currslice->poc>0)
+		{
+			int poc_idx = currslice->poc%hvenc->intra_period;
+			if(poc_idx<hvenc->num_ref_frames)
+			{
+				currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
+			}
+		}
+	}
+
+
 	currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
 	currslice->ref_pic_set->num_pics = currslice->ref_pic_set->num_negative_pics+currslice->ref_pic_set->num_positive_pics;
 }
