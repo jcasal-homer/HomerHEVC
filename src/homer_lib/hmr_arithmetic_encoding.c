@@ -644,13 +644,49 @@ void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_
 	*/
 }
 
-__inline void encode_ref_frame_index(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
+
+//codeRefFrmIdx
+void code_ref_frm_idx(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
 {
-	/*	if (ctu->inter_mode[curr_partition_info->abs_index] & ( 1 << ref_list))
+	int ref_frame = ctu->mv_ref_idx[ref_list][curr_partition_info->abs_index];	//inter_mode[curr_partition_info->abs_index]
+	context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_ref_pic_model, 0, 0, 0);
+	ee->ee_encode_bin(ee, cm, ref_frame==0?0:1);
+		
+	if(ref_frame>0)
 	{
-	m_pcEntropyCoderIf->codeRefFrmIdx( pcCU, uiAbsPartIdx, eRefList );
+		uint ui;
+		uint ref_num = slice->num_ref_idx[ref_list] - 2;
+		cm++;
+		ref_frame--;
+
+		for(ui = 0; ui < ref_num; ++ui )
+		{
+			uint symbol = (ui == ref_frame)? 0 : 1;
+			if( ui == 0 )
+			{
+				ee->ee_encode_bin(ee, cm, symbol);//m_pcBinIf->encodeBin( uiSymbol, *pCtx );       
+			}
+			else
+			{
+				ee->ee_encode_bin_EP(ee, symbol);//m_pcBinIf->encodeBinEP( uiSymbol );
+			}
+			if(symbol == 0)
+			{
+				break;
+			}
+		}
 	}
-	*/
+	return;
+}
+
+
+void encode_ref_frame_index(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
+{
+	if (ctu->inter_mode[curr_partition_info->abs_index] & ( 1 << ref_list))
+	{
+		code_ref_frm_idx(ee, slice, ctu, curr_partition_info, ref_list);
+	}
+	
 }
 
 
@@ -763,7 +799,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 				{
 					if(slice->num_ref_idx[ref_list_idx]>1)
 					{
-//						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
+						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
 					encode_mv_diff(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
@@ -1992,6 +2028,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
+		if(et->enc_engine->num_encoded_frames==1)// && ctu->ctu_number==1 && curr_partition_info->abs_index==128)
+		{
+			int iiiiii=0;
+		}
+
 		if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 		{
 			if(curr_partition_info->depth != (et->max_cu_depth - et->mincu_mintr_shift_diff))

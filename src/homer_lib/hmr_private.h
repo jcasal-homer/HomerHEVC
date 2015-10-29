@@ -714,11 +714,19 @@ struct motion_vector_t
 #define MERGE_MVP_MAX_NUM_CANDS		5
 #define MV_MAX_NUM_CANDS_MEM	MERGE_MVP_MAX_NUM_CANDS//3
 
+
+typedef struct mv_candidate_t mv_candidate_t;
+struct mv_candidate_t
+{
+	motion_vector_t mv;
+	int32_t	ref_idx;
+};
+
 typedef struct mv_candiate_list_t mv_candiate_list_t;
 struct mv_candiate_list_t
 {
 	int	num_mv_candidates;
-	motion_vector_t	mv_candidates[MV_MAX_NUM_CANDS_MEM];
+	mv_candidate_t	mv_candidates[MV_MAX_NUM_CANDS_MEM];
 };
 
 typedef struct cu_partition_info_t cu_partition_info_t;
@@ -1004,6 +1012,7 @@ struct slice_t
 	uint32_t num_ref_idx[2];
 	uint32_t ref_pic_set_index;
 	ref_pic_set_t	*ref_pic_set;
+	uint32_t		ref_poc_list[2][MAX_NUM_REF];
 	video_frame_t	*ref_pic_list[2][MAX_NUM_REF];
 	int				ref_pic_list_cnt[2];
 };

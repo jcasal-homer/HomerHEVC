@@ -459,11 +459,11 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 //			WRITE_FLAG( overrideFlag ? 1 : 0,                               "num_ref_idx_active_override_flag");
 			if (override_flag) 
 			{
-				hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l0_default_active_minus1);
+				hmr_bitstream_write_bits_uvlc(bs, currslice->num_ref_idx[REF_PIC_LIST_0]-1);
 //				WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) - 1,      "num_ref_idx_l0_active_minus1" );
 				if (currslice->slice_type == B_SLICE)
 				{
-					hmr_bitstream_write_bits_uvlc(bs, pps->num_ref_idx_l1_default_active_minus1);
+					hmr_bitstream_write_bits_uvlc(bs, currslice->num_ref_idx[REF_PIC_LIST_1]-1);
 //					WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) - 1,    "num_ref_idx_l1_active_minus1" );
 				}
 				else
@@ -472,7 +472,7 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 				}
 			}			
 		}
-		else
+		else //is intra
 		{
 			currslice->num_ref_idx[REF_PIC_LIST_0] = 0;
 			currslice->num_ref_idx[REF_PIC_LIST_1] = 0;

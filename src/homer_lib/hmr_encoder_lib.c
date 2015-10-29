@@ -943,6 +943,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					phvenc_engine->ctu_info[i].mv_ref[REF_PIC_LIST_1] = phvenc_engine->ctu_info[i].mv_ref[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
 					phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0] = (int8_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(uint8_t));
 					phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1] = phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
+					//init mv_ref_idx
+					memset(phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0], -1, MAX_NUM_PARTITIONS*sizeof(phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_0][0]));
+					memset(phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1], -1, MAX_NUM_PARTITIONS*sizeof(phvenc_engine->ctu_info[i].mv_ref_idx[REF_PIC_LIST_1][0]));
 
 					phvenc_engine->ctu_info[i].mv_diff[REF_PIC_LIST_0] = (motion_vector_t*)calloc (2*MAX_NUM_PARTITIONS, sizeof(motion_vector_t));
 					phvenc_engine->ctu_info[i].mv_diff[REF_PIC_LIST_1] = phvenc_engine->ctu_info[i].mv_diff[REF_PIC_LIST_0]+MAX_NUM_PARTITIONS;
@@ -1299,8 +1302,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->pps.sign_data_hiding_flag = cfg->sign_hiding;
 			hvenc->pps.cabac_init_present_flag = 0;//1
 
-			hvenc->pps.num_ref_idx_l0_default_active_minus1 = 0;
-			hvenc->pps.num_ref_idx_l1_default_active_minus1 = 0;
+			hvenc->pps.num_ref_idx_l0_default_active_minus1 = hvenc->num_ref_frames-1;
+			hvenc->pps.num_ref_idx_l1_default_active_minus1 = hvenc->num_ref_frames-1;
 			
 #ifdef COMPUTE_AS_HM
 			hvenc->pps.pic_init_qp_minus26 = 0;
@@ -1580,11 +1583,13 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 						if(currslice->ref_pic_set->delta_poc_s0[j] < 0)
 						{
 							currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic;
+							currslice->ref_poc_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]] = refpic->temp_info.poc;
 							currslice->ref_pic_list_cnt[REF_PIC_LIST_0]++;
 						}
 						else
 						{
 							currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic;
+							currslice->ref_poc_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]] = refpic->temp_info.poc;
 							currslice->ref_pic_list_cnt[REF_PIC_LIST_1]++;
 						}
 					}
@@ -1604,9 +1609,6 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	currslice->slice_index = 0;
 	currslice->curr_cu_address = currslice->first_cu_address = 0;
 	currslice->last_cu_address = enc_engine->pict_total_ctu*enc_engine->num_partitions_in_cu;
-
-	currslice->num_ref_idx[REF_PIC_LIST_0] = enc_engine->num_refs_idx_active_list[REF_PIC_LIST_0];
-	currslice->num_ref_idx[REF_PIC_LIST_1] = enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
 	currslice->slice_temporal_mvp_enable_flag = enc_engine->hvenc->sps.temporal_mvp_enable_flag;
 	currslice->deblocking_filter_disabled_flag = 0;//enabled
 	currslice->sao_luma_flag = currslice->sps->sample_adaptive_offset_enabled_flag;
@@ -1675,6 +1677,10 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		}
 		break;
 	}
+
+
+	currslice->num_ref_idx[REF_PIC_LIST_0] = currslice->ref_pic_set->num_negative_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_0];
+	currslice->num_ref_idx[REF_PIC_LIST_1] = currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
 
 	//init sao slice flags
 	sao_decide_pic_params(enc_engine->slice_enabled, currslice->sao_luma_flag, currslice->sao_chroma_flag);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
@@ -2614,6 +2620,10 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 			}
 		}
 		
+		if(enc_engine->num_encoded_frames==2 && ctu->ctu_number==5)
+		{
+			int iiii=0;
+		}
 
 		ee_encode_ctu(et, et->ee, currslice, ctu, 0);
 		et->num_encoded_ctus++;
@@ -2640,6 +2650,7 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 	{
 		ee_end_slice(et->ee, currslice, ctu);
 	}
+	et->num_encoded_ctus = 0;
 }
 
 
