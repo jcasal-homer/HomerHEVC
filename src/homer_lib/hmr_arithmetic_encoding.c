@@ -646,9 +646,9 @@ void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_
 
 
 //codeRefFrmIdx
-void code_ref_frm_idx(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
+void code_ref_frm_idx(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, int abs_index, int ref_list)
 {
-	int ref_frame = ctu->mv_ref_idx[ref_list][curr_partition_info->abs_index];	//inter_mode[curr_partition_info->abs_index]
+	int ref_frame = ctu->mv_ref_idx[ref_list][abs_index];	//inter_mode[curr_partition_info->abs_index]
 	context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_ref_pic_model, 0, 0, 0);
 	ee->ee_encode_bin(ee, cm, ref_frame==0?0:1);
 		
@@ -680,11 +680,11 @@ void code_ref_frm_idx(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partiti
 }
 
 
-void encode_ref_frame_index(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list)
+void encode_ref_frame_index(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, int abs_index, int ref_list)
 {
-	if (ctu->inter_mode[curr_partition_info->abs_index] & ( 1 << ref_list))
+	if (ctu->inter_mode[abs_index] & ( 1 << ref_list))
 	{
-		code_ref_frm_idx(ee, slice, ctu, curr_partition_info, ref_list);
+		code_ref_frm_idx(ee, slice, ctu, abs_index, ref_list);
 	}
 	
 }
@@ -799,7 +799,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 				{
 					if(slice->num_ref_idx[ref_list_idx]>1)
 					{
-						encode_ref_frame_index(ee, slice, ctu, curr_partition_info, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
+						encode_ref_frame_index(ee, slice, ctu, sub_part_idx, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
 					encode_mv_diff(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
@@ -2028,10 +2028,11 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->enc_engine->num_encoded_frames==1)// && ctu->ctu_number==1 && curr_partition_info->abs_index==128)
+		if(et->enc_engine->num_encoded_frames==3 && ctu->ctu_number==2 && curr_partition_info->abs_index==224)// && curr_depth==2)
 		{
 			int iiiiii=0;
 		}
+
 
 		if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 		{

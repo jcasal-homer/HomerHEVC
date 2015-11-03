@@ -1783,9 +1783,9 @@ int equal_motion(ctu_info_t* ctu_a, int abs_idx_a, ctu_info_t* ctu_b, int abs_id
 }
 
 //getInterMergeCandidates
-void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, int ref_pic_list, PartSize part_size_type)//get candidates for motion search from the neigbour CUs
+void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, PartSize part_size_type)//get candidates for motion search from the neigbour CUs
 {
-	mv_candiate_list_t	*mv_candidate_list = &et->merge_mvp_candidates[ref_pic_list];
+	mv_candiate_list_t	*mv_candidate_list = &et->merge_mvp_candidates;
 	ctu_info_t	*ctu_left=NULL, *ctu_left_bottom=NULL, *ctu_top=NULL, *ctu_top_right=NULL, *ctu_top_left=NULL;
 	uint	part_idx_lb, part_idx_l, part_idx_tr, part_idx_t, part_idx_tl;
 //	int	added = FALSE;
@@ -1801,13 +1801,14 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	cu_partition_info_t *partition_tr = &ctu->partition_list[et->partition_depth_start[et->max_cu_depth]]+abs_index_tr;
 //	int left_pixel_x = ctu->x[Y_COMP]+curr_cu_info->x_position+curr_cu_info->size;
 	int num_ref_idx, r, ref_cnt;
+
 	mv_candidate_list->num_mv_candidates = 0;
 
 	ctu_left = get_pu_left(ctu, partition_info_lb, &part_idx_l);//ctu->ctu_left;
-	if(ctu_left!=NULL && ctu_left->mv_ref_idx[ref_pic_list][part_idx_l]>=0)
+	if(ctu_left!=NULL && ctu_left->mv_ref_idx[REF_PIC_LIST_0][part_idx_l]>=0)
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_left->mv_ref[ref_pic_list][part_idx_l];
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_left->mv_ref_idx[ref_pic_list][part_idx_l];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_left->mv_ref[REF_PIC_LIST_0][part_idx_l];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_left->mv_ref_idx[REF_PIC_LIST_0][part_idx_l];
 	}
 
 	if(mv_candidate_list->num_mv_candidates >= currslice->max_num_merge_candidates)
@@ -1815,10 +1816,10 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 
 	//int equal_motion(ctu_info_t* ctu_a, int abs_idx_a, ctu_info_t* ctu_b, int abs_idx_b)
 	ctu_top = get_pu_top(ctu, partition_tr, &part_idx_t, 0);
-	if(ctu_top!=NULL && ctu_top->mv_ref_idx[ref_pic_list][part_idx_t]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_top, part_idx_t)))
+	if(ctu_top!=NULL && ctu_top->mv_ref_idx[REF_PIC_LIST_0][part_idx_t]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_top, part_idx_t)))
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top->mv_ref[ref_pic_list][part_idx_t];
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top->mv_ref_idx[ref_pic_list][part_idx_t];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top->mv_ref[REF_PIC_LIST_0][part_idx_t];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top->mv_ref_idx[REF_PIC_LIST_0][part_idx_t];
 	}
 
 	if(mv_candidate_list->num_mv_candidates >= currslice->max_num_merge_candidates)
@@ -1827,10 +1828,10 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	partition_tr->top_right_neighbour = curr_cu_info->top_right_neighbour;
 	ctu_top_right = get_pu_top_right(ctu, partition_tr, &part_idx_tr);
 //	ctu_top_right = get_pu_top_right(ctu, curr_cu_info, &aux_part_idx);
-	if(ctu_top_right!=NULL && ctu_top_right->mv_ref_idx[ref_pic_list][part_idx_tr]>=0 && (ctu_top==NULL || !equal_motion(ctu_top, part_idx_t, ctu_top_right, part_idx_tr)))
+	if(ctu_top_right!=NULL && ctu_top_right->mv_ref_idx[REF_PIC_LIST_0][part_idx_tr]>=0 && (ctu_top==NULL || !equal_motion(ctu_top, part_idx_t, ctu_top_right, part_idx_tr)))
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top_right->mv_ref[ref_pic_list][part_idx_tr];
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top_right->mv_ref_idx[ref_pic_list][part_idx_tr];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top_right->mv_ref[REF_PIC_LIST_0][part_idx_tr];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top_right->mv_ref_idx[REF_PIC_LIST_0][part_idx_tr];
 	}
 
 	if(mv_candidate_list->num_mv_candidates >= currslice->max_num_merge_candidates)
@@ -1840,23 +1841,23 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	partition_info_lb->left_bottom_neighbour = curr_cu_info->left_bottom_neighbour;
 	ctu_left_bottom = get_pu_left_bottom(et, ctu, partition_info_lb, &part_idx_lb);
 
-	if(ctu_left_bottom!=NULL && ctu_left_bottom->mv_ref_idx[ref_pic_list][part_idx_lb]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_left_bottom, part_idx_lb)))
+	if(ctu_left_bottom!=NULL && ctu_left_bottom->mv_ref_idx[REF_PIC_LIST_0][part_idx_lb]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_left_bottom, part_idx_lb)))
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_left_bottom->mv_ref[ref_pic_list][part_idx_lb];
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_left_bottom->mv_ref_idx[ref_pic_list][part_idx_lb];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_left_bottom->mv_ref[REF_PIC_LIST_0][part_idx_lb];
+		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_left_bottom->mv_ref_idx[REF_PIC_LIST_0][part_idx_lb];
 	}
 
 	if(mv_candidate_list->num_mv_candidates < 4 && mv_candidate_list->num_mv_candidates < currslice->max_num_merge_candidates)
 	{
 		ctu_top_left = get_pu_top_left(ctu, partition_tl, &part_idx_tl);
-		if(ctu_top_left!=NULL && ctu_top_left->mv_ref_idx[ref_pic_list][part_idx_tl]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_top_left, part_idx_tl))  && (ctu_top==NULL || !equal_motion(ctu_top, part_idx_t, ctu_top_left, part_idx_tl)))
+		if(ctu_top_left!=NULL && ctu_top_left->mv_ref_idx[REF_PIC_LIST_0][part_idx_tl]>=0 && (ctu_left==NULL || !equal_motion(ctu_left, part_idx_l, ctu_top_left, part_idx_tl))  && (ctu_top==NULL || !equal_motion(ctu_top, part_idx_t, ctu_top_left, part_idx_tl)))
 		{
-			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top_left->mv_ref[ref_pic_list][part_idx_tl];
-			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top_left->mv_ref_idx[ref_pic_list][part_idx_tl];
+			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv = ctu_top_left->mv_ref[REF_PIC_LIST_0][part_idx_tl];
+			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].ref_idx = ctu_top_left->mv_ref_idx[REF_PIC_LIST_0][part_idx_tl];
 		}
 	}
 
-	num_ref_idx = currslice->num_ref_idx[ref_pic_list];
+	num_ref_idx = currslice->num_ref_idx[REF_PIC_LIST_0];
 		
 	r = 0;
 	ref_cnt = 0;
@@ -2139,6 +2140,7 @@ void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu,
 	for(i=0;i<num_partitions;i++)																															\
 	{																																						\
 		ctu->mv_ref[REF_PIC_LIST_0][abs_idx+i] = cu_info->inter_mv[REF_PIC_LIST_0];																			\
+		ctu->mv_ref[REF_PIC_LIST_1][abs_idx+i] = cu_info->inter_mv[REF_PIC_LIST_1];																			\
 	}																																						\
 }
 
@@ -2147,7 +2149,7 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 {
 	double distortion = 0.;
 	int i;
-	uint32_t sad;
+	uint32_t sad = 0, mv_total_cost = 0;
 	slice_t *currslice = &et->enc_engine->current_pict.slice;
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int orig_buff_stride, reference_buff_stride;
@@ -2162,14 +2164,11 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 	int curr_depth = depth;
 	cu_partition_info_t *parent_part_info;
 	cu_partition_info_t *curr_cu_info;
-	int curr_sum = 0;
-	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 //	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 //	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	motion_vector_t mv, subpix_mv;
-	int ref_idx = 0;
+	int ref_idx = 0, ref_list = 0;
 	int num_partitions, npart, part_incr = 1;
-	int mv_cost = 0;
 
 	curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
 
@@ -2189,6 +2188,9 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 	sad = 0;
 	for(npart=0;npart<num_partitions;npart+=part_incr)
 	{
+		uint32_t best_cost[2] = {MAX_COST, MAX_COST};
+		uint32_t mv_best_cost[2] = {0, 0};
+
 		curr_depth = curr_cu_info->depth;
 		curr_part_x = curr_cu_info->x_position;
 		curr_part_y = curr_cu_info->y_position;
@@ -2209,60 +2211,91 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 		orig_buff_u = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 		orig_buff_v = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 
-		reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]->img;//[0] up to now we only use one reference	
-		reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
-		reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
-		reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
-		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
-		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==8 && curr_cu_info->abs_index==60)// && curr_depth==2)
+		for (ref_list = 0; ref_list <= (int)REF_PIC_LIST_1; ref_list++ )
 		{
-			int iiiiii=0;
-		}
+			for ( ref_idx = 0; ref_idx < currslice->num_ref_idx[ref_list]; ref_idx++)
+			{
+				uint32_t cost, mv_cost;
+				reference_wnd = &currslice->ref_pic_list[ref_list][ref_idx]->img;//[0] up to now we only use one reference	
+				reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
+				reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
+				reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
+				reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
+				reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-//		get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs
-		get_amvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for advanced motion vector prediction from the neigbour CUs
+				get_amvp_candidates(et, currslice, ctu, curr_cu_info, ref_list, ref_idx, part_size_type);//get candidates for advanced motion vector prediction from the neigbour CUs
 
 #ifdef COMPUTE_AS_HM
-		sad += hmr_motion_estimation_HM(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
-		select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+				cost = hmr_motion_estimation_HM(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, 64, 64, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv);	
+				mv_cost = select_mv_candidate(et, curr_cu_info, ref_list, &mv);
 #else
-		et->mv_search_candidates.num_mv_candidates = 0;
-//		get_mv_search_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for motion search from the neigbour CUs
-		for(i=0;i<et->amvp_candidates[REF_PIC_LIST_0].num_mv_candidates;i++)
-		{
-			motion_vector_t mv = et->amvp_candidates[REF_PIC_LIST_0].mv_candidates[i];
-			if(mv.hor_vector!=0 && mv.ver_vector!=0)
-			{
-				et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++] = mv;	
-			}
-		}
-//		if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 || curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
-		if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 && curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
-		{
-			et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++] = curr_cu_info->parent->inter_mv[REF_PIC_LIST_0];	
-		}
+				et->mv_search_candidates.num_mv_candidates = 0;
+		//		get_mv_search_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for motion search from the neigbour CUs
+				for(i=0;i<et->amvp_candidates[REF_PIC_LIST_0].num_mv_candidates;i++)
+				{
+					motion_vector_t mv = et->amvp_candidates[REF_PIC_LIST_0].mv_candidates[i];
+					if(mv.hor_vector!=0 && mv.ver_vector!=0)
+					{
+						et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++] = mv;	
+					}
+				}
+		//		if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 || curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
+				if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 && curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
+				{
+					et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++] = curr_cu_info->parent->inter_mv[REF_PIC_LIST_0];	
+				}
 		
-		if((action & (MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK) && !(action & (MOTION_PEL_MASK))))
-		{
-			mv = curr_cu_info->inter_mv[REF_PIC_LIST_0];
-			subpix_mv = curr_cu_info->subpix_mv[REF_PIC_LIST_0];		
-		}
+				if((action & (MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK) && !(action & (MOTION_PEL_MASK))))
+				{
+					mv = curr_cu_info->inter_mv[REF_PIC_LIST_0];
+					subpix_mv = curr_cu_info->subpix_mv[REF_PIC_LIST_0];		
+				}
 
-		sad += hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, MOTION_SEARCH_RANGE_X, MOTION_SEARCH_RANGE_Y, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
-		mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, &mv);
-//		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
-		curr_cu_info->subpix_mv[REF_PIC_LIST_0] = subpix_mv;
+				sad += hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, MOTION_SEARCH_RANGE_X, MOTION_SEARCH_RANGE_Y, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
+				mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+		//		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+				curr_cu_info->subpix_mv[REF_PIC_LIST_0] = subpix_mv;
 #endif
-		//set mvs and ref_idx
-		curr_cu_info->inter_mv[REF_PIC_LIST_0] = mv;
-		curr_cu_info->inter_ref_index[REF_PIC_LIST_0] = ref_idx;
+
+				//-----------------Juan para deshabilitar la eleccion de la segunda referencia------------------------
+/*				if(ref_idx>0)
+				{
+					cost = best_cost[ref_list]-1;
+					mv_cost = mv_best_cost[ref_list]-1;
+				}
+*/				//-----------------Fin Juan para deshabilitar la eleccion de la segunda referencia------------------------
+
+				if(cost<best_cost[ref_list])
+				{
+					best_cost[ref_list] = cost;
+					mv_best_cost[ref_list] = mv_cost;
+					//set mvs and ref_idx
+					curr_cu_info->inter_mv[ref_list] = mv;
+					curr_cu_info->inter_ref_index[ref_list] = ref_idx;					
+				}	
+			}//for ( ref_idx = 0; ref_idx < currslice->num_ref_idx[ref_list]; ref_idx++)
+
+		}//for (ref_list = 0; ref_list <= (int)REF_PIC_LIST_1; ref_list++ )
+
+		if(best_cost[REF_PIC_LIST_0]<best_cost[REF_PIC_LIST_1])
+		{
+			sad+=best_cost[REF_PIC_LIST_0];
+			mv_total_cost += mv_best_cost[REF_PIC_LIST_0];
+			curr_cu_info->inter_ref_index[REF_PIC_LIST_1] = -1;					
+		}
+		else
+		{
+			sad+=best_cost[REF_PIC_LIST_1];
+			mv_total_cost += mv_best_cost[REF_PIC_LIST_1];
+			curr_cu_info->inter_ref_index[REF_PIC_LIST_0] = -1;							
+		}
 
 		if(part_size_type == SIZE_NxN)
 		{
 			SET_INTER_MV_BUFFS(et, ctu, curr_cu_info, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);
 			memset(&ctu->mv_ref_idx[REF_PIC_LIST_0][curr_cu_info->abs_index], curr_cu_info->inter_ref_index[REF_PIC_LIST_0], curr_cu_info->num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));	
+			memset(&ctu->mv_ref_idx[REF_PIC_LIST_1][curr_cu_info->abs_index], curr_cu_info->inter_ref_index[REF_PIC_LIST_1], curr_cu_info->num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));	
 			memset(&ctu->pred_mode[curr_cu_info->abs_index], INTER_MODE, curr_cu_info->num_part_in_cu*sizeof(ctu->pred_mode[0]));				
 		}
 
@@ -2270,7 +2303,7 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 //		memset(&ctu->mv_ref_idx[REF_PIC_LIST_0][curr_cu_info->abs_index], curr_cu_info->inter_ref_index[REF_PIC_LIST_0], curr_cu_info->num_part_in_cu*sizeof(ctu->mv_ref_idx[0][0]));
 		curr_cu_info++;
 	}
-	return sad + 1*mv_cost;//.5*mv_cost;
+	return sad + 1*mv_total_cost;//.5*mv_cost;
 }
 
 int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int part_position, PartSize part_size_type)
@@ -2293,8 +2326,6 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 	int curr_depth = depth;
 	cu_partition_info_t *parent_part_info;
 	cu_partition_info_t *curr_cu_info;
-	int curr_sum = 0;
-	int depth_state[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 //	int cbf_split[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 //	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	motion_vector_t mv;
@@ -2837,7 +2868,7 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 		int iiiii=0;
 	}
 
-	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
+	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 
 	curr_depth = curr_cu_info->depth;
 	curr_part_x = curr_cu_info->x_position;
@@ -2876,9 +2907,9 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 	for( uiMergeCand = 0; uiMergeCand < numValidMergeCand; ++uiMergeCand )
 	{
 		motion_compensation_done = FALSE;
-		mv = et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand];
+		mv = et->merge_mvp_candidates.mv_candidates[uiMergeCand];
 
-		reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_0][mv.ref_idx]->img;//[0] up to now we only use one reference	
+		reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_0][mv.ref_idx]->img;//[0] up to now we only use one reference, for more than one reference maybe this should be moved down
 		reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
 		reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
 		reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, CHR_COMP);
@@ -3051,6 +3082,8 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 		int stop_recursion = FALSE;
 		int is_skipped = FALSE;
 		PartSize part_size_type = (curr_depth<et->max_pred_partition_depth)?SIZE_2Nx2N:SIZE_NxN;
+		int ref_list;
+		int ref_idx;
 		curr_depth = curr_cu_info->depth;
 		num_part_in_cu = curr_cu_info->num_part_in_cu;
 		abs_index = curr_cu_info->abs_index;
@@ -3066,30 +3099,11 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 
 		curr_cu_info->qp = hmr_rc_get_cu_qp(et, ctu, curr_cu_info, currslice);
 
+		//  Uni-directional prediction
+
 		if(curr_cu_info->is_b_inside_frame && curr_cu_info->is_r_inside_frame)//if br (and tl) are inside the frame, process
 		{
 			int mv_cost = 0;
-
-/*			if(curr_cu_info->depth < perf_min_depth)
-			{
-				curr_cu_info->merge_flag = FALSE;
-				curr_cu_info->skipped = FALSE;
-				curr_cu_info->cost = (uint32_t)MAX_COST;
-				curr_cu_info->distortion = (uint32_t)MAX_COST;
-
-				depth_state[curr_depth]++;
-
-				if((curr_depth)<et->max_pred_partition_depth && curr_cu_info->is_tl_inside_frame && !stop_recursion)//depth_state[curr_depth]!=4 is for fast skip//if tl is not inside the frame don't process the next depths
-				{
-					curr_depth++;
-					parent_part_info = curr_cu_info;
-				}
-
-				if(parent_part_info!=NULL)
-					curr_cu_info = parent_part_info->children[depth_state[curr_depth]];
-				continue;
-			}
-*/
 
 			if(part_size_type == SIZE_2Nx2N)
 			{
@@ -3098,11 +3112,6 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				int merge_ref_idx;
 				int merge_sum;
 				uint motion_estimation_precision = (et->enc_engine->motion_estimation_precision*2-1);//compute all precisions below the configured
-
-				if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==5 && abs_index==64)// && curr_depth==2)
-				{
-					int iiiiii=0;
-				}
 
 				//encode inter
 				curr_cu_info->prediction_mode = INTER_MODE;
@@ -3161,7 +3170,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 						mv_cost = 0;
 						dist = MAX_COST;
 						curr_cu_info->sum = 0;
-						curr_cu_info->inter_mv[REF_PIC_LIST_0].hor_vector = curr_cu_info->inter_mv[REF_PIC_LIST_0].hor_vector = 0;
+						curr_cu_info->inter_mv[ref_pic_list].hor_vector = curr_cu_info->inter_mv[ref_pic_list].hor_vector = 0;
 					}
 #endif
 					cost = dist;
@@ -3288,6 +3297,12 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 					uint aux_dist = curr_cu_info->parent->distortion;
 					uint aux_sum = curr_cu_info->parent->sum;
 
+				if(et->enc_engine->num_encoded_frames==3 && ctu->ctu_number==2 && abs_index==224)// && curr_depth==2)
+				{
+					int iiiiii=0;
+				}
+
+
 //					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0);//.25*avg_distortion*4*curr_cu_info->num_part_in_cu);
 					sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 					mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_NxN);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
@@ -3365,6 +3380,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 		{
 			curr_cu_info->cost = MAX_COST;
 		}
+
 		cost_sum[curr_depth] += curr_cu_info->cost;
 
 		depth_state[curr_depth]++;
@@ -3483,7 +3499,7 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 );
 	int motion_compensation_done = FALSE;
 
-	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
+	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, part_size_type);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 
 	curr_depth = curr_cu_info->depth;
 	curr_part_x = curr_cu_info->x_position;
@@ -3528,10 +3544,10 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 
 	for( uiMergeCand = 0; uiMergeCand < numValidMergeCand; ++uiMergeCand )
 	{
-		mv = et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand].mv;
+		mv = et->merge_mvp_candidates.mv_candidates[uiMergeCand].mv;
 		motion_compensation_done = FALSE;
 		//prune duplicated candidates
-		if(uiMergeCand>0 && mv.hor_vector == et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand-1].mv.hor_vector && mv.ver_vector == et->merge_mvp_candidates[REF_PIC_LIST_0].mv_candidates[uiMergeCand-1].mv.ver_vector)
+		if(uiMergeCand>0 && mv.hor_vector == et->merge_mvp_candidates.mv_candidates[uiMergeCand-1].mv.hor_vector && mv.ver_vector == et->merge_mvp_candidates.mv_candidates[uiMergeCand-1].mv.ver_vector)
 			continue;
 
 		for(uiNoResidual = 0; uiNoResidual < 2; ++uiNoResidual )
@@ -3639,7 +3655,7 @@ void print_vector(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t *curr_
 			n = format_vector(str, ctu->ctu_number, curr_cu_info, "merge", curr_cu_info->inter_mv[REF_PIC_LIST_0].hor_vector, curr_cu_info->inter_mv[REF_PIC_LIST_0].ver_vector);
 			fwrite(str, sizeof(char), n, vector_file);
 			str[0] = 0;
-			n = format_candidates(str, et->merge_mvp_candidates[REF_PIC_LIST_0]);
+			n = format_candidates(str, et->merge_mvp_candidates);
 			fwrite(str, sizeof(char), n, vector_file);
 		}
 		else

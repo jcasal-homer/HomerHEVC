@@ -1167,7 +1167,7 @@ struct henc_thread_t
 
 	//inter
 	mv_candiate_list_t	amvp_candidates[2];
-	mv_candiate_list_t	merge_mvp_candidates[2];
+	mv_candiate_list_t	merge_mvp_candidates;
 	mv_candiate_list_t	mv_search_candidates;//non normative candidate list for motion_search
 
 	//rd
