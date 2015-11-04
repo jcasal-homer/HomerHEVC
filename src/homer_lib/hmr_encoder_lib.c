@@ -548,7 +548,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->num_ref_frames = hvenc->intra_period==1?0:cfg->num_ref_frames;	
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
-			hvenc->num_encoder_engines = cfg->num_enc_engines;
+			hvenc->num_encoder_engines = max(cfg->num_enc_engines,1,100);
 
 			//sao
 			sao_init(hvenc->bit_depth);

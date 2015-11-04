@@ -43,14 +43,14 @@
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-#define FILE_IN  "C:\\Patrones\\DebugPattern_208x144.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
+#define FILE_IN  "C:\\Patrones\\DebugPattern_248x184.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	208//1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	144//720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	248//1280//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	184//720//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -89,7 +89,7 @@ void print_help()
 	printf("-cu_size: \t\t\t\t cu size [16,32 or 64]. Default = 64 (only 64 supported for inter prediction)\r\n");
 	printf("-intra_period: \t\t\t\t [0-....], 0=infinite. Default = 100 \r\n");
 	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile. Default = 1\r\n");
-	printf("-num_ref_frame: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
+	printf("-num_ref_frames: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
 	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
 	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
@@ -333,9 +333,9 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->width = HOR_SIZE;
 	cfg->height = VER_SIZE;
 	cfg->frame_rate = FPS;
-	cfg->intra_period = 100;//1;
-	cfg->max_pred_partition_depth = 3;
-	cfg->max_intra_tr_depth = 1;
+	cfg->intra_period = 20;//1;
+	cfg->max_pred_partition_depth = 4;
+	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
 	cfg->num_ref_frames = 2;
 	cfg->num_enc_engines = 3;
@@ -343,10 +343,10 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->reinit_gop_on_scene_change = 0;
 	cfg->sample_adaptive_offset = 1;
 	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 800;//in kbps
+	cfg->bitrate = 100;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
-	cfg->performance_mode = PERF_FASTER_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	cfg->performance_mode = PERF_FULL_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
 
 int main (int argc, char **argv)
