@@ -2923,7 +2923,7 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 		reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 		reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-#ifdef COMPUTE_AS_HM
+#ifndef COMPUTE_AS_HM
 		data_size_x = WND_WIDTH_2D(*reference_wnd, Y_COMP);
 		data_size_y = WND_HEIGHT_2D(*reference_wnd, Y_COMP);
 		data_padding_x = reference_wnd->data_padding_x[Y_COMP];
@@ -3137,11 +3137,10 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				int merge_sum;
 				uint motion_estimation_precision = (et->enc_engine->motion_estimation_precision*2-1);//compute all precisions below the configured
 
-
-				if(et->enc_engine->num_encoded_frames==11 && ctu->ctu_number==2 && curr_cu_info->abs_index==80)// && curr_depth==2)
-				{
-					int iiiiii=0;
-				}
+//				if(et->enc_engine->num_encoded_frames==7 && ctu->ctu_number==7 && curr_cu_info->abs_index==240)// && curr_depth==2)
+//				{
+//					int iiiiii=0;
+//				}
 
 				//encode inter
 				curr_cu_info->prediction_mode = INTER_MODE;
