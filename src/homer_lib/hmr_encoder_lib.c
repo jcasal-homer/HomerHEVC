@@ -341,7 +341,9 @@ void HOMER_enc_close(void* h)
 
 			wnd_delete(&henc_th->residual_dec_wnd);
 			wnd_delete(&henc_th->residual_wnd);
-			wnd_delete(&henc_th->prediction_wnd);
+			wnd_delete(&henc_th->prediction_wnd[0]);
+			wnd_delete(&henc_th->prediction_wnd[1]);
+			wnd_delete(&henc_th->prediction_wnd[2]);
 
 			HMR_ALIGNED_FREE(henc_th->pred_aux_buff)
 
@@ -535,16 +537,15 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 			}
 
-//			if(cfg->intra_period < 1)
-//				cfg->intra_period = 100;
-
 			hvenc->max_sublayers = 1;//TLayers en HM
 			hvenc->max_layers = 1;
 
 			hvenc->profile = cfg->profile;
+
+			//---------- to be changed for gop type and reference definition --------------
 			hvenc->intra_period = cfg->intra_period;
-			hvenc->gop_size = hvenc->intra_period==1?1:max(cfg->gop_size,1);
-			hvenc->num_b = hvenc->intra_period==1?0:0;
+			hvenc->gop_size = hvenc->intra_period==1?1:min(cfg->gop_size,hvenc->intra_period);
+			hvenc->num_b = hvenc->intra_period==1?0:min(cfg->num_b,hvenc->gop_size);
 			hvenc->num_ref_frames = hvenc->intra_period==1?0:cfg->num_ref_frames;	
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
@@ -569,6 +570,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			else
 				hvenc->ref_pic_set_list = (ref_pic_set_t*)calloc (hvenc->num_short_term_ref_pic_sets, sizeof(ref_pic_set_t));
 
+			//TEncTop::xInitRPS
 			for(i=0;i<hvenc->num_short_term_ref_pic_sets-1;i++)
 			{
 				if(hvenc->intra_period==1)
@@ -587,11 +589,17 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 				else
 				{
-					hvenc->ref_pic_set_list[i].num_positive_pics = hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames;
-					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+					int j;
+					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-i;
+					for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
+					{
+						hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
+						hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+					}
+					hvenc->ref_pic_set_list[i].num_positive_pics = 0;
+					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
 				}
 			}
-
 
 			for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
 			{
@@ -1059,7 +1067,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//size of auxiliar buffer
 					henc_th->pred_aux_buff = (short*) hmr_aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
-					wnd_realloc(&henc_th->prediction_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+					wnd_realloc(&henc_th->prediction_wnd[0], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+					wnd_realloc(&henc_th->prediction_wnd[1], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+					wnd_realloc(&henc_th->prediction_wnd[2], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->residual_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->residual_dec_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
@@ -1542,7 +1552,13 @@ void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 {
 	currslice->ref_pic_set_index = 0;
 
-	if(hvenc->intra_period>0)// && getDecodingRefreshType() > 0)
+	if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
+	{
+		currslice->ref_pic_set_index = max(0,hvenc->num_short_term_ref_pic_sets-1);
+		currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
+		currslice->ref_pic_set_index = 0;
+	}
+	else if(hvenc->intra_period>0)// && getDecodingRefreshType() > 0)
 	{
 		if(currslice->poc>0)
 		{
@@ -1552,13 +1568,14 @@ void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 				currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
 			}
 		}
+		currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
+		
 	}
-
-
-	currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
 	currslice->ref_pic_set->num_pics = currslice->ref_pic_set->num_negative_pics+currslice->ref_pic_set->num_positive_pics;
 }
 
+
+//TComSlice::setRefPicList
 void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 {
 	int i, j;
@@ -1597,6 +1614,20 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 			}
 		}
 	}
+
+
+	for(i=0;i<currslice->ref_pic_list_cnt[REF_PIC_LIST_0];i++)
+	{
+		currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]+i] = currslice->ref_pic_list[REF_PIC_LIST_0][i];
+//		currslice->ref_pic_list_cnt[REF_PIC_LIST_1]++;
+	}
+
+	for(i=0;i<currslice->ref_pic_list_cnt[REF_PIC_LIST_1];i++)
+	{
+		currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]+i] = currslice->ref_pic_list[REF_PIC_LIST_1][i];
+//		currslice->ref_pic_list_cnt[REF_PIC_LIST_0]++;
+	}
+
 }
 
 void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *currslice)
@@ -1617,7 +1648,6 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	currslice->slice_beta_offset_div2 = currslice->pps->beta_offset_div2;
 	currslice->slice_beta_offset_div2 = currslice->pps->beta_offset_div2;
 	currslice->max_num_merge_candidates = enc_engine->num_merge_mvp_candidates;
-
 	enc_engine->last_intra = enc_engine->hvenc->last_intra;
 //	if((currslice->poc%enc_engine->intra_period)==0)
 	if(currslice->poc==0 || (enc_engine->intra_period!=0 && currslice->poc==(enc_engine->last_intra + enc_engine->intra_period) && img_type == IMAGE_AUTO) || (enc_engine->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
@@ -1641,7 +1671,7 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 */
 #endif
 	}
-	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || enc_engine->intra_period==0)
+	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || (enc_engine->intra_period==0 && enc_engine->num_b==0))
 	{
 		currslice->slice_type = P_SLICE;
 		currpict->img2encode->img_type = IMAGE_P;
@@ -1652,7 +1682,36 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 		currslice->depth = 0;	
 
 	}
-	
+	else if((enc_engine->num_b!=0 && img_type == IMAGE_AUTO) || img_type == IMAGE_B || enc_engine->intra_period==0)
+	{
+		currslice->slice_type = B_SLICE;//P_SLICE;
+		currpict->img2encode->img_type = IMAGE_B;//IMAGE_P;
+		currslice->slice_temporal_layer_non_reference_flag = 0;
+		currslice->is_dependent_slice = 0;
+		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
+		currslice->sublayer = 0;
+		currslice->depth = 0;	
+
+	}
+
+	currslice->mvd_l1_zero_flag = FALSE;
+    if (currslice->slice_type == B_SLICE)
+    {
+		if(currslice->num_ref_idx[REF_PIC_LIST_0] == currslice->num_ref_idx[REF_PIC_LIST_1])
+		{
+			int i;
+			currslice->mvd_l1_zero_flag = TRUE;		
+			for ( i=0; i < currslice->num_ref_idx[REF_PIC_LIST_1]; i++ )
+			{
+				if (currslice->ref_poc_list[REF_PIC_LIST_1][i] != currslice->ref_poc_list[REF_PIC_LIST_0][i])
+				{
+					currslice->mvd_l1_zero_flag = TRUE;
+					break;
+				}
+			}
+		}
+    }
+
 	currslice->qp = enc_engine->pict_qp;
 
 	hmr_select_reference_picture_set(enc_engine->hvenc, currslice);
@@ -1672,6 +1731,7 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	{
 		case I_SLICE:
 		case P_SLICE:
+		case B_SLICE:
 		{
 			currslice->referenced = 1;
 		}
@@ -1679,8 +1739,8 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	}
 
 
-	currslice->num_ref_idx[REF_PIC_LIST_0] = currslice->ref_pic_set->num_negative_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_0];
-	currslice->num_ref_idx[REF_PIC_LIST_1] = currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
+	currslice->num_ref_idx[REF_PIC_LIST_0] = min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);// currslice->ref_pic_set->num_negative_pics;//;
+	currslice->num_ref_idx[REF_PIC_LIST_1] = (currslice->slice_type==P_SLICE)?0:min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);//currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
 
 	//init sao slice flags
 	sao_decide_pic_params(enc_engine->slice_enabled, currslice->sao_luma_flag, currslice->sao_chroma_flag);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
@@ -1848,7 +1908,7 @@ void wfpp_encode_select_bitstream(henc_thread_t* et, ctu_info_t *ctu)
 		hmr_bitstream_init(et->ee->bs);
 
 		//resetEntropy
-		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp, et->pps->cabac_init_flag);//Init CABAC contexts
+		ee_start_entropy_model(et->ee, currslice);//Init CABAC contexts
 		//cabac - reset binary encoder and entropy
 		et->ee->ee_start(et->ee->b_ctx);
 		et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);
@@ -2403,7 +2463,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		hmr_bitstream_init(et->ee->bs);
 
 		//resetEntropy
-		ee_start_entropy_model(et->ee, currslice->slice_type, currslice->qp, et->pps->cabac_init_flag);//Init CABAC contexts
+		ee_start_entropy_model(et->ee, currslice);//Init CABAC contexts
 		//cabac - reset binary encoder and entropy
 		et->ee->ee_start(et->ee->b_ctx);
 		et->ee->ee_reset_bits(et->ee->b_ctx);//ee_reset(&enc_engine->ee);

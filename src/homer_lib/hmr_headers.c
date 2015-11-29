@@ -346,7 +346,7 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 	int max_add_outer = enc_engine->pict_total_ctu;
 	int bits_outer = 0;
 	int max_addr_inner, req_bits_inner = 0;
-	int slice_address;
+	int slice_segment_address;
 	int inner_address;
 	int address;
 
@@ -363,10 +363,10 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 		req_bits_inner++;
 	}
     //slice address
-	slice_address = currslice->first_cu_address/enc_engine->num_partitions_in_cu;
+	slice_segment_address = currslice->first_cu_address/enc_engine->num_partitions_in_cu;
 	inner_address = 0;
 
-	address = (slice_address<<req_bits_inner) + inner_address;
+	address = (slice_segment_address<<req_bits_inner) + inner_address;
 
 	hmr_bitstream_write_bits(bs, address==0, 1);//first_slice_in_pic_flag
 
@@ -380,7 +380,7 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 		hmr_bitstream_write_bits(bs, currslice->is_dependent_slice, 1);//dependent_slice_flag
 
 	if(address>0)//if(!first_slice_in_pic_flag)
-		hmr_bitstream_write_bits(bs, address, bits_outer+req_bits_inner);//slice_address
+		hmr_bitstream_write_bits(bs, address, bits_outer+req_bits_inner);//slice_segment_address
 
 	if(!currslice->is_dependent_slice)//if(!dependent_slice_flag )
 	{
@@ -454,16 +454,17 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 		if(!isIntra(currslice->slice_type))
 		{
-			int override_flag = (currslice->num_ref_idx[REF_PIC_LIST_0]!=(pps->num_ref_idx_l0_default_active_minus1+1));// ||(pcSlice->isInterB()&&pcSlice->getNumRefIdx( REF_PIC_LIST_1 )!=pcSlice->getPPS()->getNumRefIdxL1DefaultActive()));
+			int override_flag = ((currslice->num_ref_idx[REF_PIC_LIST_0]!=(pps->num_ref_idx_l0_default_active_minus1+1)) || 
+				(currslice->slice_type == B_SLICE && currslice->ref_pic_set->num_pics!=pps->num_ref_idx_l1_default_active_minus1+1));
 			hmr_bitstream_write_bits(bs, override_flag, 1);//num_ref_idx_active_override_flag
 //			WRITE_FLAG( overrideFlag ? 1 : 0,                               "num_ref_idx_active_override_flag");
 			if (override_flag) 
 			{
-				hmr_bitstream_write_bits_uvlc(bs, currslice->num_ref_idx[REF_PIC_LIST_0]-1);
+				hmr_bitstream_write_bits_uvlc(bs, currslice->ref_pic_set->num_pics-1);//currslice->num_ref_idx[REF_PIC_LIST_0]-1);
 //				WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) - 1,      "num_ref_idx_l0_active_minus1" );
 				if (currslice->slice_type == B_SLICE)
 				{
-					hmr_bitstream_write_bits_uvlc(bs, currslice->num_ref_idx[REF_PIC_LIST_1]-1);
+					hmr_bitstream_write_bits_uvlc(bs, currslice->ref_pic_set->num_pics-1);//currslice->num_ref_idx[REF_PIC_LIST_1]-1);
 //					WRITE_UVLC( pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) - 1,    "num_ref_idx_l1_active_minus1" );
 				}
 				else
@@ -483,6 +484,7 @@ void hmr_put_slice_header(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 		if(currslice->slice_type == B_SLICE) 
 		{
+			hmr_bitstream_write_bits(bs, currslice->mvd_l1_zero_flag, 1);
 //			mvd_l1_zero_flag	
 		}
 

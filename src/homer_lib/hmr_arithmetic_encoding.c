@@ -150,15 +150,27 @@ void start_context(context_model_buff_t *cm, int init_type, int qp)
 
 
 //TEncSbac::resetEntropy
-void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag)
+void ee_start_entropy_model(enc_env_t *ee, slice_t *currslice)
 {
 	entropy_model_t		*entropy_models = ee->e_ctx;
-	int init_type;
+	int table_idx = I_SLICE;
+	int slice_type = currslice->slice_type;
+	int init_type = slice_type;
 
-	if(slice_type == I_SLICE)//this is done as in HM where data is reorganized to match slice type definitions, not as in draft 
-		init_type = I_SLICE;//init_type = 0			
-	else if(slice_type == P_SLICE)
-		init_type = cabac_init_flag ? B_SLICE:P_SLICE;//init_type = cabac_init_flag ? 2 : 1;
+	int qp = currslice->qp;
+	int cabac_init_flag = currslice->pps->cabac_init_flag;
+
+	int cabac_table_idx = slice_type;
+
+	if (currslice->slice_type != I_SLICE && (table_idx==B_SLICE || table_idx==P_SLICE) && cabac_init_flag)
+	{
+		init_type = table_idx;
+	}
+
+//	if(slice_type == I_SLICE)//this is done as in HM where data is reorganized to match slice type definitions, not as in draft 
+//		init_type = I_SLICE;//init_type = 0			
+//	else if(slice_type == P_SLICE)
+//		init_type = cabac_init_flag ? B_SLICE:P_SLICE;//init_type = cabac_init_flag ? 2 : 1;
 	/*	else
 	init_type = cabac_init_flag ? P_SLICE:B_SLICE;//init_type = cabac_init_flag ? 1 : 2;
 	*/
@@ -629,19 +641,18 @@ void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* cur
 
 void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
-	/*  
-	const UInt uiInterDir = pcCU->getInterDir( uiAbsPartIdx ) - 1;
-	const UInt uiCtx      = pcCU->getCtxInterDir( uiAbsPartIdx );
-	ContextModel *pCtx    = m_cCUInterDirSCModel.get( 0 );
-	if (pcCU->getPartitionSize(uiAbsPartIdx) == SIZE_2Nx2N || pcCU->getHeight(uiAbsPartIdx) != 8 )
+	int abs_index = curr_partition_info->abs_index;
+	uint inter_dir = ctu->inter_mode[abs_index] - 1;
+	uint ctx      = ctu->pred_depth[abs_index];//pcCU->getCtxInterDir( uiAbsPartIdx );
+	context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_inter_dir_model, 0, 0, 0); 
+	if (ctu->part_size_type[abs_index] == SIZE_2Nx2N || curr_partition_info->size != 8 )
 	{
-	m_pcBinIf->encodeBin( uiInterDir == 2 ? 1 : 0, *( pCtx + uiCtx ) );
+		ee->ee_encode_bin(ee, cm+ctx, inter_dir == 2 ? 1 : 0);	
 	}
-	if (uiInterDir < 2)
+	if (inter_dir < 2)
 	{
-	m_pcBinIf->encodeBin( uiInterDir, *( pCtx + 4 ) );
+		ee->ee_encode_bin(ee, cm+4, inter_dir);	
 	}
-	*/
 }
 
 
@@ -791,7 +802,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 			uint ref_list_idx;
 			if(slice->slice_type == B_SLICE)
 			{
-				//				encode_inter_dir(ee, ctu, curr_partition_info);
+				encode_inter_dir(ee, ctu, curr_partition_info);
 			}
 			for ( ref_list_idx = REF_PIC_LIST_0; ref_list_idx <= REF_PIC_LIST_1; ref_list_idx++ )
 			{
@@ -2028,11 +2039,10 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->enc_engine->num_encoded_frames==3 && ctu->ctu_number==2 && curr_partition_info->abs_index==224)// && curr_depth==2)
+		if(et->enc_engine->num_encoded_frames==13 && ctu->ctu_number==3 && curr_partition_info->abs_index>=192)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
 		{
 			int iiiiii=0;
 		}
-
 
 		if(curr_partition_info->is_r_inside_frame && curr_partition_info->is_b_inside_frame)
 		{

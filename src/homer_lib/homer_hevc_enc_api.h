@@ -145,7 +145,8 @@ struct HVENC_Cfg{
 	int32_t  max_intra_tr_depth;
 	int32_t  max_inter_tr_depth;
 	int32_t  intra_period;
-	int32_t  gop_size; 
+	int32_t  gop_size;
+	int32_t  num_b;
 	int32_t  num_ref_frames;
 	int32_t  motion_estimation_precision;
 	int32_t  qp;//for fixed qp mode, or initial qp if cbr or vbr

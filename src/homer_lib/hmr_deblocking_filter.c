@@ -137,7 +137,7 @@ void set_edge_filter(hvenc_engine_t* enc_engine, cu_partition_info_t*	curr_cu_in
 //xGetBoundaryStrengthSingle
 void get_boundary_strength_single(henc_thread_t* et, slice_t *currslice, ctu_info_t *ctu, cu_partition_info_t *curr_cu_info, cu_partition_info_t *sub_cu_info, int dir)
 {
-	int bs;
+	int bs = 0;
 	ctu_info_t	*ctu_aux;
 	uint		abs_idx, aux_abs_idx = 0;
 
@@ -178,63 +178,64 @@ void get_boundary_strength_single(henc_thread_t* et, slice_t *currslice, ctu_inf
 			}
 			if (currslice->slice_type == B_SLICE)//(pcSlice->isInterB() || pcCUP->getSlice()->isInterB())
 			{
-/*				Int iRefIdx;
-				TComPic *piRefP0, *piRefP1, *piRefQ0, *piRefQ1;
-				iRefIdx = pcCUP->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiPartP);
-				piRefP0 = (iRefIdx < 0) ? NULL : pcCUP->getSlice()->getRefPic(REF_PIC_LIST_0, iRefIdx);
-				iRefIdx = pcCUP->getCUMvField(REF_PIC_LIST_1)->getRefIdx(uiPartP);
-				piRefP1 = (iRefIdx < 0) ? NULL : pcCUP->getSlice()->getRefPic(REF_PIC_LIST_1, iRefIdx);
-				iRefIdx = pcCUQ->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiPartQ);
-				piRefQ0 = (iRefIdx < 0) ? NULL : pcSlice->getRefPic(REF_PIC_LIST_0, iRefIdx);
-				iRefIdx = pcCUQ->getCUMvField(REF_PIC_LIST_1)->getRefIdx(uiPartQ);
-				piRefQ1 = (iRefIdx < 0) ? NULL : pcSlice->getRefPic(REF_PIC_LIST_1, iRefIdx);
+				int ref_idx = ctu_aux->mv_ref_idx[REF_PIC_LIST_0][aux_abs_idx];
+				video_frame_t *ref_frame0, *ref_frame1, *ref_frame_curr0, *ref_frame_curr1;
+				motion_vector_t mv0, mv1, mv_curr0, mv_curr1;
+				ref_frame0 = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
+				ref_idx = ctu_aux->mv_ref_idx[REF_PIC_LIST_1][aux_abs_idx];
+				ref_frame1 = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_1][ref_idx]);
+				ref_idx = ctu->mv_ref_idx[REF_PIC_LIST_0][sub_cu_info->abs_index];
+				ref_frame_curr0  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_0][ref_idx]);
+				ref_idx = ctu->mv_ref_idx[REF_PIC_LIST_1][sub_cu_info->abs_index];
+				ref_frame_curr1  = (ref_idx<0)?NULL:(currslice->ref_pic_list[REF_PIC_LIST_1][ref_idx]);
 
-				TComMv pcMvP0 = pcCUP->getCUMvField(REF_PIC_LIST_0)->getMv(uiPartP);
-				TComMv pcMvP1 = pcCUP->getCUMvField(REF_PIC_LIST_1)->getMv(uiPartP);
-				TComMv pcMvQ0 = pcCUQ->getCUMvField(REF_PIC_LIST_0)->getMv(uiPartQ);
-				TComMv pcMvQ1 = pcCUQ->getCUMvField(REF_PIC_LIST_1)->getMv(uiPartQ);
+				mv0 = ctu_aux->mv_ref[REF_PIC_LIST_0][aux_abs_idx];
+				mv1 = ctu_aux->mv_ref[REF_PIC_LIST_1][aux_abs_idx];
+				mv_curr0 = ctu->mv_ref[REF_PIC_LIST_0][sub_cu_info->abs_index];
+				mv_curr1 = ctu->mv_ref[REF_PIC_LIST_1][sub_cu_info->abs_index];
 
-				if (piRefP0 == NULL) pcMvP0.setZero();
-				if (piRefP1 == NULL) pcMvP1.setZero();
-				if (piRefQ0 == NULL) pcMvQ0.setZero();
-				if (piRefQ1 == NULL) pcMvQ1.setZero();
+				if (ref_frame0 == NULL) {mv0.hor_vector = mv0.ver_vector = 0;}
+				if (ref_frame_curr0 == NULL) {mv_curr0.hor_vector = mv_curr0.ver_vector = 0;}
+				if (ref_frame1 == NULL) {mv1.hor_vector = mv1.ver_vector = 0;}
+				if (ref_frame_curr1 == NULL) {mv_curr1.hor_vector = mv_curr1.ver_vector = 0;}
 
-				if ( ((piRefP0==piRefQ0)&&(piRefP1==piRefQ1)) || ((piRefP0==piRefQ1)&&(piRefP1==piRefQ0)) )
+
+				if ( ((ref_frame0==ref_frame_curr0)&&(ref_frame1==ref_frame_curr1)) || ((ref_frame0==ref_frame_curr1)&&(ref_frame1==ref_frame_curr0)) )
 				{
-					if ( piRefP0 != piRefP1 )   // Different L0 & L1
+					if ( ref_frame0 != ref_frame1 )   // Different L0 & L1
 					{
-						if ( piRefP0 == piRefQ0 )
+						if ( ref_frame0 == ref_frame_curr0 )
 						{
-							uiBs  = ((abs(pcMvQ0.getHor() - pcMvP0.getHor()) >= 4) ||
-								(abs(pcMvQ0.getVer() - pcMvP0.getVer()) >= 4) ||
-								(abs(pcMvQ1.getHor() - pcMvP1.getHor()) >= 4) ||
-								(abs(pcMvQ1.getVer() - pcMvP1.getVer()) >= 4)) ? 1 : 0;
+							bs = ((abs(mv_curr0.hor_vector - mv0.hor_vector) >= 4) ||
+								(abs(mv_curr0.ver_vector - mv0.ver_vector) >= 4) ||
+								(abs(mv_curr1.hor_vector - mv1.hor_vector) >= 4) ||
+								(abs(mv_curr1.ver_vector - mv1.ver_vector) >= 4)) ? 1 : 0;
 						}
 						else
 						{
-							uiBs  = ((abs(pcMvQ1.getHor() - pcMvP0.getHor()) >= 4) ||
-								(abs(pcMvQ1.getVer() - pcMvP0.getVer()) >= 4) ||
-								(abs(pcMvQ0.getHor() - pcMvP1.getHor()) >= 4) ||
-								(abs(pcMvQ0.getVer() - pcMvP1.getVer()) >= 4)) ? 1 : 0;
+							bs = ((abs(mv_curr1.hor_vector - mv0.hor_vector) >= 4) ||
+								(abs(mv_curr1.ver_vector - mv0.ver_vector) >= 4) ||
+								(abs(mv_curr0.hor_vector - mv1.hor_vector) >= 4) ||
+								(abs(mv_curr0.ver_vector - mv1.ver_vector) >= 4)) ? 1 : 0;
 						}
 					}
 					else    // Same L0 & L1
 					{
-						uiBs  = ((abs(pcMvQ0.getHor() - pcMvP0.getHor()) >= 4) ||
-							(abs(pcMvQ0.getVer() - pcMvP0.getVer()) >= 4) ||
-							(abs(pcMvQ1.getHor() - pcMvP1.getHor()) >= 4) ||
-							(abs(pcMvQ1.getVer() - pcMvP1.getVer()) >= 4)) &&
-							((abs(pcMvQ1.getHor() - pcMvP0.getHor()) >= 4) ||
-							(abs(pcMvQ1.getVer() - pcMvP0.getVer()) >= 4) ||
-							(abs(pcMvQ0.getHor() - pcMvP1.getHor()) >= 4) ||
-							(abs(pcMvQ0.getVer() - pcMvP1.getVer()) >= 4)) ? 1 : 0;
+						bs = ((abs(mv_curr0.hor_vector - mv0.hor_vector) >= 4) ||
+							(abs(mv_curr0.ver_vector - mv0.ver_vector) >= 4) ||
+							(abs(mv_curr1.hor_vector - mv1.hor_vector) >= 4) ||
+							(abs(mv_curr1.ver_vector - mv1.ver_vector) >= 4)) &&
+							((abs(mv_curr1.hor_vector - mv0.hor_vector) >= 4) ||
+							(abs(mv_curr1.ver_vector - mv0.ver_vector) >= 4) ||
+							(abs(mv_curr0.hor_vector - mv1.hor_vector) >= 4) ||
+							(abs(mv_curr0.ver_vector - mv1.ver_vector) >= 4)) ? 1 : 0;
 					}
 				}
 				else // for all different Ref_Idx
 				{
-					uiBs = 1;
+					bs = 1;
 				}
-*/			}
+			}
 			else  // pcSlice->isInterP()
 			{
 				int ref_idx = ctu_aux->mv_ref_idx[REF_PIC_LIST_0][aux_abs_idx];
@@ -643,6 +644,11 @@ void deblock_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_parti
 
 	sub_cu_info = &ctu->partition_list[et->partition_depth_start[et->max_cu_depth]];//4x4 blocks
 	sub_cu_info += curr_cu_info->abs_index/sub_cu_info->num_part_in_cu;
+
+		if(et->enc_engine->num_encoded_frames == 1 && ctu->ctu_number == 2 && abs_index >=128)
+		{
+			int iiiii=0;				
+		}
 	for( part_idx = abs_index; part_idx < (abs_index + curr_cu_info->num_part_in_cu); part_idx++,sub_cu_info++)
 	{
 		uint bs_check;
@@ -656,6 +662,12 @@ void deblock_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_parti
 			bs_check = 1;
 		}
 
+		if(et->enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 1 && abs_index >=192  && dir==EDGE_HOR) //&& part_idx==4)
+		{
+			int iiiii=0;				
+		}
+
+
 		if (et->deblock_edge_filter[dir][part_idx] && bs_check)
 		{
 			get_boundary_strength_single(et, currslice, ctu, curr_cu_info, sub_cu_info, dir);//xGetBoundaryStrengthSingle (enc_engine, ctu, curr_cu_info, sub_cu_info, currslice, dir);
@@ -665,6 +677,7 @@ void deblock_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_parti
 
 	for(part_idx = 0; part_idx < pu_size_in_deblock_units; part_idx+=deblock_partition_idx_incr)
 	{
+
 		deblock_filter_luma(et, ctu, curr_cu_info, &et->enc_engine->curr_reference_frame->img, currslice, dir, part_idx);
 		if ( (num_pels_in_partition>DEBLOCK_SMALLEST_BLOCK) || (part_idx % ( (DEBLOCK_SMALLEST_BLOCK<<1)/num_pels_in_partition ) ) == 0 )
 		{
@@ -750,6 +763,7 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 		int total_depth = pred_depth + tr_depth;
 		curr_cu_size = curr_cu_info->size;
 
+
 		depth_state[curr_depth]++;
 		if(curr_depth < total_depth && curr_cu_info->is_tl_inside_frame && curr_cu_size>DEBLOCK_SMALLEST_BLOCK)//go down one level
 		{
@@ -763,6 +777,12 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 			{
 				abs_index = curr_cu_info->abs_index;
 				num_elements_width = num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
+
+				if(et->enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 1 && abs_index >=192 && dir==EDGE_HOR) //&& part_idx==4)
+				{
+					int iiiii=0;				
+				}
+
 				//num_elements_width = num_elements_height = (et->max_cu_size>>total_depth)>>2;//num_elements_height = (max(curr_cu_size, curr_cu_size)>>2);//(width, height)
 				set_edge_filter_0(et, curr_cu_info, et->deblock_edge_filter[EDGE_VER] , et->deblock_filter_strength_bs[EDGE_VER] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_VER, deblock_internal_edge, num_elements_width, max_cu_width_units);
 				set_edge_filter_0(et, curr_cu_info, et->deblock_edge_filter[EDGE_HOR] , et->deblock_filter_strength_bs[EDGE_HOR] , curr_depth, abs_index, curr_cu_size, curr_cu_size, EDGE_HOR, deblock_internal_edge, num_elements_height, max_cu_height_units);				
@@ -779,6 +799,11 @@ void hmr_deblock_filter_cu(henc_thread_t* et, slice_t *currslice, ctu_info_t* ct
 					//xSetEdgefilterPU
 					abs_index = curr_cu_info->abs_index;
 					num_elements_width = num_elements_height = (max(curr_cu_info->size, curr_cu_info->size)>>2);//(width, height)
+
+					if(et->enc_engine->num_encoded_frames == 6 && ctu->ctu_number == 1 && abs_index >=64 && dir==EDGE_HOR)
+					{
+						int iiiii=0;				
+					}
 
 					set_edge_filter_pu(et, currslice, ctu, curr_cu_info, num_elements_width, num_elements_height, max_cu_width_units, deblock_internal_edge);
 					deblock_cu(et, currslice, ctu, curr_cu_info, dir);
@@ -803,14 +828,31 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 {
 	int ctu_num;
 	ctu_info_t* ctu;
-//	int dir;
+	int dir;
+/*	FILE *debug_file;
 
-//	if(enc_engine->debug_file!=NULL)
-//		wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug
+	if(enc_engine->num_encoded_frames==0)
+	{
+		if(!(debug_file = fopen("c:\\Patrones\\refs_homer.bin", "wb")))
+		{
+			printf("Error opening input file: %s\r\n", "refs_homer.bin");
+		}
+	}
+	else
+	{
+		if(!(debug_file = fopen("c:\\Patrones\\refs_homer.bin", "ab")))
+		{
+			printf("Error opening input file: %s\r\n", "refs_homer.bin");
+		}	
+	}
+	
+
+//	if(debug_file!=NULL)
+//		wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug
 
 	//EDGE_VER = horizontal filter, EDGE_HOR = vertical filter
 
-/*	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
+	for(dir=EDGE_VER;dir<=EDGE_HOR;dir++)
 	{
 		for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 		{	
@@ -818,16 +860,16 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 
 			create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//this call should be removed
 
-			hmr_deblock_filter_cu(enc_engine, currslice, ctu, dir);
+			hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, dir);
 		}
 //		if(dir==EDGE_VER)
-//			wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug 		
+//			wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug 		
 	}
-//	if(enc_engine->debug_file!=NULL)
-//		wnd_write2file(&enc_engine->curr_reference_frame->img, enc_engine->debug_file);//debug 		
+//	if(debug_file!=NULL)
+//		wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug 		
+
 
 */
-
 //	int current_line=0;
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{

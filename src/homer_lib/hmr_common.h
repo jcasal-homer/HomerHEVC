@@ -293,7 +293,7 @@ void hmr_sao_hm(hvenc_engine_t* enc_engine, slice_t *currslice);
 
 //hmr_arithmetic_encoding.c
 void ee_init_contexts(enc_env_t *ee);
-void ee_start_entropy_model(enc_env_t *ee, int slice_type, int qp, int cabac_init_flag);
+void ee_start_entropy_model(enc_env_t *ee, slice_t *currslice);
 void ee_copy_entropy_model(context_model_t *ctx_src, context_model_t *ctx_dst);
 void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_info_t* cu, int gcnt);
 void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int gcnt);

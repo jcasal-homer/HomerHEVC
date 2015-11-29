@@ -991,8 +991,8 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 	decoded_wnd = et->decoded_mbs_wnd[curr_depth+1];
 //	cbf_buff = et->cbf_buffs[Y_COMP][curr_depth];
 
-	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], Y_COMP);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, Y_COMP);
@@ -1271,8 +1271,8 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	curr_part_size_shift = et->max_cu_size_shift-curr_depth;
 	curr_adi_size = 2*2*curr_part_size+1;
 
-	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, Y_COMP);
-	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], Y_COMP);
+	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
 	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
