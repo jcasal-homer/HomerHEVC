@@ -1583,6 +1583,11 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 
 	currslice->ref_pic_list_cnt[REF_PIC_LIST_0] = currslice->ref_pic_list_cnt[REF_PIC_LIST_1] = 0;
 
+	if(currslice->poc == 8)
+	{
+		int iiiii=0;
+	}
+
 	for(i=0;i<MAX_NUM_REF;i++)
 	{
 		refpic = hvenc->reference_picture_buffer[(hvenc->reference_list_index-1-i)&MAX_NUM_REF_MASK];
@@ -1619,12 +1624,14 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 	for(i=0;i<currslice->ref_pic_list_cnt[REF_PIC_LIST_0];i++)
 	{
 		currslice->ref_pic_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]+i] = currslice->ref_pic_list[REF_PIC_LIST_0][i];
+		currslice->ref_poc_list[REF_PIC_LIST_1][currslice->ref_pic_list_cnt[REF_PIC_LIST_1]+i] = currslice->ref_poc_list[REF_PIC_LIST_0][i];
 //		currslice->ref_pic_list_cnt[REF_PIC_LIST_1]++;
 	}
 
 	for(i=0;i<currslice->ref_pic_list_cnt[REF_PIC_LIST_1];i++)
 	{
 		currslice->ref_pic_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]+i] = currslice->ref_pic_list[REF_PIC_LIST_1][i];
+		currslice->ref_poc_list[REF_PIC_LIST_0][currslice->ref_pic_list_cnt[REF_PIC_LIST_0]+i] = currslice->ref_poc_list[REF_PIC_LIST_1][i];
 //		currslice->ref_pic_list_cnt[REF_PIC_LIST_0]++;
 	}
 

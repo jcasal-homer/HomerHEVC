@@ -829,7 +829,7 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 	int ctu_num;
 	ctu_info_t* ctu;
 	int dir;
-/*	FILE *debug_file;
+	FILE *debug_file;
 
 	if(enc_engine->num_encoded_frames==0)
 	{
@@ -865,11 +865,11 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 //		if(dir==EDGE_VER)
 //			wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug 		
 	}
-//	if(debug_file!=NULL)
-//		wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug 		
+	if(debug_file!=NULL)
+		wnd_write2file(&enc_engine->curr_reference_frame->img, debug_file);//debug 		
 
 
-*/
+/*
 //	int current_line=0;
 	for(ctu_num = 0;ctu_num < enc_engine->pict_total_ctu;ctu_num++)
 	{
@@ -895,6 +895,7 @@ void hmr_deblock_filter(hvenc_engine_t* enc_engine, slice_t *currslice)
 //		create_partition_ctu_neighbours(enc_engine->thread[0], ctu, ctu->partition_list);//ctu->partition_list);//this call should be removed
 		hmr_deblock_filter_cu(enc_engine->thread[0], currslice, ctu, EDGE_HOR);		
 	}
+*/
 }
 
 

@@ -450,7 +450,7 @@ void sse_hmr_interpolation_filter_luma_8nxm(int16_t *src, int src_stride, int16_
 }
 
 
-void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+/*void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
 	if(fraction==0)
 	{
@@ -471,7 +471,7 @@ void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_st
 			sse_hmr_interpolation_filter_luma_8nxm(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
 	}
 }
-
+*/
 
 
 ALIGN(16) int16_t sse_chroma_filter_coeffs_horizontal[8][2*NTAPS_CHROMA] =
@@ -791,12 +791,54 @@ void sse_hmr_interpolate_chroma_nxn(int16_t *reference_buff, int reference_buff_
 	}
 }
 
+
+
+void sse_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
+{
+	if(fraction==0)
+	{
+		if(width<8)
+		{
+			sse_filter_copy_4xn(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+		}
+		else
+		{
+			sse_filter_copy_8nxm(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+		}
+	}
+	else
+	{
+		if(width==8)
+			sse_hmr_interpolation_filter_luma_8xn(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+		else
+			sse_hmr_interpolation_filter_luma_8nxm(src, src_stride, dst, dst_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
+}
+
 void sse_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last)
 {
-	if(width==4)
-		sse_hmr_interpolate_chroma_4xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
-	else if(width==8)
-		sse_hmr_interpolate_chroma_8xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+	if(fraction==0)
+	{
+		if(width<4)
+		{
+			int iiiii=0;
+		}
+		else if(width<8)
+		{
+			sse_filter_copy_4xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+		}
+		else
+		{
+			sse_filter_copy_8nxm(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+		}
+	}
 	else
-		sse_hmr_interpolate_chroma_nxn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+	{
+		if(width==4)
+			sse_hmr_interpolate_chroma_4xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+		else if(width==8)
+			sse_hmr_interpolate_chroma_8xn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+		else
+			sse_hmr_interpolate_chroma_nxn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
+	}
 }
