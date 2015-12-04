@@ -1128,6 +1128,7 @@ struct henc_thread_t
 
 	wnd_t			curr_mbs_wnd;									//original MBs to be coded
 	wnd_t			prediction_wnd[3];								//prediction applied to original MBs [L0,L1 and biprediction]
+	wnd_t			prediction_aux_wnd;								//prediction applied to original MBs [L0,L1 and biprediction]
 	wnd_t			residual_wnd;									//residual after substracting prediction
 	wnd_t			residual_dec_wnd;								//decoded residual. output of inverse transform
 	wnd_t			transform_quant_wnd_[NUM_QUANT_WNDS];			//windows to be used with pointers 

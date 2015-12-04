@@ -947,6 +947,28 @@ float squareRoot(float x)
   return *(float*) &i;
 }
 
+
+#define DISABLING_CLIP_FOR_BIPREDME	1
+void remove_high_freq(int16_t* src, int src_stride, int8_t* dst, int dst_stride, int height, int width)
+{
+	int x, y;
+
+	for ( y = 0; y < height; y++ )
+	{
+		for ( x = 0; x < width; x ++)
+		{
+#if DISABLING_CLIP_FOR_BIPREDME
+			dst[x ] = 2 * dst[x] - src[x];
+#else
+			dst[x ] = ClipY(2 * dst[x] - src[x]);
+#endif
+		}
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
 //xCheckBestMVP
 uint32_t select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int ref_pic_list, motion_vector_t *mv)
 {
@@ -1783,7 +1805,7 @@ int equal_motion(ctu_info_t* ctu_a, int abs_idx_a, ctu_info_t* ctu_b, int abs_id
 }
 
 //getInterMergeCandidates
-void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, PartSize part_size_type, byte *inter_mode_neighbours)//get candidates for motion search from the neigbour CUs
+void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, PartSize part_size_type, uint8_t *inter_mode_neighbours)//get candidates for motion search from the neigbour CUs
 {
 	mv_candiate_list_t	*mv_candidate_list0 = &et->merge_mvp_candidates[REF_PIC_LIST_0];
 	mv_candiate_list_t	*mv_candidate_list1 = &et->merge_mvp_candidates[REF_PIC_LIST_1];
@@ -2391,12 +2413,6 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				reference_buff_cu_position_u = WND_POSITION_2D(int16_t *, *reference_wnd, U_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 				reference_buff_cu_position_v = WND_POSITION_2D(int16_t *, *reference_wnd, V_COMP, curr_part_global_x_chroma, curr_part_global_y_chroma, gcnt, et->ctu_width);
 
-				if(et->enc_engine->num_encoded_frames==2 && ctu->ctu_number==1 && curr_cu_info->abs_index>=128)// && curr_depth==2)
-				{
-					int iiiiii=0;
-				}
-	
-				
 				get_amvp_candidates(et, currslice, ctu, curr_cu_info, ref_list, ref_idx, part_size_type);//get candidates for advanced motion vector prediction from the neigbour CUs
 
 #ifdef COMPUTE_AS_HM
@@ -2455,11 +2471,49 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 
 		}//for (ref_list = 0; ref_list <= (int)REF_PIC_LIST_1; ref_list++ )
 
-//		if(currpict->img2encode->img_type == IMAGE_B)
-//		{
-//			for ( int iIter = 0; iIter < iNumIter; iIter++ )			
-//		}
 
+		if(0)//currslice->slice_type == B_SLICE && curr_cu_info->size>=8)
+		{
+			int num_iter = 1, iter = 0;
+			motion_vector_t mv_bi[2];
+			int ref_index_bi[2];
+			mv_bi[REF_PIC_LIST_0] = curr_cu_info->inter_mv[REF_PIC_LIST_0];
+			mv_bi[REF_PIC_LIST_1] = curr_cu_info->inter_mv[REF_PIC_LIST_1];
+			ref_index_bi[REF_PIC_LIST_0] = curr_cu_info->inter_ref_index[REF_PIC_LIST_0];
+			ref_index_bi[REF_PIC_LIST_1] = curr_cu_info->inter_ref_index[REF_PIC_LIST_1];			
+			
+			if(currslice->mvd_l1_zero_flag)
+			{
+			
+			}
+		
+			for(iter=0;iter<num_iter;iter++)
+			{
+				int list_other = 1-(int)ref_list;
+				int16_t  *ref_other_y, *ref_other_u, *ref_other_v;
+				int ref_other_y_stride, ref_other_ch_stride;
+				int8_t  *aux_y, *aux_u, *aux_v;
+				int aux_y_stride, aux_ch_stride;
+
+				wnd_copy(&et->curr_mbs_wnd, &et->prediction_aux_wnd);
+
+				ref_other_y_stride = WND_STRIDE_2D(et->prediction_aux_wnd, Y_COMP);
+				ref_other_y = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+list_other], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				ref_other_ch_stride = WND_STRIDE_2D(et->prediction_aux_wnd, U_COMP);
+				ref_other_u = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+list_other], U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+				ref_other_v = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+list_other], V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+				
+				aux_y_stride = WND_STRIDE_2D(et->prediction_aux_wnd, Y_COMP);
+				aux_y = WND_POSITION_2D(int8_t *, et->prediction_aux_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				aux_ch_stride = WND_STRIDE_2D(et->prediction_aux_wnd, U_COMP);
+				aux_u = WND_POSITION_2D(int8_t *, et->prediction_aux_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+				aux_v = WND_POSITION_2D(int8_t *, et->prediction_aux_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
+
+				remove_high_freq(ref_other_y, ref_other_y_stride, aux_y, aux_y_stride, curr_cu_info->size, curr_cu_info->size);
+				remove_high_freq(ref_other_u, ref_other_ch_stride, aux_u, aux_ch_stride, curr_cu_info->size_chroma, curr_cu_info->size_chroma);
+				remove_high_freq(ref_other_v, ref_other_ch_stride, aux_u, aux_ch_stride, curr_cu_info->size_chroma, curr_cu_info->size_chroma);			
+			}
+		}
 
 		if(best_cost[REF_PIC_LIST_0]<=best_cost[REF_PIC_LIST_1])
 		{
@@ -2626,6 +2680,9 @@ void weighted_average_motion(int16_t* src0, int src0_stride, int16_t* src1, int 
     dst +=dst_stride;
   }
 }
+
+
+
 
 
 //this function is referenced by the initial depth, not by the processing depth
@@ -3084,10 +3141,6 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 	int motion_compensation_done = FALSE;
 	byte inter_mode_neighbours[MERGE_MVP_MAX_NUM_CANDS] = {-1,-1,-1,-1,-1};
 
-	if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==3 && curr_cu_info->abs_index>=12)// && curr_depth==3)
-	{
-		int iiiii=0;
-	}
 	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, part_size_type, inter_mode_neighbours);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 
 	curr_depth = curr_cu_info->depth;
@@ -3122,7 +3175,6 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 	residual_buff_stride_chroma = WND_STRIDE_2D(et->residual_wnd, CHR_COMP);
 	residual_buff_u = WND_POSITION_2D(int16_t *, et->residual_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 	residual_buff_v = WND_POSITION_2D(int16_t *, et->residual_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
-
 
 	for(uiMergeCand = 0; uiMergeCand < et->merge_mvp_candidates[0].num_mv_candidates; ++uiMergeCand)
 	{
@@ -3184,8 +3236,6 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 							int iiiii=0;
 						}
 
-//						ref_list_max = currslice->slice_type == B_SLICE?REF_PIC_LIST_1:REF_PIC_LIST_0;
-
 						for (ref_list = ref_list_init; ref_list <= ref_list_max; ref_list++)
 						{
 							mv = et->merge_mvp_candidates[ref_list].mv_candidates[uiMergeCand];
@@ -3212,11 +3262,6 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 							if (search_point_x<xlow || search_point_x+curr_part_size>xhigh || search_point_y<ylow || search_point_y+curr_part_size>yhigh)
 								continue;
 #endif
-							if(et->enc_engine->num_encoded_frames==6 && ctu->ctu_number==4 && curr_cu_info->abs_index>=192 && uiMergeCand==2 && ref_list==1)// && curr_depth==2)
-							{
-								int iiiiii=0;							
-							}
-
 							//create prediction if needed
 							hmr_motion_compensation_luma(et, ctu, curr_cu_info, reference_buff_cu_position, reference_buff_stride, pred_aux_buffs[ref_list][Y_COMP], pred_buff_stride, curr_part_size, curr_part_size, curr_part_size_shift, &mv.mv, is_bi_predict);
 							hmr_motion_compensation_chroma(et, reference_buff_cu_position_u, reference_buff_stride_chroma, pred_aux_buffs[ref_list][U_COMP], pred_buff_stride_chroma, curr_part_size_chroma, curr_part_size_shift_chroma, &mv.mv, is_bi_predict);
@@ -3815,7 +3860,7 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 	int chr_qp_offset = et->enc_engine->chroma_qp_offset;
 	double weight = pow( 2.0, (currslice->qp-chroma_scale_conversion_table[clip(currslice->qp+chr_qp_offset,0,57)])/3.0 );
 	int motion_compensation_done = FALSE;
-	int inter_mode_neighbours[MERGE_MVP_MAX_NUM_CANDS] = {-1,-1,-1,-1,-1};
+	uint8_t inter_mode_neighbours[MERGE_MVP_MAX_NUM_CANDS] = {-1,-1,-1,-1,-1};
 
 	get_merge_mvp_candidates(et, currslice, ctu, curr_cu_info, part_size_type, inter_mode_neighbours);//get candidates for merge motion motion vector prediction from the neigbour CUs	
 

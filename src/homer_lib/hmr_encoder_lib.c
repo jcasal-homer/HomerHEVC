@@ -1070,6 +1070,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					wnd_realloc(&henc_th->prediction_wnd[0], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->prediction_wnd[1], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->prediction_wnd[2], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
+					wnd_realloc(&henc_th->prediction_aux_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int8_t));
+
 					wnd_realloc(&henc_th->residual_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->residual_dec_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
@@ -2542,7 +2544,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		mem_transfer_decoded_blocks(et, ctu);
 
 
-		wnd_copy_16bit(et->transform_quant_wnd[0], ctu->coeff_wnd);
+		wnd_copy(et->transform_quant_wnd[0], ctu->coeff_wnd);
 
 #ifndef COMPUTE_AS_HM
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);

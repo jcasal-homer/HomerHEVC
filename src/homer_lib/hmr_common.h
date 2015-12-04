@@ -187,7 +187,7 @@ void hmr_aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
-void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_copy(wnd_t * wnd_src, wnd_t * wnd_dst);
 void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu);
 void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
 void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);

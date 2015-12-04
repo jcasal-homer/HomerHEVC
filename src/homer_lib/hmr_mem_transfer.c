@@ -98,13 +98,13 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 	wnd_alloc(wnd, size_x, size_y, offset_x, offset_y, pix_size);
 }
 
-void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
+void wnd_copy(wnd_t * wnd_src, wnd_t * wnd_dst)
 {
 	int component;
 
 	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])
 	{
-		printf("error: wnd_copy_16bit: windows of different size can not be coppied!!\r\n");
+		printf("error: wnd_copy: windows of different size can not be coppied!!\r\n");
 		return;
 	}
 
@@ -116,8 +116,8 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 
 	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
 	{
-		int16_t * buff_src = WND_DATA_PTR(int16_t *, *wnd_src, component);
-		int16_t * buff_dst = WND_DATA_PTR(int16_t *, *wnd_dst, component);
+		uint8_t* buff_src = WND_DATA_PTR(uint8_t*, *wnd_src, component);
+		uint8_t* buff_dst = WND_DATA_PTR(uint8_t*, *wnd_dst, component);
 		int src_stride =  WND_STRIDE_2D(*wnd_src, component);
 		int dst_stride =  WND_STRIDE_2D(*wnd_dst, component);
 		int height = WND_HEIGHT_2D(*wnd_src, component);
@@ -126,9 +126,9 @@ void wnd_copy_16bit(wnd_t * wnd_src, wnd_t * wnd_dst)
 
 		for(j=0;j<height;j++)
 		{
-			memcpy(buff_dst, buff_src, width*sizeof(buff_src[0]));
-			buff_dst += dst_stride;
-			buff_src += src_stride;
+			memcpy(buff_dst, buff_src, width*wnd_src->pix_size);
+			buff_dst += wnd_src->pix_size*dst_stride;
+			buff_src += wnd_src->pix_size*src_stride;
 		}
 	}
 }
