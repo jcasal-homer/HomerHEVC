@@ -261,8 +261,8 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 
 	for(component=Y_COMP;component<=V_COMP;component++)
 	{
-		src = WND_POSITION_2D(byte *, et->enc_engine->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
-		dst = WND_POSITION_2D(byte *, *dst_wnd, component, 0, 0, 0, et->ctu_width);
+		src = WND_POSITION_2D(int16_t *, et->enc_engine->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
+		dst = WND_POSITION_2D(int16_t *, *dst_wnd, component, 0, 0, 0, et->ctu_width);
 
 		src_stride =  WND_STRIDE_2D(et->enc_engine->current_pict.img2encode->img, component);
 		dst_stride =  WND_STRIDE_2D(*dst_wnd, component);

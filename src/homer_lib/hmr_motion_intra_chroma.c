@@ -116,7 +116,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 	slice_t *currslice = &currpict->slice;
 	ctu_info_t* ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	uint8_t * orig_buff;
+	int16_t * orig_buff;
 	int16_t *pred_buff, *residual_buff, * quant_buff, * iquant_buff, *decoded_buff;
 	uint8_t *cbf_buff[3] = {NULL,NULL,NULL};
 	int num_candidates = 3;
@@ -197,7 +197,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 
 				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
-				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
 				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, ch_component);
@@ -322,7 +322,7 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], ch_component);
 				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
-				orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, ch_component);
 				residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, ch_component, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift)>>2);//420

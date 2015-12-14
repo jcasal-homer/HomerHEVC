@@ -48,12 +48,12 @@ extern profiler_t intra_luma_recon_ssd;
 #endif
 
 
-uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
+uint32_t sad(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	int sad = 0;
 	int subblock_x, subblock_y;//, chr=0;
 
-	uint8_t * porig;
+	int16_t * porig;
 	int16_t * ppred;
 
 	porig = src;
@@ -71,7 +71,7 @@ uint32_t sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_s
 	return sad;
 }
 
-uint32_t ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
+uint32_t ssd(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	unsigned int ssd = 0;
 	int  aux;
@@ -155,14 +155,14 @@ static uint8_t intra_filter[5] =
 };	
 
 
-void predict(uint8_t * orig_auxptr, int orig_buff_stride, int16_t *pred_auxptr, int pred_buff_stride, int16_t * residual_auxptr, int residual_buff_stride, int curr_part_size)
+void predict(int16_t * orig_auxptr, int orig_buff_stride, int16_t *pred_auxptr, int pred_buff_stride, int16_t * residual_auxptr, int residual_buff_stride, int curr_part_size)
 {
 	int i,j;
 	for(j=0;j<curr_part_size;j++)
 	{
 		for(i=0;i<curr_part_size;i++)
 		{
-			residual_auxptr[i] = 	(int16_t)orig_auxptr[i]-pred_auxptr[i];
+			residual_auxptr[i] = 	orig_auxptr[i]-pred_auxptr[i];
 		}
 		residual_auxptr += residual_buff_stride;
 		orig_auxptr += orig_buff_stride;
@@ -930,11 +930,11 @@ void hm_update_cand_list( uint uiMode, double Cost, uint uiFastCandNum, int Cand
 	}
 }
 
-uint32_t modified_variance(uint8_t *p, int size, int stride, int modif)
+uint32_t modified_variance(int16_t *p, int size, int stride, int modif)
 {
 	int i,j, v;
 	unsigned int s,s2;
-	uint8_t *paux = p;
+	int16_t *paux = p;
 	s = s2 = 0;
 
 	//avg
@@ -970,7 +970,7 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 {		
 	int ssd_;
 	int pred_buff_stride, orig_buff_stride, residual_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff;
+	int16_t *orig_buff;
 	int16_t *pred_buff, *residual_buff, *quant_buff, *iquant_buff, *decoded_buff;
 	uint8_t *cbf_buff = NULL;
 	wnd_t *quant_wnd = NULL, *decoded_wnd = NULL;
@@ -994,7 +994,7 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], Y_COMP);
 	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
-	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	residual_buff_stride = WND_STRIDE_2D(et->residual_wnd, Y_COMP);
 	residual_buff = WND_POSITION_2D(int16_t *, et->residual_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	quant_buff = WND_POSITION_1D(int16_t  *, *quant_wnd, Y_COMP, gcnt, et->ctu_width, (curr_partition_info->abs_index<<et->num_partitions_in_cu_shift));
@@ -1077,7 +1077,7 @@ int num_search_points[NUM_SEARCH_LOOPS] =	{2, 5, 4, 2};//{2, 4, 4, 2};
 
 
 #define PRED_MODE_INVALID	100
-int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
+int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, int16_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
 {
 	int preds[3] = {-1,-1,-1};
 	int preds_aux[3];
@@ -1177,7 +1177,7 @@ int homer_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu
 
 
 
-void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, uint8_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
+void hm_loop1_motion_intra(henc_thread_t* et, ctu_info_t* ctu, ctu_info_t* ctu_rd,cu_partition_info_t* curr_partition_info, int16_t *pred_buff, int pred_buff_stride, int16_t *orig_buff, int orig_buff_stride, int16_t *decoded_buff, int decoded_buff_stride, int depth, int curr_depth, int curr_part_size, int curr_part_size_shift, int part_size_type, int curr_adi_size, int best_pred_modes[3], double best_pred_cost[3])
 {
 	int cu_mode;
 	int diff;
@@ -1231,7 +1231,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	slice_t *currslice = &et->enc_engine->current_pict.slice;
 	ctu_info_t *ctu_rd = et->ctu_rd;
 	int pred_buff_stride, orig_buff_stride, decoded_buff_stride;
-	uint8_t *orig_buff;
+	int16_t *orig_buff;
 	int16_t *pred_buff, *decoded_buff;
 //	uint8_t *cbf_buff = NULL;//, *best_cbf_buff = NULL, *best_cbf_buff2 = NULL;
 	int num_mode_candidates = 3;
@@ -1274,7 +1274,7 @@ uint32_t encode_intra_luma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int dep
 	pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], Y_COMP);
 	pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
-	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+	orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 
 	decoded_wnd = et->decoded_mbs_wnd[depth+1];	
 	decoded_buff_stride = WND_STRIDE_2D(*decoded_wnd, Y_COMP);
@@ -1642,12 +1642,12 @@ uint32_t calc_variance_cu(henc_thread_t* et, cu_partition_info_t *curr_cu_info)
 {
 	int gcnt = 0;
 	int orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, Y_COMP);
-	uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
+	int16_t *orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, 0, et->ctu_width);
 	curr_cu_info->variance_luma = et->funcs->modified_variance(orig_buff, curr_cu_info->size, orig_buff_stride, 1)/(curr_cu_info->size*curr_cu_info->size);//for intra imgs this is done in analyse_intra_recursive_info
 	orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, U_COMP);
-	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, U_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
+	orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, U_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
 	curr_cu_info->variance_chroma = (uint32_t)(1.25*et->funcs->modified_variance(orig_buff, curr_cu_info->size_chroma, orig_buff_stride, 2)/(curr_cu_info->size_chroma*curr_cu_info->size_chroma));
-	orig_buff = WND_POSITION_2D(uint8_t *, et->curr_mbs_wnd, V_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
+	orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, V_COMP, curr_cu_info->x_position_chroma, curr_cu_info->y_position_chroma, gcnt, et->ctu_width);
 	curr_cu_info->variance_chroma += (uint32_t)(1.25*et->funcs->modified_variance(orig_buff, curr_cu_info->size_chroma, orig_buff_stride, 2)/(curr_cu_info->size_chroma*curr_cu_info->size_chroma));
 	curr_cu_info->variance = curr_cu_info->variance_luma + curr_cu_info->variance_chroma;
 	return curr_cu_info->variance;

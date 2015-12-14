@@ -28,28 +28,28 @@
 #include "hmr_common.h"
 //SSE 4.2
 //------------------------------------------------------sad -------------------------------------------------------------------------
-uint32_t sse_aligned_sad(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
+uint32_t sse_aligned_sad(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 
 //#define NOINLINE	__declspec(noinline) 
 
-uint32_t sse_aligned_sad_4x4(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_8x8(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
-//uint32_t sse_aligned_sad_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
-uint32_t sse_aligned_sad_16x16(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_32x32(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
-uint32_t sse_aligned_sad_64x64(uint8_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_4x4(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_8x8(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+//uint32_t sse_aligned_sad_nxn_16x16(int16_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, int size);
+uint32_t sse_aligned_sad_16x16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_32x32(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
+uint32_t sse_aligned_sad_64x64(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
 
 
 //------------------------------------------------------ssd -------------------------------------------------------------------------
-uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+uint32_t sse_aligned_ssd(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 
 
-//uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size);
-uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
-uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+//uint32_t sse_ssd_nxn_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size);
+uint32_t sse_aligned_ssd_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_32x32(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_64x64(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_8x8(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
+uint32_t sse_aligned_ssd_4x4(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride);
 
 
 //------------------------------------------------------ssd16b -------------------------------------------------------------------------
@@ -62,13 +62,13 @@ uint32_t sse_aligned_ssd16b_32x32(int16_t *src, uint32_t src_stride, int16_t *pr
 uint32_t sse_aligned_ssd16b_64x64(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride);
 //------------------------------------------------------predict -------------------------------------------------------------------------
 
-void sse_aligned_predict(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride, int size);
+void sse_aligned_predict(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride, int size);
 
-void sse_aligned_predict_4x4(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_8x8(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_16x16(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_32x32(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
-void sse_aligned_predict_64x64(uint8_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_4x4(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_8x8(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_16x16(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_32x32(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
+void sse_aligned_predict_64x64(int16_t *  orig, int orig_stride, int16_t*  pred, int pred_stride, int16_t *  residual, int residual_stride);
 
 void sse_adi_filter(int16_t  *ptr, int16_t  *ptr_filter, int depth, int adi_size, int partition_size, int max_cu_size_shift, int intra_smooth_enable, int bit_depth);
 //------------------------------------------------------reconst -------------------------------------------------------------------------
@@ -132,7 +132,7 @@ void sse_filter_copy(int16_t *src, int src_stride, int16_t *dst, int dst_stride,
 
 
 //----------------------------------------------variance ------------------------------------------------
-uint32_t sse_modified_variance(uint8_t * p, int size, int stride, int modif);
+uint32_t sse_modified_variance(int16_t * p, int size, int stride, int modif);
 
 
 //---------------------------------------------- sao ------------------------------------------------

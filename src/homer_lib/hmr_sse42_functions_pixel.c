@@ -31,7 +31,7 @@
 //#define EXTRA_OPTIMIZATION	1
 
 
-uint32_t sse_aligned_sad_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_4x4(int16_t* src, uint32_t src_stride, int16_t* pred, uint32_t pred_stride)
 {
 	uint32_t sad = 0;
 
@@ -47,7 +47,7 @@ uint32_t sse_aligned_sad_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred,
 }
 
 
-uint32_t sse_aligned_sad_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_8x8(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t sad = 0;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
@@ -61,12 +61,12 @@ uint32_t sse_aligned_sad_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred,
 }
 
 
-uint32_t sse_aligned_sad_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t sad = 0;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
 
-	uint8_t *psrc = src;
+	int16_t *psrc = src;
 	int16_t *ppred = pred;
 
 	CALC_ALIGNED_SAD_16(_128u32_result, psrc, ppred)
@@ -90,7 +90,7 @@ uint32_t sse_aligned_sad_16x16(uint8_t * src, uint32_t src_stride, int16_t * pre
 }
 
 
-uint32_t sse_aligned_sad_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_32x32(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t sad = 0;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
@@ -131,13 +131,13 @@ uint32_t sse_aligned_sad_32x32(uint8_t * src, uint32_t src_stride, int16_t * pre
 }
 
 
-uint32_t sse_aligned_sad_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_64x64(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	int i;
 	uint32_t sad = 0;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
 
-	uint8_t *psrc = src;
+	int16_t *psrc = src;
 	int16_t *ppred = pred;
 
 
@@ -222,7 +222,7 @@ uint32_t sse_aligned_sad_64x64(uint8_t * src, uint32_t src_stride, int16_t * pre
 }
 
 
-uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
+uint32_t sse_aligned_sad(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	if(size==4)
 		return sse_aligned_sad_4x4(src, src_stride, pred, pred_stride);
@@ -239,7 +239,7 @@ uint32_t sse_aligned_sad(uint8_t * src, uint32_t src_stride, int16_t * pred, uin
 
 
 //---------------------------------------------ssd ------------------------------------------------------------------
-uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, uint32_t pred_stride, uint32_t size)
+uint32_t sse_ssd_nxn_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size)
 {
 	uint32_t i,j,n;
 	uint32_t ssd = 0;
@@ -247,8 +247,8 @@ uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, u
 	__m128_u16	_128u32_result = sse_128_zero_vector();
 
 
-	uint8_t *psrc = src;
-	uint8_t *ppred = pred;
+	int16_t *psrc = src;
+	int16_t *ppred = pred;
 
 	src_stride-=size;
 	pred_stride-=size;
@@ -270,7 +270,7 @@ uint32_t sse_ssd_nxn_16x16(uint8_t * src, uint32_t src_stride, uint8_t * pred, u
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
-uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_4x4(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
@@ -283,7 +283,7 @@ uint32_t sse_aligned_ssd_4x4(uint8_t * src, uint32_t src_stride, int16_t * pred,
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
-uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_8x8(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
@@ -298,12 +298,12 @@ uint32_t sse_aligned_ssd_8x8(uint8_t * src, uint32_t src_stride, int16_t * pred,
 }
 
 
-uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u32	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
-	uint8_t *psrc = src;
+	int16_t *psrc = src;
 	int16_t *ppred = pred;
 	int i;
 
@@ -320,12 +320,12 @@ uint32_t sse_aligned_ssd_16x16(uint8_t * src, uint32_t src_stride, int16_t * pre
 
 
 
-uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_32x32(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u8	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
-	uint8_t *psrc = src;
+	int16_t *psrc = src;
 	int16_t *ppred = pred;
 	int i;
 
@@ -341,13 +341,13 @@ uint32_t sse_aligned_ssd_32x32(uint8_t * src, uint32_t src_stride, int16_t * pre
 }
 
 
-uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd_64x64(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
 	__m128_u8	_128_aux;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
 
-	uint8_t *psrc = src;
+	int16_t *psrc = src;
 	int16_t *ppred = pred;
 	int i;
 
@@ -364,7 +364,7 @@ uint32_t sse_aligned_ssd_64x64(uint8_t * src, uint32_t src_stride, int16_t * pre
 }
 
 
-uint32_t sse_aligned_ssd(uint8_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
+uint32_t sse_aligned_ssd(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size)
 {
 	if(size==4)
 		return sse_aligned_ssd_4x4(src, src_stride, pred, pred_stride);
@@ -499,7 +499,7 @@ uint32_t sse_aligned_ssd16b(int16_t *src, uint32_t src_stride, int16_t *pred, ui
 
 //---------------------------------------------predict ------------------------------------------------------------------
 
-void sse_aligned_predict_4x4(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
+void sse_aligned_predict_4x4(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
 //	int j;
@@ -518,7 +518,7 @@ void sse_aligned_predict_4x4(uint8_t *orig, int orig_stride, int16_t *pred, int 
 
 }
 
-void sse_aligned_predict_8x8(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
+void sse_aligned_predict_8x8(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
@@ -542,7 +542,7 @@ void sse_aligned_predict_8x8(uint8_t *orig, int orig_stride, int16_t *pred, int 
 }
 
 
-void sse_aligned_predict_16x16(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
+void sse_aligned_predict_16x16(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
 
@@ -576,7 +576,7 @@ void sse_aligned_predict_16x16(uint8_t *orig, int orig_stride, int16_t *pred, in
 
 
 
-void sse_aligned_predict_32x32(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
+void sse_aligned_predict_32x32(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
@@ -590,7 +590,7 @@ void sse_aligned_predict_32x32(uint8_t *orig, int orig_stride, int16_t *pred, in
 	}
 }
 
-void sse_aligned_predict_64x64(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
+void sse_aligned_predict_64x64(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
 	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
@@ -605,7 +605,7 @@ void sse_aligned_predict_64x64(uint8_t *orig, int orig_stride, int16_t *pred, in
 }
 
 
-void sse_aligned_predict(uint8_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int size)
+void sse_aligned_predict(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int size)
 {
 	if(size==4)
 		sse_aligned_predict_4x4(orig, orig_stride, pred, pred_stride, residual, residual_stride);
@@ -712,11 +712,11 @@ void sse_aligned_reconst(int16_t *pred, int pred_stride, int16_t *residual, int 
 
 //--------------------------------------- variance -----------------------------------------
 
-uint32_t sse_variance_16nx16n(uint8_t *__restrict p, int size, int stride, int modif)
+uint32_t sse_variance_16nx16n(int16_t *__restrict p, int size, int stride, int modif)
 {
 	int i,j;
 	unsigned int s=0;
-	uint8_t *__restrict paux = p;
+	int16_t *__restrict paux = p;
 	__m128_i16	_128_one = sse_128_vector_i16(1);
 	__m128_i16	_128_modif = sse_128_vector_i16(modif);
 	__m128_i32	acc = sse_128_zero_vector();
@@ -771,9 +771,9 @@ uint32_t sse_variance_16nx16n(uint8_t *__restrict p, int size, int stride, int m
 
 ALIGN(16) static const int8_t shuffle_mask_variance_16_0[16] ={ 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};//0,1,2,3,4,5,6,7 -> 7,6,5,4,3,2,1,0
 
-uint32_t sse_variance_8x8(uint8_t *__restrict p, int stride, int modif)
+uint32_t sse_variance_8x8(int16_t *__restrict p, int stride, int modif)
 {
-	uint8_t *__restrict paux = p;
+	int16_t *__restrict paux = p;
 	__m128_i16	_128_modif = sse_128_vector_i16(modif);
 	__m128_i16	_128_one = sse_128_vector_i16(1);
 
@@ -834,9 +834,9 @@ uint32_t sse_variance_8x8(uint8_t *__restrict p, int stride, int modif)
 }
 
 
-uint32_t sse_variance_4x4(uint8_t *__restrict p, int stride, int modif)
+uint32_t sse_variance_4x4(int16_t *__restrict p, int stride, int modif)
 {
-	uint8_t *__restrict paux = p;
+	int16_t *__restrict paux = p;
 	__m128_i16	_128_modif = sse_128_vector_i16(modif);
 	__m128_i16	_128_one = sse_128_vector_i16(1);
 	__m128_i32	acc = sse_128_zero_vector();
@@ -869,9 +869,9 @@ uint32_t sse_variance_4x4(uint8_t *__restrict p, int stride, int modif)
 	return 	sse_128_get_data_u32(var_128,0);
 }
 
-uint32_t sse_variance_2x2(uint8_t *__restrict p, int stride, int modif)
+uint32_t sse_variance_2x2(int16_t *__restrict p, int stride, int modif)
 {
-	uint8_t *__restrict paux = p;
+	int16_t *__restrict paux = p;
 
 	__m128_i16	_128_modif = sse_128_vector_i16(modif);
 	__m128_i16	_128_one = sse_128_vector_i16(1);
@@ -899,7 +899,7 @@ uint32_t sse_variance_2x2(uint8_t *__restrict p, int stride, int modif)
 
 
 
-uint32_t sse_modified_variance(uint8_t *p, int size, int stride, int modif)
+uint32_t sse_modified_variance(int16_t *p, int size, int stride, int modif)
 {
 	if(size==2)
 		return sse_variance_2x2(p, stride, modif);

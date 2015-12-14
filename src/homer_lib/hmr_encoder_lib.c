@@ -1062,7 +1062,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->right_pred_buff = (short*)hmr_aligned_alloc (henc_th->adi_size, sizeof(int16_t));
 
 
-					wnd_realloc(&henc_th->curr_mbs_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(uint8_t));
+					wnd_realloc(&henc_th->curr_mbs_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 
 					henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//size of auxiliar buffer
 					henc_th->pred_aux_buff = (short*) hmr_aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
