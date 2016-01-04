@@ -160,7 +160,7 @@ void *HOMER_enc_init()
 		printf("SSE42 avaliable!!\r\n");
 
 		hvenc->funcs.sad = sse_aligned_sad;
-		hvenc->funcs.ssd = sse_aligned_ssd;
+//		hvenc->funcs.ssd = sse_aligned_ssd;
 		hvenc->funcs.ssd16b = sse_aligned_ssd16b;
 		hvenc->funcs.modified_variance = sse_modified_variance;
 		hvenc->funcs.predict = sse_aligned_predict;
@@ -183,7 +183,7 @@ void *HOMER_enc_init()
 	else
 	{
 		hvenc->funcs.sad = sad;
-		hvenc->funcs.ssd = ssd;
+//		hvenc->funcs.ssd = ssd;
 		hvenc->funcs.ssd16b = ssd16b;
 		hvenc->funcs.modified_variance = modified_variance;
 		hvenc->funcs.predict = predict;
@@ -213,7 +213,8 @@ void *HOMER_enc_init()
 void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
 {
 	video_frame_t	*p;
-	uint8_t *src, *dst;
+	uint8_t *src;
+	int16_t *dst;
 	int stride_dst, stride_src;
 	int comp, j;
 
@@ -224,13 +225,18 @@ void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
 	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
 		src = input_frame->stream.streams[comp];
-		dst = WND_DATA_PTR(uint8_t*, p->img, comp);
+		dst = WND_DATA_PTR(int16_t*, p->img, comp);
 		stride_src = input_frame->stream.data_stride[comp];//,  enc_engine->pict_width[comp];
 		stride_dst = WND_STRIDE_2D(p->img, comp);
 
 		for(j=0;j<enc_engine->pict_height[comp];j++)
 		{
-			memcpy(dst, src, enc_engine->pict_width[comp]);
+			int i;
+			for(i=0;i<enc_engine->pict_width[comp];i++)
+			{
+				dst[i] = (int16_t)src[i];
+			}
+			//memcpy(dst, src, enc_engine->pict_width[comp]);
 			src += stride_src;
 			dst += stride_dst;
 		}
@@ -528,7 +534,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			{
 				hvenc->run = FALSE;
 
-				if(hvenc->encoder_mod_thread[0]!=NULL)
+				if(hvenc->encoder_mod_thread[0]!=NULL)//synchronized delete of encoder_engine threads 
 				{
 					int n_mods;
 					for(n_mods = 0;n_mods<hvenc->num_encoder_engines;n_mods++)
@@ -1216,7 +1222,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			sync_cont_reset(hvenc->input_hmr_container);
 			for(i=0;i<NUM_INPUT_FRAMES(hvenc->num_encoder_engines);i++)
 			{
-				wnd_realloc(&hvenc->input_frames[i].img, hvenc->pict_width[0], hvenc->pict_height[0], 0, 0, sizeof(uint8_t));
+				wnd_realloc(&hvenc->input_frames[i].img, hvenc->pict_width[0], hvenc->pict_height[0], 0, 0, sizeof(int16_t));
 				sync_cont_put_empty(hvenc->input_hmr_container, &hvenc->input_frames[i]);
 			}
 

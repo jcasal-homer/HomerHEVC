@@ -1061,7 +1061,7 @@ uint encode_intra_cu(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* cu
 		et->funcs->reconst(pred_buff, pred_buff_stride, quant_buff, 0, decoded_buff, decoded_buff_stride, curr_part_size);//quant buff is full of zeros - a memcpy could do
 	}
 
-	ssd_ = et->funcs->ssd(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
+	ssd_ = et->funcs->ssd16b(orig_buff, orig_buff_stride, decoded_buff, decoded_buff_stride, curr_part_size);
 	PROFILER_ACCUMULATE(intra_luma_recon_ssd)
 	return ssd_;
 }

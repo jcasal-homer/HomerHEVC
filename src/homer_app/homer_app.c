@@ -45,7 +45,7 @@
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
 //#define FILE_IN  "C:\\Patrones\\DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
 
-#define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
+#define FILE_OUT	"C:\\Patrones\\homer_development_current.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
@@ -336,11 +336,11 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->frame_rate = FPS;
 	cfg->intra_period = 20;//1;
 	cfg->gop_size = 1;//1;
-	cfg->num_b = 1;
-	cfg->max_pred_partition_depth = 3;
-	cfg->max_intra_tr_depth = 1;
+	cfg->num_b = 0;
+	cfg->max_pred_partition_depth = 4;
+	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_ref_frames = 2;
+	cfg->num_ref_frames = 1;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;

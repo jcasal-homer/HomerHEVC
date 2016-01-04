@@ -3290,9 +3290,9 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 					}
 					else
 					{
-						dist = (uint32_t) et->funcs->ssd(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
-						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
-						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist = (uint32_t) et->funcs->ssd16b(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
+						dist += (uint32_t) (weight*et->funcs->ssd16b(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist += (uint32_t) (weight*et->funcs->ssd16b(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
 
 //						dist = MAX_COST;
 						curr_cu_info->inter_cbf[Y_COMP] = curr_cu_info->inter_cbf[U_COMP] = curr_cu_info->inter_cbf[V_COMP] = 0;
@@ -3942,9 +3942,9 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 					}
 					else
 					{
-						dist = (uint32_t) et->funcs->ssd(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
-						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
-						dist += (uint32_t) (weight*et->funcs->ssd(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist = (uint32_t) et->funcs->ssd16b(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, curr_part_size);
+						dist += (uint32_t) (weight*et->funcs->ssd16b(orig_buff_u, orig_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_part_size_chroma));
+						dist += (uint32_t) (weight*et->funcs->ssd16b(orig_buff_v, orig_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_part_size_chroma));
 
 //						dist = MAX_COST;
 						curr_cu_info->inter_cbf[Y_COMP] = curr_cu_info->inter_cbf[U_COMP] = curr_cu_info->inter_cbf[V_COMP] = 0;

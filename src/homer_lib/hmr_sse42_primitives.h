@@ -80,7 +80,7 @@ typedef __m128i	__m128_i8;
 
 #define sse_128_convert_u8_i16(a)			_mm_cvtepu8_epi16(a)
 #define sse_128_convert_i16_i32(a)			_mm_cvtepi16_epi32(a)
-
+#define sse_128_convert_u16_i32(a)			_mm_cvtepu16_epi32(a)
 
 #define sse_128_and(a,b)				_mm_and_si128(a,b)
 
@@ -104,7 +104,10 @@ typedef __m128i	__m128_i8;
 
 #define sse_128_hadd_i16(a,b)				_mm_hadd_epi16(a,b)
 #define sse_128_hadd_i32(a,b)				_mm_hadd_epi32(a,b)
-#define sse_128_hadd_i64(a,b)				_mm_hadd_epi64(a,b)
+//#define sse_128_hadd_i64(a,b)				_mm_hadd_epi64(a,b)
+
+#define sse_128_hacc_i16(a)					sse_128_hacc_i16_(a)
+#define sse_128_hacc_i32(a)					sse_128_hacc_i32_(a)
 
 #define sse_128_madd_i16_i32(a,b)			_mm_madd_epi16(a,b)
 
@@ -113,10 +116,13 @@ typedef __m128i	__m128_i8;
 
 #define sse_128_abs_i16(a)					_mm_abs_epi16(a)
 #define sse_128_sad_u8(a,b)					_mm_sad_epu8(a,b)
+#define sse_128_sad_i16(a,b)				sse_128_abs_i16(sse_128_sub_i16(a, b))
+#define sse_128_ssd_i16_i32(a,b)			sse_128_ssd_i16_i32_(a,b)
 
-#define sse_128_shift_r_u32(a,shift)		_mm_srli_epi64(a,shift)
+#define sse_128_shift_r_i64(a,shift)		_mm_srli_epi64(a,shift)
 #define sse_128_shift_r_i32(a,shift)		_mm_srai_epi32(a,shift)
 #define sse_128_shift_r_i16(a,shift)		_mm_srai_epi16(a,shift)
+#define sse_128_shift_l_i64(a,shift)		_mm_slli_epi64(a,shift)
 #define sse_128_shift_l_i32(a,shift)		_mm_slli_epi32(a,shift)
 #define sse_128_shift_l_i16(a,shift)		_mm_slli_epi16(a,shift)
 
@@ -125,5 +131,34 @@ typedef __m128i	__m128_i8;
 
 #define sse_128_clip_16(val,min,max)		_mm_max_epi16(_mm_min_epi16(val, max), min)
 
+
+//ssd 16 bits
+__inline __m128_i32 sse_128_ssd_i16_i32_(__m128_i16 a,__m128_i16 b)
+{
+	__m128_i16 _128_i16_sub1 = sse_128_sub_i16(a, b);
+	return sse_128_madd_i16_i32(_128_i16_sub1, _128_i16_sub1);
+}
+
+//horizontal accumulator
+__inline uint32_t sse_128_hacc_i16_(__m128_i16 a)
+{
+//	a = sse_128_hadd_i16(a, a);
+//	a = sse_128_hadd_i16(a, a); 
+//	a = sse_128_hadd_i16(a, a); 
+//	return sse_128_get_data_u16(a,0);
+	a = sse_128_add_i16(a, sse128_unpackhi_u64(a, a));
+	a = sse_128_add_i16(a, sse_128_shift_r_i64(a, 32));
+	return sse_128_get_data_u16(a,0) + sse_128_get_data_u16(a,1);
+}
+
+__inline uint32_t sse_128_hacc_i32_(__m128_i16 a)
+{
+	a = sse_128_hadd_i32(a, a);
+	a = sse_128_hadd_i32(a, a); 
+//	a = sse_128_hadd_i32(a, a); 
+	return sse_128_get_data_u32(a,0);
+//	a = sse_128_add_i32(a, sse128_unpackhi_u64(a, a));
+//	return sse_128_get_data_u32(a,0) + sse_128_get_data_u32(a,1);
+}
 
 #endif	/*__HOMER_HEVC_SSE42_PRIMITIVES__*/

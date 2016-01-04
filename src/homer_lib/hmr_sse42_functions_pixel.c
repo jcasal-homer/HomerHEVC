@@ -31,194 +31,127 @@
 //#define EXTRA_OPTIMIZATION	1
 
 
-uint32_t sse_aligned_sad_4x4(int16_t* src, uint32_t src_stride, int16_t* pred, uint32_t pred_stride)
+uint32_t sse_aligned_sad_4x4(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t sad = 0;
+//	__m128_u32	_128u32_zero = sse_128_zero_vector();
 
-	__m128_u32	_128u32_zero = sse_128_zero_vector();
+	//lines 0 and 1
+	__m128_i16	_128_i16_src0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(src), sse_128_loadlo_vector64(src+src_stride));//
+	__m128_i16	_128_i16_pred0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred),sse_128_loadlo_vector64(pred+pred_stride)); 	
+	__m128_i16	_128_u16_abs0 = sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);//sse_128_abs_i16(sse_128_sub_i16(_128_i16_src0, _128_i16_pred0));
 
-	__m128_u8	_128_u8_src = sse128_unpacklo_u64 (sse128_unpacklo_u32 (sse_128_loadlo_vector64(src),  sse_128_loadlo_vector64(src+src_stride)), sse128_unpacklo_u32 (sse_128_loadlo_vector64(src+2*src_stride),  sse_128_loadlo_vector64(src+3*src_stride)));
-	__m128_u8	_128_u8_pred = sse128_packs_i16_u8(sse128_unpacklo_u64(sse_128_load_vector_u(pred),sse_128_load_vector_u(pred+pred_stride)), sse128_unpacklo_u64(sse_128_load_vector_u(pred+2*pred_stride),sse_128_load_vector_u(pred+3*pred_stride)));
-	__m128_u8	_128_u8_sad = sse_128_sad_u8(_128_u8_src, _128_u8_pred);
-	__m128_u32	_128u32_result = sse_128_add_i64(sse128_unpacklo_u64(_128_u8_sad, _128u32_zero), sse128_unpackhi_u64(_128_u8_sad, _128u32_zero));
+	//lines 2 and 3
+	__m128_i16	_128_i16_src1 = sse128_unpacklo_u64(sse_128_loadlo_vector64(src+2*src_stride), sse_128_loadlo_vector64(src+3*src_stride));//
+	__m128_i16	_128_i16_pred1 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred+2*pred_stride),sse_128_loadlo_vector64(pred+3*pred_stride));
+	__m128_i16	_128_u16_abs1 = sse_128_sad_i16(_128_i16_src1, _128_i16_pred1);
 
-	return sad = sse_128_get_data_u32(_128u32_result,0);//+sse_128_get_data_u32(_128u32_result,2);
+	__m128_i16	_128_u16_acc0 = sse_128_add_i16(_128_u16_abs0, _128_u16_abs1);
 
+	return sad = sse_128_hacc_i16(_128_u16_acc0);
 }
-
 
 uint32_t sse_aligned_sad_8x8(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
-{
-	uint32_t sad = 0;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-
-	CALC_ALIGNED_SAD_2x8(_128u32_result, src, src+src_stride, pred, pred+pred_stride)
-	CALC_ALIGNED_SAD_2x8(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride)
-	CALC_ALIGNED_SAD_2x8(_128u32_result, src+4*src_stride, src+5*src_stride, pred+4*pred_stride, pred+5*pred_stride)
-	CALC_ALIGNED_SAD_2x8(_128u32_result, src+6*src_stride, src+7*src_stride, pred+6*pred_stride, pred+7*pred_stride)
-
-	return sad = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,2);
-}
-
-
-uint32_t sse_aligned_sad_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
-{
-	uint32_t sad = 0;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-
-	int16_t *psrc = src;
-	int16_t *ppred = pred;
-
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc, ppred)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+1*src_stride, ppred+1*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+2*src_stride, ppred+2*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+3*src_stride, ppred+3*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+4*src_stride, ppred+4*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+5*src_stride, ppred+5*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+6*src_stride, ppred+6*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+7*src_stride, ppred+7*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+8*src_stride, ppred+8*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+9*src_stride, ppred+9*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+10*src_stride, ppred+10*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+11*src_stride, ppred+11*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+12*src_stride, ppred+12*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+13*src_stride, ppred+13*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+14*src_stride, ppred+14*pred_stride)
-	CALC_ALIGNED_SAD_16(_128u32_result, psrc+15*src_stride, ppred+15*pred_stride)
-
-	return sad = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,2);
-}
-
-
-uint32_t sse_aligned_sad_32x32(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
-{
-	uint32_t sad = 0;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-
-	CALC_ALIGNED_SAD_32(_128u32_result, src, pred)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+1*src_stride, pred+1*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+2*src_stride, pred+2*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+3*src_stride, pred+3*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+4*src_stride, pred+4*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+5*src_stride, pred+5*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+6*src_stride, pred+6*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+7*src_stride, pred+7*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+8*src_stride, pred+8*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+9*src_stride, pred+9*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+10*src_stride, pred+10*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+11*src_stride, pred+11*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+12*src_stride, pred+12*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+13*src_stride, pred+13*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+14*src_stride, pred+14*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+15*src_stride, pred+15*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+16*src_stride, pred+16*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+17*src_stride, pred+17*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+18*src_stride, pred+18*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+19*src_stride, pred+19*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+20*src_stride, pred+20*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+21*src_stride, pred+21*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+22*src_stride, pred+22*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+23*src_stride, pred+23*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+24*src_stride, pred+24*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+25*src_stride, pred+25*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+26*src_stride, pred+26*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+27*src_stride, pred+27*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+28*src_stride, pred+28*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+29*src_stride, pred+29*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+30*src_stride, pred+30*pred_stride)
-	CALC_ALIGNED_SAD_32(_128u32_result, src+31*src_stride, pred+31*pred_stride)
-	return sad = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,2);
-}
-
-
-uint32_t sse_aligned_sad_64x64(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	int i;
 	uint32_t sad = 0;
 	__m128_u32	_128u32_result = sse_128_zero_vector();
 
-	int16_t *psrc = src;
-	int16_t *ppred = pred;
+	for(i=0;i<8;i++)
+	{
+		__m128_i16	_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride, pred+i*pred_stride);
+		_128u32_result = sse_128_add_i16(_128u32_result, _128_u16_sad0);
+	}
+
+	return sad = sse_128_hacc_i16(_128u32_result);
+}
 
 
+uint32_t sse_aligned_sad_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+{
+	int i;
+	uint32_t sad = 0;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
 
-#ifndef EXTRA_OPTIMIZATION
 	for(i=0;i<16;i++)
 	{
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc, ppred)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+src_stride, ppred+pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+2*src_stride, ppred+2*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+3*src_stride, ppred+3*pred_stride)
+		__m128_i16	_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride, pred+i*pred_stride);
+		_128u32_result = sse_128_add_i16(_128u32_result, _128_u16_sad0);
 
-		psrc+=4*src_stride;
-		ppred+=4*pred_stride;
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+8, pred+i*pred_stride+8);
+		_128u32_result = sse_128_add_i16(_128u32_result, _128_u16_sad0);
 	}
-#else //EXTRA_OPTIMIZATION
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc, ppred)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+src_stride, ppred+pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+2*src_stride, ppred+2*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+3*src_stride, ppred+3*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+4*src_stride, ppred+4*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+5*src_stride, ppred+5*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+6*src_stride, ppred+6*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+7*src_stride, ppred+7*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+8*src_stride, ppred+8*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+9*src_stride, ppred+9*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+10*src_stride, ppred+10*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+11*src_stride, ppred+11*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+12*src_stride, ppred+12*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+13*src_stride, ppred+13*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+14*src_stride, ppred+14*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+15*src_stride, ppred+15*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+16*src_stride, ppred+16*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+17*src_stride, ppred+17*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+18*src_stride, ppred+18*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+19*src_stride, ppred+19*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+20*src_stride, ppred+20*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+21*src_stride, ppred+21*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+22*src_stride, ppred+22*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+23*src_stride, ppred+23*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+24*src_stride, ppred+24*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+25*src_stride, ppred+25*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+26*src_stride, ppred+26*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+27*src_stride, ppred+27*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+28*src_stride, ppred+28*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+29*src_stride, ppred+29*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+30*src_stride, ppred+30*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+31*src_stride, ppred+31*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+32*src_stride, ppred+32*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+33*src_stride, ppred+33*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+34*src_stride, ppred+34*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+35*src_stride, ppred+35*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+36*src_stride, ppred+36*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+37*src_stride, ppred+37*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+38*src_stride, ppred+38*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+39*src_stride, ppred+39*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+40*src_stride, ppred+40*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+41*src_stride, ppred+41*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+42*src_stride, ppred+42*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+43*src_stride, ppred+43*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+44*src_stride, ppred+44*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+45*src_stride, ppred+45*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+46*src_stride, ppred+46*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+47*src_stride, ppred+47*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+48*src_stride, ppred+48*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+49*src_stride, ppred+49*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+50*src_stride, ppred+50*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+51*src_stride, ppred+51*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+52*src_stride, ppred+52*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+53*src_stride, ppred+53*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+54*src_stride, ppred+54*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+55*src_stride, ppred+55*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+56*src_stride, ppred+56*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+57*src_stride, ppred+57*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+58*src_stride, ppred+58*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+59*src_stride, ppred+59*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+60*src_stride, ppred+60*pred_stride)
-		CALC_ALIGNED_SAD_64(_128u32_result, psrc+61*src_stride, ppred+61*pred_stride)
-#endif
-	return sad = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,2);
+	return sad = sse_128_hacc_i16(_128u32_result);
+}
 
+
+uint32_t sse_aligned_sad_32x32(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+{
+	int i,j;
+	uint32_t sad = 0;
+	__m128_u32	_128u32_acc = sse_128_zero_vector();
+	__m128_u16	_128u32_result0 = sse_128_zero_vector();
+	__m128_u16	_128u32_result1 = sse_128_zero_vector();
+	for(i=0;i<32;i++)
+	{
+		__m128_u16	_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride, pred+i*pred_stride);
+		_128u32_result0 = sse_128_adds_u16(_128u32_result0, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+8, pred+i*pred_stride+8);
+		_128u32_result0 = sse_128_adds_u16(_128u32_result0, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+16, pred+i*pred_stride+16);
+		_128u32_result1 = sse_128_adds_u16(_128u32_result1, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+24, pred+i*pred_stride+24);
+		_128u32_result1 = sse_128_adds_u16(_128u32_result1, _128_u16_sad0);
+	}
+
+	_128u32_acc = sse_128_convert_u16_i32(_128u32_result0);
+	_128u32_acc = sse_128_add_i32(_128u32_acc, sse_128_convert_u16_i32(sse128_unpackhi_u64(_128u32_result0,_128u32_result0)));
+	_128u32_acc = sse_128_add_i32(_128u32_acc, sse_128_convert_u16_i32(_128u32_result1));
+	_128u32_acc = sse_128_add_i32(_128u32_acc, sse_128_convert_u16_i32(sse128_unpackhi_u64(_128u32_result1,_128u32_result1)));
+
+	return sad = sse_128_hacc_i32(_128u32_acc);
+}
+
+
+uint32_t sse_aligned_sad_64x64(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
+{
+	int i,j;
+	uint32_t sad = 0;
+	__m128_u32	_128u32_acc = sse_128_zero_vector();
+
+	for(i=0;i<64;i++)
+	{
+		__m128_i16	_128u32_result = SSE42_128_SAD_i16(src+i*src_stride, pred+i*pred_stride);
+
+		__m128_i16	_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+8, pred+i*pred_stride+8);
+
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+16, pred+i*pred_stride+16);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+24, pred+i*pred_stride+24);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+32, pred+i*pred_stride+32);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+40, pred+i*pred_stride+40);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+48, pred+i*pred_stride+48);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128_u16_sad0 = SSE42_128_SAD_i16(src+i*src_stride+56, pred+i*pred_stride+56);
+		_128u32_result = sse_128_adds_u16(_128u32_result, _128_u16_sad0);
+
+		_128u32_acc = sse_128_add_i32(_128u32_acc, sse_128_convert_u16_i32(_128u32_result));
+		_128u32_acc = sse_128_add_i32(_128u32_acc, sse_128_convert_u16_i32(sse128_unpackhi_u64(_128u32_result,_128u32_result)));
+	}
+	return sad = sse_128_hacc_i32(_128u32_acc);
 }
 
 
@@ -239,7 +172,7 @@ uint32_t sse_aligned_sad(int16_t * src, uint32_t src_stride, int16_t * pred, uin
 
 
 //---------------------------------------------ssd ------------------------------------------------------------------
-uint32_t sse_ssd_nxn_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size)
+/*uint32_t sse_ssd_nxn_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, uint32_t size)
 {
 	uint32_t i,j,n;
 	uint32_t ssd = 0;
@@ -378,61 +311,69 @@ uint32_t sse_aligned_ssd(int16_t * src, uint32_t src_stride, int16_t * pred, uin
 		return sse_aligned_ssd_64x64(src, src_stride, pred, pred_stride);
 
 }
-
+*/
 //---------------------------------------------ssd16b ------------------------------------------------------------------
 
-uint32_t sse_aligned_ssd16b_4x4(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd16b_4x4(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
 	uint32_t ssd = 0;
-	__m128_u32	_128_aux;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
+//	__m128_u32	_128u32_zero = sse_128_zero_vector();
 
-	CALC_ALIGNED_SSD16b_2x4(_128u32_result, src, src+src_stride, pred, pred+pred_stride, _128_aux)	
-	CALC_ALIGNED_SSD16b_2x4(_128u32_result, src+2*src_stride, src+3*src_stride, pred+2*pred_stride, pred+3*pred_stride, _128_aux)	
+	//lines 0 and 1
+	__m128_i16	_128_i16_src0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(src), sse_128_loadlo_vector64(src+src_stride));//
+	__m128_i16	_128_i16_pred0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred),sse_128_loadlo_vector64(pred+pred_stride)); 	
 
-	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
+	__m128_i16 _128_i16_sub0 = sse_128_sub_i16(_128_i16_src0, _128_i16_pred0);
+	__m128_i32 _128_i32_acc0 = sse_128_madd_i16_i32(_128_i16_sub0, _128_i16_sub0);
+
+	//lines 2 and 3
+	__m128_i16	_128_i16_src1 = sse128_unpacklo_u64(sse_128_loadlo_vector64(src+2*src_stride), sse_128_loadlo_vector64(src+3*src_stride));//
+	__m128_i16	_128_i16_pred1 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred+2*pred_stride),sse_128_loadlo_vector64(pred+3*pred_stride));
+	__m128_i16 _128_i16_sub1 = sse_128_sub_i16(_128_i16_src1, _128_i16_pred1);
+	__m128_i32 _128_i32_acc1 = sse_128_madd_i16_i32(_128_i16_sub1, _128_i16_sub1);
+
+	_128_i32_acc0 = sse_128_add_i32(_128_i32_acc0, _128_i32_acc1);
+	return ssd = sse_128_hacc_i32(_128_i32_acc0);
 }
 
 
-uint32_t sse_aligned_ssd16b_8x8(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+
+uint32_t sse_aligned_ssd16b_8x8(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
-	uint32_t ssd = 0;
-	__m128_u32	_128_aux;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-	int16_t *psrc = src;
-	int16_t *ppred = pred;
 	int i;
+	uint32_t ssd = 0;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
 
 	for(i=0;i<8;i++)
 	{
-		CALC_ALIGNED_SSD16b_8(_128u32_result, psrc, ppred, _128_aux)
-		psrc+=src_stride;
-		ppred+=pred_stride;
+		__m128_i32	_128_i32_ssd0 = SSE42_128_SSD_i16_i32(src+i*src_stride, pred+i*pred_stride);
+		_128u32_result = sse_128_add_i32(_128u32_result, _128_i32_ssd0);
 	}
 
+//	return ssd = sse_128_hacc_i32(_128u32_result);
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
 
 
-uint32_t sse_aligned_ssd16b_16x16(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride)
+uint32_t sse_aligned_ssd16b_16x16(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {
-	uint32_t ssd = 0;
-	__m128_u32	_128_aux;
-	__m128_u32	_128u32_result = sse_128_zero_vector();
-	int16_t *psrc = src;
-	int16_t *ppred = pred;
 	int i;
+	uint32_t ssd = 0;
+	__m128_u32	_128u32_result = sse_128_zero_vector();
 
 	for(i=0;i<16;i++)
 	{
-		CALC_ALIGNED_SSD16b_16(_128u32_result, psrc, ppred, _128_aux);
+		__m128_i32	_128_i32_ssd0 = SSE42_128_SSD_i16_i32(src+i*src_stride, pred+i*pred_stride);
+		_128u32_result = sse_128_add_i32(_128u32_result, _128_i32_ssd0);
 
-		psrc+=src_stride;
-		ppred+=pred_stride;
+		_128_i32_ssd0 = SSE42_128_SSD_i16_i32(src+i*src_stride+8, pred+i*pred_stride+8);
+		_128u32_result = sse_128_add_i32(_128u32_result, _128_i32_ssd0);
 	}
 
+//	return ssd = sse_128_hacc_i32(_128u32_result);
 	return ssd = sse_128_get_data_u32(_128u32_result,0)+sse_128_get_data_u32(_128u32_result,1)+sse_128_get_data_u32(_128u32_result,2)+sse_128_get_data_u32(_128u32_result,3);
 }
+
 
 
 
@@ -495,28 +436,25 @@ uint32_t sse_aligned_ssd16b(int16_t *src, uint32_t src_stride, int16_t *pred, ui
 }
 
 
-
-
 //---------------------------------------------predict ------------------------------------------------------------------
 
 void sse_aligned_predict_4x4(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
-//	int j;
-/*	for(j=0;j<4;j++)
-	{
-		CALC_ALIGNED_PREDICT_4(orig, pred, residual, _128_zero)
-		orig+=orig_stride;
-		pred+=pred_stride;
-		residual+=residual_stride;
-	}
-*/	
-	CALC_ALIGNED_PREDICT_4(orig, pred, residual, _128_zero)
-	CALC_ALIGNED_PREDICT_4(orig+orig_stride, pred+pred_stride, residual+residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_4(orig+2*orig_stride, pred+2*pred_stride, residual+2*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_4(orig+3*orig_stride, pred+3*pred_stride, residual+3*residual_stride, _128_zero)
+	__m128_i16	_128_i16_src0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(orig), sse_128_loadlo_vector64(orig+orig_stride));//
+	__m128_i16	_128_i16_pred0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred),sse_128_loadlo_vector64(pred+pred_stride)); 	
+	__m128_i16	_128_residual0 = sse_128_sub_i16(_128_i16_src0, _128_i16_pred0);//_128_u16_abs0 = sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);//sse_128_abs_i16(sse_128_sub_i16(_128_i16_src0, _128_i16_pred0));
+	sse_64_storel_vector_u(residual, _128_residual0);
+	sse_64_storeh_vector_u(residual+residual_stride, _128_residual0);
+
+	_128_i16_src0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(orig+2*orig_stride), sse_128_loadlo_vector64(orig+3*orig_stride));//
+	_128_i16_pred0 = sse128_unpacklo_u64(sse_128_loadlo_vector64(pred+2*pred_stride),sse_128_loadlo_vector64(pred+3*pred_stride)); 	
+	_128_residual0 = sse_128_sub_i16(_128_i16_src0, _128_i16_pred0);//_128_u16_abs0 = sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);//sse_128_abs_i16(sse_128_sub_i16(_128_i16_src0, _128_i16_pred0));
+	sse_64_storel_vector_u(residual+2*residual_stride, _128_residual0);
+	sse_64_storeh_vector_u(residual+3*residual_stride, _128_residual0);
 
 }
+
+
 
 void sse_aligned_predict_8x8(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
@@ -524,66 +462,34 @@ void sse_aligned_predict_8x8(int16_t *orig, int orig_stride, int16_t *pred, int 
 	int j;
 	for(j=0;j<8;j++)
 	{
-		CALC_ALIGNED_PREDICT_8(orig, pred, residual, _128_zero)
+		CALC_ALIGNED_PREDICT_8(orig, pred, residual)
 		orig+=orig_stride;
 		pred+=pred_stride;
 		residual+=residual_stride;
 	}
-
-/*	CALC_ALIGNED_PREDICT_8(orig, pred, residual, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+orig_stride, pred+pred_stride, residual+residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+2*orig_stride, pred+2*pred_stride, residual+2*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+3*orig_stride, pred+3*pred_stride, residual+3*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+4*orig_stride, pred+4*pred_stride, residual+4*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+5*orig_stride, pred+5*pred_stride, residual+5*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+6*orig_stride, pred+6*pred_stride, residual+6*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_8(orig+7*orig_stride, pred+7*pred_stride, residual+7*residual_stride, _128_zero)
-*/
 }
 
 
 void sse_aligned_predict_16x16(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
-
-/*	for(int j=0;j<16;j++)
+	int j;
+	for(j=0;j<16;j++)
 	{
-		CALC_ALIGNED_PREDICT_16(orig, pred, residual, _128_zero)
+		CALC_ALIGNED_PREDICT_16(orig, pred, residual)
 		orig+=orig_stride;
 		pred+=pred_stride;
 		residual+=residual_stride;
 	}
-*/
-	//this is a bit faster
-	CALC_ALIGNED_PREDICT_16(orig, pred, residual, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+orig_stride, pred+pred_stride, residual+residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+2*orig_stride, pred+2*pred_stride, residual+2*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+3*orig_stride, pred+3*pred_stride, residual+3*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+4*orig_stride, pred+4*pred_stride, residual+4*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+5*orig_stride, pred+5*pred_stride, residual+5*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+6*orig_stride, pred+6*pred_stride, residual+6*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+7*orig_stride, pred+7*pred_stride, residual+7*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+8*orig_stride, pred+8*pred_stride, residual+8*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+9*orig_stride, pred+9*pred_stride, residual+9*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+10*orig_stride, pred+10*pred_stride, residual+10*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+11*orig_stride, pred+11*pred_stride, residual+11*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+12*orig_stride, pred+12*pred_stride, residual+12*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+13*orig_stride, pred+13*pred_stride, residual+13*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+14*orig_stride, pred+14*pred_stride, residual+14*residual_stride, _128_zero)
-	CALC_ALIGNED_PREDICT_16(orig+15*orig_stride, pred+15*pred_stride, residual+15*residual_stride, _128_zero)
-
 }
 
 
 
 void sse_aligned_predict_32x32(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
-
 	for(j=0;j<32;j++)
 	{
-		CALC_ALIGNED_PREDICT_32(orig, pred, residual, _128_zero)
+		CALC_ALIGNED_PREDICT_32(orig, pred, residual)
 		orig+=orig_stride;
 		pred+=pred_stride;
 		residual+=residual_stride;
@@ -592,17 +498,16 @@ void sse_aligned_predict_32x32(int16_t *orig, int orig_stride, int16_t *pred, in
 
 void sse_aligned_predict_64x64(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
-
 	for(j=0;j<64;j++)
 	{
-		CALC_ALIGNED_PREDICT_64(orig, pred, residual, _128_zero)
+		CALC_ALIGNED_PREDICT_64(orig, pred, residual)
 		orig+=orig_stride;
 		pred+=pred_stride;
 		residual+=residual_stride;
 	}
 }
+
 
 
 void sse_aligned_predict(int16_t *orig, int orig_stride, int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int size)
@@ -625,9 +530,12 @@ void sse_aligned_predict(int16_t *orig, int orig_stride, int16_t *pred, int pred
 
 void sse_aligned_reconst_4x4(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
-	__m128_i16 _128_aux1 = sse_128_convert_u8_i16(sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u64(sse_128_load_vector_u(pred),sse_128_load_vector_u(pred+pred_stride)), sse128_unpacklo_u64(sse_128_load_vector_u(residual),sse_128_load_vector_u(residual+residual_stride))),_128_zero));
-	__m128_i16 _128_aux2 = sse_128_convert_u8_i16(sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u64(sse_128_load_vector_u(pred+2*pred_stride),sse_128_load_vector_u(pred+3*pred_stride)), sse128_unpacklo_u64(sse_128_load_vector_u(residual+2*residual_stride),sse_128_load_vector_u(residual+3*residual_stride))),_128_zero));
+	int bit_depth = 8;
+	__m128_i16	min_limit = sse_128_zero_vector();
+	__m128_i16	max_limit = sse_128_vector_i16((1<<bit_depth)-1);
+
+	__m128_i16 _128_aux1 = sse_128_clip_16(sse_128_adds_i16(sse128_unpacklo_u64(sse_128_loadlo_vector64(pred),sse_128_loadlo_vector64(pred+pred_stride)), sse128_unpacklo_u64(sse_128_loadlo_vector64(residual),sse_128_loadlo_vector64(residual+residual_stride))), min_limit, max_limit);
+	__m128_i16 _128_aux2 = sse_128_clip_16(sse_128_adds_i16(sse128_unpacklo_u64(sse_128_loadlo_vector64(pred+2*pred_stride),sse_128_loadlo_vector64(pred+3*pred_stride)), sse128_unpacklo_u64(sse_128_loadlo_vector64(residual+2*residual_stride),sse_128_loadlo_vector64(residual+3*residual_stride))), min_limit, max_limit);
 
 	sse_64_storel_vector_u(decoded, _128_aux1);
 	sse_64_storeh_vector_u(decoded+decoded_stride, _128_aux1);
@@ -638,26 +546,31 @@ void sse_aligned_reconst_4x4(int16_t *pred, int pred_stride, int16_t *residual, 
 
 void sse_aligned_reconst_8x8(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride)
 {
-	__m128_ _128_zero = sse_128_zero_vector();
+	int bit_depth = 8;
+	__m128_i16	min_limit = sse_128_zero_vector();
+	__m128_i16	max_limit = sse_128_vector_i16((1<<bit_depth)-1);
 	int j;
 	for (j=0;j<8;j++)
 	{
-		CALC_ALIGNED_RECONST_8(pred, residual, decoded, _128_zero)	
+		CALC_ALIGNED_RECONST_8(pred+j*pred_stride, residual+j*residual_stride, decoded+j*decoded_stride, min_limit, max_limit)	
 
-		decoded += decoded_stride;
-		residual += residual_stride;//este es 2D.Podria ser lineal
-		pred += pred_stride;
+//		CALC_ALIGNED_RECONST_8(pred, residual, decoded, min_limit, max_limit)	
+//		decoded += decoded_stride;
+//		residual += residual_stride;//este es 2D.Podria ser lineal
+//		pred += pred_stride;
 	}
 }
 
 void sse_aligned_reconst_16x16(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride)
 {
-	__m128_	_128_zero = sse_128_zero_vector();
 	int j;
+	int bit_depth = 8;
+	__m128_i16	min_limit = sse_128_zero_vector();
+	__m128_i16	max_limit = sse_128_vector_i16((1<<bit_depth)-1);
 
 	for (j=0;j<16;j++)
 	{
-		CALC_ALIGNED_RECONST_16(pred, residual, decoded, _128_zero)	
+		CALC_ALIGNED_RECONST_16(pred, residual, decoded, min_limit, max_limit)
 
 		decoded += decoded_stride;
 		residual += residual_stride;//este es 2D.Podria ser lineal
@@ -667,12 +580,15 @@ void sse_aligned_reconst_16x16(int16_t *pred, int pred_stride, int16_t *residual
 
 void sse_aligned_reconst_32x32(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride)
 {
-	__m128_		_128_zero = sse_128_zero_vector();
 	int j;
+	int bit_depth = 8;
+	__m128_i16	min_limit = sse_128_zero_vector();
+	__m128_i16	max_limit = sse_128_vector_i16((1<<bit_depth)-1);
 
 	for (j=0;j<32;j++)
 	{
-		CALC_ALIGNED_RECONST_32(pred, residual, decoded, _128_zero)	
+		CALC_ALIGNED_RECONST_32(pred, residual, decoded, min_limit, max_limit)													
+
 
 		decoded += decoded_stride;
 		residual += residual_stride;//este es 2D.Podria ser lineal
@@ -682,19 +598,20 @@ void sse_aligned_reconst_32x32(int16_t *pred, int pred_stride, int16_t *residual
 
 void sse_aligned_reconst_64x64(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride)
 {
-	__m128_	_128_zero = sse_128_zero_vector();
 	int j;
+	int bit_depth = 8;
+	__m128_i16	min_limit = sse_128_zero_vector();
+	__m128_i16	max_limit = sse_128_vector_i16((1<<bit_depth)-1);
 
 	for (j=0;j<64;j++)
 	{
-		CALC_ALIGNED_RECONST_64(pred, residual, decoded, _128_zero)	
+		CALC_ALIGNED_RECONST_64(pred, residual, decoded, min_limit, max_limit)													
 
 		decoded += decoded_stride;
 		residual += residual_stride;//este es 2D.Podria ser lineal
 		pred += pred_stride;
 	}
 }
-
 void sse_aligned_reconst(int16_t *pred, int pred_stride, int16_t *residual, int residual_stride, int16_t *decoded, int decoded_stride, int size)
 {
 	if(size==4)

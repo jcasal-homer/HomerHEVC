@@ -1037,7 +1037,7 @@ typedef struct low_level_funcs_t low_level_funcs_t;
 struct low_level_funcs_t
 {
 	uint32_t (*sad)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
-	uint32_t (*ssd)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
+//	uint32_t (*ssd)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	uint32_t (*ssd16b)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	void (*predict)(int16_t * orig, int orig_stride, int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int size);
 	void (*reconst)(int16_t* pred, int pred_stride, int16_t * residual, int residual_stride, int16_t* decoded, int decoded_stride, int size);

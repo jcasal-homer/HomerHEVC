@@ -253,12 +253,12 @@ void wnd_write2file(wnd_t *wnd, FILE *file)
 
 void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are cu indexes
 {
-	int width, height, component;
+	int width, height, component, l;
 	wnd_t* dst_wnd = &et->curr_mbs_wnd;
-	byte * src;
-	byte * dst;
+	int16_t *src;
+	int16_t *dst;
 	int src_stride, dst_stride;
-
+	int data_size = sizeof(src[0]);
 	for(component=Y_COMP;component<=V_COMP;component++)
 	{
 		src = WND_POSITION_2D(int16_t *, et->enc_engine->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
@@ -270,7 +270,12 @@ void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are 
 		width = ((i+1)*et->ctu_width[component]<et->pict_width[component])?et->ctu_width[component]:(et->pict_width[component]-(i*et->ctu_width[component]));
 		height = ((j+1)*et->ctu_height[component]<et->pict_height[component])?et->ctu_height[component]:(et->pict_height[component]-(j*et->ctu_height[component]));
 
-		mem_transfer_2d2d(src, dst, width, height, src_stride, dst_stride);
+		for(l=0;l<height;l++)
+		{
+			memcpy(dst,src,width*data_size);
+			dst += dst_stride;
+			src  += src_stride;
+		}
 	}
 }
 

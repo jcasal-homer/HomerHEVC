@@ -27,6 +27,23 @@
 
 #include "hmr_sse42_primitives.h"
 
+__inline __m128_i16 sse_128_sad_16b_(int16_t * src, int16_t * pred)
+{
+		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
+		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
+		return sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);
+}
+#define SSE42_128_SAD_i16	sse_128_sad_16b_
+
+__inline __m128_i32 sse_128_ssd_16b_32b_(int16_t * src, int16_t * pred)
+{
+		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
+		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
+		return sse_128_ssd_i16_i32_(_128_i16_src0, _128_i16_pred0);
+}
+#define SSE42_128_SSD_i16_i32	sse_128_ssd_16b_32b_
+
+
 #define CALC_ALIGNED_SAD_2x4(result, src_ln1, src_ln2, pred_ln1, pred_ln2)	\
 	result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(src_ln1),sse_128_loadlo_vector64(src_ln2))),sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(pred_ln1),sse_128_loadlo_vector64(pred_ln2)))));	
 	//result = sse_128_add_i64(result, sse_128_sad_u8(sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(src_ln1),sse_128_loadlo_vector64(src_ln2))),sse_128_loadlo_vector64(&sse128_unpacklo_u8(sse_128_loadlo_vector64(pred_ln1),sse_128_loadlo_vector64(pred_ln2)))));	
@@ -108,28 +125,28 @@
 
 //--------------------------------------- PREDICT -----------------------------------------------------------------------------------------------------------
 
-#define CALC_ALIGNED_PREDICT_4(src, pred, dst, zero)																														\
-	sse_64_storel_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),(zero)),sse_128_load_vector_u(pred)));	
+#define CALC_ALIGNED_PREDICT_4(src, pred, dst)																														\
+	sse_64_storel_vector_u((dst), sse_128_sub_i16(sse_128_loadlo_vector64(src),sse_128_loadlo_vector64(pred)));	
 
 
-#define CALC_ALIGNED_PREDICT_8(src, pred, dst, zero)																														\
-	sse_128_store_vector_u((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_u(src),zero),sse_128_load_vector_u(pred)));					
+#define CALC_ALIGNED_PREDICT_8(src, pred, dst)																														\
+	sse_128_store_vector_u((dst), sse_128_sub_i16(sse_128_load_vector_u(src),sse_128_load_vector_u(pred)));					
 
-#define CALC_ALIGNED_PREDICT_16(src, pred, dst, zero)																														\
-	sse_128_store_vector_a((dst), sse_128_sub_i16(sse128_unpacklo_u8(sse_128_load_vector_a(src),zero),sse_128_load_vector_a(pred)));										\
-	sse_128_store_vector_a((dst+8), sse_128_sub_i16(sse128_unpackhi_u8(sse_128_load_vector_a(src),zero),sse_128_load_vector_a(pred+8)));	
-
-
-#define CALC_ALIGNED_PREDICT_32(src, pred, dst, zero)													\
-	CALC_ALIGNED_PREDICT_16(src, pred, dst, zero)														\
-	CALC_ALIGNED_PREDICT_16(src+16, pred+16, dst+16, zero)										
+#define CALC_ALIGNED_PREDICT_16(src, pred, dst)																														\
+	sse_128_store_vector_a((dst), sse_128_sub_i16(sse_128_load_vector_u(src),sse_128_load_vector_u(pred)));															\
+	sse_128_store_vector_a((dst+8), sse_128_sub_i16(sse_128_load_vector_a(src+8),sse_128_load_vector_a(pred+8)));	
 
 
-#define CALC_ALIGNED_PREDICT_64(src, pred, dst, zero)															\
-	CALC_ALIGNED_PREDICT_16(src, pred, dst, zero)															\
-	CALC_ALIGNED_PREDICT_16(src+16, pred+16, dst+16, zero)													\
-	CALC_ALIGNED_PREDICT_16(src+32, pred+32, dst+32, zero)													\
-	CALC_ALIGNED_PREDICT_16(src+48, pred+48, dst+48, zero)
+#define CALC_ALIGNED_PREDICT_32(src, pred, dst)															\
+	CALC_ALIGNED_PREDICT_16(src, pred, dst)																\
+	CALC_ALIGNED_PREDICT_16(src+16, pred+16, dst+16)										
+
+
+#define CALC_ALIGNED_PREDICT_64(src, pred, dst)															\
+	CALC_ALIGNED_PREDICT_16(src, pred, dst)																\
+	CALC_ALIGNED_PREDICT_16(src+16, pred+16, dst+16)													\
+	CALC_ALIGNED_PREDICT_16(src+32, pred+32, dst+32)													\
+	CALC_ALIGNED_PREDICT_16(src+48, pred+48, dst+48)
 
 
 //--------------------------------------- RECONST -----------------------------------------------------------------------------------------------------------
@@ -137,29 +154,30 @@
 #define CALC_ALIGNED_RECONST_4(pred, resi, deco, zero)																															\
 	sse_32_store_vector0_u(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_u(resi)),zero));
 
-#define CALC_ALIGNED_RECONST_8(pred, resi, deco, zero)																															\
-	sse_128_store_vector_u(deco, sse_128_convert_u8_i16(sse128_packs_i16_u8(sse_128_adds_i16(sse_128_load_vector_u(pred), sse_128_load_vector_u(resi)),zero)));
+#define CALC_ALIGNED_RECONST_8(pred, resi, deco, min_limit, max_limit)																											\
+	sse_128_store_vector_u(deco, sse_128_clip_16(sse_128_adds_i16(sse_128_load_vector_u(pred), sse_128_load_vector_u(resi)), min_limit, max_limit));
 	//sse_64_storel_vector_u(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse128_unpacklo_u8(sse_128_load_vector_u(pred),zero), sse_128_load_vector_a(resi)),zero));
 	//sse_64_storel_vector_u(deco, _mm_adds_epu8(sse_128_load_vector_u(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi)))); 						
 
-#define CALC_ALIGNED_RECONST_16(pred, resi, deco, zero)																															\
-	CALC_ALIGNED_RECONST_8(pred, resi, deco, zero)																																\
-	CALC_ALIGNED_RECONST_8(pred+8, resi+8, deco+8, zero)
+#define CALC_ALIGNED_RECONST_16(pred, resi, deco, min_limit, max_limit)																											\
+	CALC_ALIGNED_RECONST_8(pred, resi, deco, min_limit, max_limit)																												\
+	CALC_ALIGNED_RECONST_8(pred+8, resi+8, deco+8, min_limit, max_limit)																										
 	//sse_128_store_vector_a(deco, sse128_packs_i16_u8(sse_128_adds_i16(sse_128_load_vector_a(resi), sse128_unpacklo_u8(sse_128_load_vector_a(pred), zero)),sse_128_adds_i16(sse_128_load_vector_a(resi+8), sse128_unpackhi_u8(sse_128_load_vector_a(pred), zero))));
 
 //		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
 //		sse_128_store_vector_a(deco, _mm_adds_epu8(sse_128_load_vector_a(pred), sse128_packs_i16_u8(sse_128_load_vector_a(resi),sse_128_load_vector_a(resi+8)))); 
 
-#define CALC_ALIGNED_RECONST_32(pred, resi, deco, zero)													\
-	CALC_ALIGNED_RECONST_16(pred, resi, deco, zero)														\
-	CALC_ALIGNED_RECONST_16(pred+16, resi+16, deco+16, zero)										
+#define CALC_ALIGNED_RECONST_32(pred, resi, deco, min_limit, max_limit)													\
+	CALC_ALIGNED_RECONST_16(pred, resi, deco, min_limit, max_limit)														\
+	CALC_ALIGNED_RECONST_16(pred+16, resi+16, deco+16, min_limit, max_limit)										
 
 
-#define CALC_ALIGNED_RECONST_64(pred, resi, deco, zero)														\
-	CALC_ALIGNED_RECONST_16(pred, resi, deco, zero)															\
-	CALC_ALIGNED_RECONST_16(pred+16, resi+16, deco+16, zero)													\
-	CALC_ALIGNED_RECONST_16(pred+32, resi+32, deco+32, zero)													\
-	CALC_ALIGNED_RECONST_16(pred+48, resi+48, deco+48, zero)													
+#define CALC_ALIGNED_RECONST_64(pred, resi, deco, min_limit, max_limit)													\
+	CALC_ALIGNED_RECONST_16(pred, resi, deco, min_limit, max_limit)														\
+	CALC_ALIGNED_RECONST_16(pred+16, resi+16, deco+16, min_limit, max_limit)											\
+	CALC_ALIGNED_RECONST_16(pred+32, resi+32, deco+32, min_limit, max_limit)											\
+	CALC_ALIGNED_RECONST_16(pred+48, resi+48, deco+48, min_limit, max_limit)
+
 
 
 #define TRANSPOSE_MATRIX_4x4_8BITS(regs, matrix, stride)												\
@@ -169,7 +187,7 @@
 	__m128_i16 c0c1c2c3 = sse128_unpacklo_u16(l0l1_l,l2l3_l);											\
 	sse_64_storel_vector_u(matrix, c0c1c2c3);															\
 	sse_64_storeh_vector_u(matrix+2*stride, c0c1c2c3);													\
-	c0c1c2c3 =  sse_128_shift_r_u32(c0c1c2c3,32);														\
+	c0c1c2c3 =  sse_128_shift_r_i32(c0c1c2c3,32);														\
 	sse_64_storel_vector_u(matrix+1*stride, c0c1c2c3);													\
 	sse_64_storeh_vector_u(matrix+3*stride, c0c1c2c3);													\
 }
