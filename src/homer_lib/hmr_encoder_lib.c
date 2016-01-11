@@ -159,6 +159,9 @@ void *HOMER_enc_init()
 	{
 		printf("SSE42 avaliable!!\r\n");
 
+		hvenc->funcs.sse_copy_16_16 = sse_copy_16_16;
+		hvenc->funcs.sse_copy_8_16 = sse_copy_8_16;
+		hvenc->funcs.sse_copy_16_8 = sse_copy_16_8;
 		hvenc->funcs.sad = sse_aligned_sad;
 //		hvenc->funcs.ssd = sse_aligned_ssd;
 		hvenc->funcs.ssd16b = sse_aligned_ssd16b;
@@ -182,6 +185,9 @@ void *HOMER_enc_init()
 	}
 	else
 	{
+		hvenc->funcs.sse_copy_16_16 = copy_16_16;
+		hvenc->funcs.sse_copy_8_16 = copy_8_16;
+		hvenc->funcs.sse_copy_16_8 = copy_16_8;
 		hvenc->funcs.sad = sad;
 //		hvenc->funcs.ssd = ssd;
 		hvenc->funcs.ssd16b = ssd16b;
@@ -204,8 +210,6 @@ void *HOMER_enc_init()
 		hvenc->funcs.get_sao_stats = sao_get_ctu_stats;		
 	}
 
-//	MUTEX_INIT(hvenc->mutex_start_frame);
-
 	return hvenc;
 }
 
@@ -217,17 +221,35 @@ void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
 	int16_t *dst;
 	int stride_dst, stride_src;
 	int comp, j;
+	wnd_t wnd_src_aux;
+	wnd_t *wnd_dst;
 
 	sync_cont_get_empty(enc_engine->input_hmr_container, (void**)&p);
 
 	p->temp_info.pts = input_frame->pts;
 	p->img_type = input_frame->image_type;
-	for(comp=Y_COMP;comp<=V_COMP;comp++)
+
+	wnd_dst = &p->img;
+	wnd_src_aux.data_width[0] = wnd_dst->data_width[0];
+	wnd_src_aux.pix_size = 1;//wnd_dst->pix_size;
+	wnd_src_aux.pwnd[Y_COMP] = input_frame->stream.streams[Y_COMP];
+	wnd_src_aux.pwnd[U_COMP] = input_frame->stream.streams[U_COMP];
+	wnd_src_aux.pwnd[V_COMP] = input_frame->stream.streams[V_COMP];
+	wnd_src_aux.data_width[Y_COMP] = wnd_src_aux.window_size_x[Y_COMP] = enc_engine->pict_width[Y_COMP];
+	wnd_src_aux.data_width[U_COMP] = wnd_src_aux.window_size_x[U_COMP] = enc_engine->pict_width[U_COMP];
+	wnd_src_aux.data_width[V_COMP] = wnd_src_aux.window_size_x[V_COMP] = enc_engine->pict_width[V_COMP];
+	wnd_src_aux.data_height[Y_COMP] = wnd_src_aux.window_size_y[Y_COMP] = enc_engine->pict_height[Y_COMP];
+	wnd_src_aux.data_height[U_COMP] = wnd_src_aux.window_size_y[U_COMP] = enc_engine->pict_height[U_COMP];
+	wnd_src_aux.data_height[V_COMP] = wnd_src_aux.window_size_y[V_COMP] = enc_engine->pict_height[V_COMP];
+	wnd_copy(WND_CPY_FUNC_8b_16b(&enc_engine->funcs), &wnd_src_aux, wnd_dst);
+
+/*	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
-		src = input_frame->stream.streams[comp];
-		dst = WND_DATA_PTR(int16_t*, p->img, comp);
+		//src = input_frame->stream.streams[comp];
+		src = WND_DATA_PTR(uint8_t*, wnd_src_aux, comp);
+		dst = WND_DATA_PTR(int16_t*, *wnd_dst, comp);
 		stride_src = input_frame->stream.data_stride[comp];//,  enc_engine->pict_width[comp];
-		stride_dst = WND_STRIDE_2D(p->img, comp);
+		stride_dst = WND_STRIDE_2D(*wnd_dst, comp);
 
 		for(j=0;j<enc_engine->pict_height[comp];j++)
 		{
@@ -241,6 +263,7 @@ void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
 			dst += stride_dst;
 		}
 	}
+*/
 	sync_cont_put_filled(enc_engine->input_hmr_container, p);
 }
 
@@ -2508,7 +2531,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		ctu = init_ctu(et);
 
 		//Prepare Memory
-		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y);	//move MBs from image to currMbWnd
+		mem_transfer_move_curr_ctu_group(et, et->cu_current_x, et->cu_current_y, ctu);	//move MBs from image to currMbWnd
 		mem_transfer_intra_refs(et, ctu);//copy left and top info for intra prediction
 
 		copy_ctu(ctu, et->ctu_rd);
@@ -2550,7 +2573,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		mem_transfer_decoded_blocks(et, ctu);
 
 
-		wnd_copy(et->transform_quant_wnd[0], ctu->coeff_wnd);
+		wnd_copy(WND_CPY_FUNC_16b_16b(et->funcs), et->transform_quant_wnd[0], ctu->coeff_wnd);
 
 #ifndef COMPUTE_AS_HM
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);

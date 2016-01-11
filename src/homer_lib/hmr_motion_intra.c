@@ -863,26 +863,30 @@ void synchronize_reference_buffs(henc_thread_t* et, cu_partition_info_t* curr_pa
 
 
 //this function is used to consolidate buffers from bottom to top
-void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
+void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* curr_cu_info, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
 {
 	int j;//, i;
-	int decoded_buff_stride = WND_STRIDE_2D(*decoded_src, Y_COMP);//-curr_part->size;
-	int16_t * decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
-	int16_t * decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, Y_COMP, curr_part->x_position, curr_part->y_position, gcnt, et->ctu_width);
+/*	int decoded_buff_stride = WND_STRIDE_2D(*decoded_src, Y_COMP);//-curr_part->size;
+	int16_t * decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, gcnt, et->ctu_width);
+	int16_t * decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, Y_COMP, curr_cu_info->x_position, curr_cu_info->y_position, gcnt, et->ctu_width);
 
-	int quant_buff_stride = curr_part->size;//0;//es lineal
-	int16_t * quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
-	int16_t * quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, Y_COMP, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift));
+	int quant_buff_stride = curr_cu_info->size;//0;//es lineal
+	int16_t * quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
+	int16_t * quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 
-	for(j=0;j<curr_part->size;j++)
+*/
+	wnd_copy_cu_2D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, decoded_src, decoded_dst, Y_COMP);
+	wnd_copy_cu_1D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, quant_src, quant_dst, Y_COMP);
+/*	for(j=0;j<curr_cu_info->size;j++)
 	{
-		memcpy(quant_buff_dst, quant_buff_src, curr_part->size*sizeof(quant_buff_src[0]));
-		memcpy(decoded_buff_dst, decoded_buff_src, curr_part->size*sizeof(decoded_buff_src[0]));
+//		memcpy(quant_buff_dst, quant_buff_src, curr_cu_info->size*sizeof(quant_buff_src[0]));
+//		memcpy(decoded_buff_dst, decoded_buff_src, curr_cu_info->size*sizeof(decoded_buff_src[0]));
 		quant_buff_src += quant_buff_stride;
 		quant_buff_dst += quant_buff_stride;
 		decoded_buff_src += decoded_buff_stride;
 		decoded_buff_dst += decoded_buff_stride;
 	}
+*/
 }
 
 

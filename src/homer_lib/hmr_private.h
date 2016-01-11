@@ -251,7 +251,8 @@ typedef enum {
   U_COMP,
   V_COMP,
   CHR_COMP = 1,//chroma
-  NUM_PICT_COMPONENTS = 3
+  NUM_PICT_COMPONENTS = 3,
+  ALL_COMP = NUM_PICT_COMPONENTS
 } PictComponents;
 //#define NUM_PICT_COMPONENTS			3				//Y,U,V,PTS,private data, size of private data
 //#define NUM_PICT_PARAMS		(NUM_PICT_COMPONENTS+3)	//Y,U,V,PTS,private data, size of private data
@@ -1036,6 +1037,9 @@ typedef struct hvenc_enc_t hvenc_enc_t;
 typedef struct low_level_funcs_t low_level_funcs_t;
 struct low_level_funcs_t
 {
+	void (*sse_copy_16_16)(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+	void (*sse_copy_16_8)(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+	void (*sse_copy_8_16)(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
 	uint32_t (*sad)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 //	uint32_t (*ssd)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);
 	uint32_t (*ssd16b)(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride, int size);

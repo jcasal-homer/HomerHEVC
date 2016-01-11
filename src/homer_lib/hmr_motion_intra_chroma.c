@@ -53,27 +53,30 @@ void synchronize_reference_buffs_chroma(henc_thread_t* et, cu_partition_info_t* 
 }
 
 //this function consolidate buffers from bottom to top
-void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
+void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* curr_cu_info, wnd_t * quant_src, wnd_t * quant_dst, wnd_t *decoded_src, wnd_t * decoded_dst, int gcnt)
 {
 	int j, comp;//, i;
 	int decoded_buff_stride;
 	int16_t *  decoded_buff_src;
 	int16_t *  decoded_buff_dst;
 
-	int quant_buff_stride = curr_part->size_chroma;//0;//es lineal
+	int quant_buff_stride = curr_cu_info->size_chroma;//0;//es lineal
 	int16_t *  quant_buff_src;
 	int16_t *  quant_buff_dst;
 
 	for(comp=U_COMP;comp<=V_COMP;comp++)
 	{
-		decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
-		decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
-		decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_part->x_position_chroma, curr_part->y_position_chroma, gcnt, et->ctu_width);
+		int decoded_buff_stride = WND_STRIDE_2D(*decoded_src, comp);//-curr_part->size;
+		int16_t * decoded_buff_src = WND_POSITION_2D(int16_t *, *decoded_src, comp, curr_cu_info->x_position, curr_cu_info->y_position, gcnt, et->ctu_width);
+		int16_t * decoded_buff_dst = WND_POSITION_2D(int16_t *, *decoded_dst, comp, curr_cu_info->x_position, curr_cu_info->y_position, gcnt, et->ctu_width);
 
-		quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
-		quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, comp, gcnt, et->ctu_width, (curr_part->abs_index<<et->num_partitions_in_cu_shift)>>2);
+		int quant_buff_stride = curr_cu_info->size_chroma;//0;//es lineal
+		int16_t * quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, comp, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
+		int16_t * quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, comp, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 
-		for(j=0;j<curr_part->size_chroma;j++)
+		wnd_copy_cu_2D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, decoded_src, decoded_dst, comp);
+		wnd_copy_cu_1D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, quant_src, quant_dst, comp);
+/*		for(j=0;j<curr_part->size_chroma;j++)
 		{
 			memcpy(quant_buff_dst, quant_buff_src, curr_part->size_chroma*sizeof(quant_buff_src[0]));
 			memcpy(decoded_buff_dst, decoded_buff_src, curr_part->size_chroma*sizeof(decoded_buff_src[0]));
@@ -82,6 +85,7 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 			decoded_buff_src += decoded_buff_stride;
 			decoded_buff_dst += decoded_buff_stride;
 		}
+*/
 	}
 }
 

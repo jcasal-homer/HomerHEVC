@@ -30,6 +30,266 @@
 
 //#define EXTRA_OPTIMIZATION	1
 
+void copy_16_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	int16_t *src = (int16_t*)vsrc;
+	int16_t *dst = (int16_t*)vdst;
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		//for(i=0;i<size;i++)
+			//dst[i] = src[i];
+		memcpy(dst,src,width*sizeof(src[0]));
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
+void sse_copy_16_16_4xn(int16_t* src, uint32_t src_stride, int16_t* dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		__m128_i16	_128_i16_src = sse_128_loadlo_vector64(src);
+		sse_64_storel_vector_u(dst, _128_i16_src);
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_16_8xn(int16_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		__m128_i16	_128_i16_src = sse_128_load_vector_u(src);
+		sse_128_store_vector_u(dst, _128_i16_src);
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_16_16xn(int16_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		sse_128_store_vector_u(dst, sse_128_load_vector_u(src));
+		sse_128_store_vector_u(dst+8, sse_128_load_vector_u(src+8));
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
+void sse_copy_16_16_16nxn(int16_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height, int width)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		for(i=0;i<width;i+=16)
+		{
+			__m128_i16	_128_i16_src = sse_128_load_vector_u(&src[i]);
+			__m128_i16	_128_i16_src1 = sse_128_load_vector_u(&src[i+8]);
+			sse_128_store_vector_u(&dst[i], _128_i16_src);
+			sse_128_store_vector_u(&dst[i+8], _128_i16_src1);
+		}
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	int i,j;
+	int16_t* src  = (int16_t*)vsrc;
+	int16_t* dst  = (int16_t*)vdst;
+
+	if(width==4)
+		return sse_copy_16_16_4xn(src, src_stride, dst, dst_stride, height);
+	else if(width==8)
+		return sse_copy_16_16_8xn(src, src_stride, dst, dst_stride, height);
+//	else if(size==16)
+//		return sse_copy_16_16_16xn(src, src_stride, dst, dst_stride, size);
+	else
+		return sse_copy_16_16_16nxn(src, src_stride, dst, dst_stride, height, width);
+}
+
+
+//void copy_8_16(uint8_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int size)
+void copy_8_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	uint8_t *src = (uint8_t*)vsrc;
+	int16_t *dst = (int16_t*)vdst;
+	int i,j;
+
+	for(j=0;j<height;j++)
+	{
+		for(i=0;i<width;i++)
+			dst[i] = (int16_t)src[i];
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
+void sse_copy_8_16_4xn(uint8_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		__m128_u8	_128_u8_src0 = sse_128_loadlo_vector64(src);
+		__m128_i16	_128_i16_src = sse_128_convert_u8_i16(_128_u8_src0);//
+		sse_64_storel_vector_u(dst, _128_i16_src);
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_8_16_8xn(uint8_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		__m128_u8	_128_u8_src0 = sse_128_loadlo_vector64(src);
+		__m128_i16	_128_i16_src = sse_128_convert_u8_i16(_128_u8_src0);//
+		sse_128_store_vector_u(dst, _128_i16_src);
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_8_16_16nx16n(uint8_t* src, uint32_t src_stride, int16_t * dst, uint32_t dst_stride, int height, int width)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		for(i=0;i<width;i+=16)
+		{
+			__m128_u8	_128_u8_src = sse_128_load_vector_u(&src[i]);
+			__m128_i16	_128_i16_src0 = sse_128_convert_u8_i16(_128_u8_src);//
+			__m128_i16	_128_i16_src1 = sse_128_convert_u8_i16(sse128_unpackhi_u64(_128_u8_src, _128_u8_src));//
+			sse_128_store_vector_u(&dst[i], _128_i16_src0);
+			sse_128_store_vector_u(&dst[i+8], _128_i16_src1);
+		}
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
+
+void sse_copy_8_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	uint8_t *src = (uint8_t*)vsrc;
+	int16_t *dst = (int16_t*)vdst;
+	if(width==4)
+		return sse_copy_8_16_4xn(src, src_stride, dst, dst_stride, height);
+	else if(width==8)
+		return sse_copy_8_16_8xn(src, src_stride, dst, dst_stride, height);
+	else //if(size==16)
+		return sse_copy_8_16_16nx16n(src, src_stride, dst, dst_stride, height, width);
+}
+
+
+
+void copy_16_8(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	int16_t *src = (int16_t*)vsrc;
+	uint8_t *dst = (uint8_t*)vdst;
+
+	int i,j;
+	for(j=0;j<width;j++)
+	{
+		for(i=0;i<height;i++)
+			dst[i] = (uint8_t)src[i];
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_8_4xn(int16_t* src, uint32_t src_stride, uint8_t* dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+//		for(i=0;i<size;i+=4)
+		{
+			__m128_i16	_128_i16_src0 = sse_128_loadlo_vector64(src);
+			__m128_u8	_128_u8_src = sse128_packs_i16_u8(_128_i16_src0, _128_i16_src0);//
+			sse_32_store_vector0_u(dst, _128_u8_src);
+		}
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_8_8xn(int16_t* src, uint32_t src_stride, uint8_t* dst, uint32_t dst_stride, int height)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+//		for(i=0;i<size;i+=8)
+		{
+			__m128_i16	_128_i16_src0 = sse_128_load_vector_u(src);
+			__m128_u8	_128_u8_src = sse128_packs_i16_u8(_128_i16_src0, _128_i16_src0);//
+			sse_64_storel_vector_u(dst, _128_u8_src);
+		}
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+void sse_copy_16_8_16nx16n(int16_t* src, uint32_t src_stride, uint8_t* dst, uint32_t dst_stride, int height, int width)
+{
+	int i,j;
+	for(j=0;j<height;j++)
+	{
+		for(i=0;i<width;i+=16)
+		{
+			__m128_i16	_128_i16_src0 = sse_128_load_vector_u(&src[i]);
+			__m128_i16	_128_i16_src1 = sse_128_load_vector_u(&src[i+8]);
+			__m128_u8	_128_u8_src = sse128_packs_i16_u8(_128_i16_src0, _128_i16_src1);//
+			sse_128_store_vector_u(&dst[i], _128_u8_src);
+		}
+
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+
+void sse_copy_16_8(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
+{
+	int16_t *src = (int16_t*)vsrc;
+	uint8_t *dst = (uint8_t*)vdst;
+	if(width==4)
+		return sse_copy_16_8_4xn(src, src_stride, dst, dst_stride, height);
+	else if(width==8)
+		return sse_copy_16_8_8xn(src, src_stride, dst, dst_stride, height);
+	else //if(size==16)
+		return sse_copy_16_8_16nx16n(src, src_stride, dst, dst_stride, height, width);
+}
+
+
+
+
+
+
+
 
 uint32_t sse_aligned_sad_4x4(int16_t * src, uint32_t src_stride, int16_t * pred, uint32_t pred_stride)
 {

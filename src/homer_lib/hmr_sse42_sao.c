@@ -60,7 +60,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 		int decoded_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->curr_reference_frame->img, component);
 		int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 		int orig_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->current_pict.img2encode->img, component);
-		uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, wpp_thread->enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
+		int16_t *orig_buff = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 		int chroma_shift = (component==Y_COMP)?0:1;
 		int height = height_luma>>chroma_shift;
 		int width = width_luma>>chroma_shift;
@@ -72,10 +72,10 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 			int64_t *diff = curr_stat_data->diff;
 			int64_t *count = curr_stat_data->count;
 			int x,y, start_x, start_y, end_x, end_y, first_line_start_x, first_line_end_x;
-			int8_t sign_left, sign_right, sign_down;
+			int16_t sign_left, sign_right, sign_down;
 			int16_t *src_line = decoded_buff;
 			int src_stride = decoded_buff_stride;
-			uint8_t *org_line = orig_buff;
+			int16_t *org_line = orig_buff;
 			int org_stride = orig_buff_stride;
 			__m128_i16 one = sse_128_vector_i16(1);
 			__m128_i16 one_ = sse_128_vector_i16(-1);
@@ -104,7 +104,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 							__m128_i16 aux2 = sse_128_sub_i16(src, src1);
 							__m128_i16 sign_right = sse_128_sign_16(one, aux2);
 							__m128_i16 edge_type = sse_128_add_i16(sign_left, sign_right);
-							__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+							__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 							sse_128_store_vector_u(edge_type_buff+x, edge_type);
 							sse_128_store_vector_u(diff_coeff_buff+x, diff);
 						}
@@ -203,7 +203,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 							__m128_i16 next_sign_above = sse_128_sign_16(one_, aux);
 							__m128_i16 sign_above = sse_128_load_vector_u(signUpLine+x);
 							__m128_i16 edge_type = sse_128_add_i16(sign_below, sign_above);
-							__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+							__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 							sse_128_store_vector_u(signUpLine+x, next_sign_above);
 							sse_128_store_vector_u(edge_type_buff+x, edge_type);
 							sse_128_store_vector_u(diff_coeff_buff+x, diff);
@@ -258,7 +258,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 						__m128_i16 aux = sse_128_sub_i16(src, src_above_1);
 						__m128_i16 sign_above = sse_128_sign_16(one, aux);
 						__m128_i16 edge_type = sse_128_sub_i16(sign_above, sse_128_load_vector_u(signUpLine+x+1));
-						__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+						__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 						sse_128_store_vector_u(edge_type_buff+x, edge_type);
 						sse_128_store_vector_u(diff_coeff_buff+x, diff);
 					}
@@ -285,7 +285,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 							__m128_i16 sign_down = sse_128_sign_16(one, aux);
 							__m128_i16 next_sign_down = sse_128_sign_16(one_, aux);
 							__m128_i16 edge_type = sse_128_add_i16(sign_down, sse_128_load_vector_u(signUpLine+x));
-							__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+							__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 							sse_128_store_vector_u(signDownLine+x+1, next_sign_down);
 							sse_128_store_vector_u(edge_type_buff+x, edge_type);
 							sse_128_store_vector_u(diff_coeff_buff+x, diff);
@@ -342,7 +342,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 						__m128_i16 aux = sse_128_sub_i16(src, src_above1);
 						__m128_i16 sign_above = sse_128_sign_16(one, aux);
 						__m128_i16 edge_type = sse_128_sub_i16(sign_above, sse_128_load_vector_u(signUpLine+x-1));
-						__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+						__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 						sse_128_store_vector_u(edge_type_buff+x, edge_type);
 						sse_128_store_vector_u(diff_coeff_buff+x, diff);
 					}
@@ -370,7 +370,7 @@ void sse_sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_in
 							__m128_i16 sign_down = sse_128_sign_16(one, aux);
 							__m128_i16 next_sign_down = sse_128_sign_16(one_, aux);
 							__m128_i16 edge_type = sse_128_add_i16(sign_down, sse_128_load_vector_u(signUpLine+x));
-							__m128_i16 diff = sse_128_sub_i16(_mm_cvtepu8_epi16(sse_128_load_vector_u(org_line+x)), src);
+							__m128_i16 diff = sse_128_sub_i16(sse_128_load_vector_u(org_line+x), src);
 							sse_128_store_vector_u(signUpLine+x-1, next_sign_down);
 							sse_128_store_vector_u(edge_type_buff+x, edge_type);
 							sse_128_store_vector_u(diff_coeff_buff+x, diff);

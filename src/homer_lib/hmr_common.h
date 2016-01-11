@@ -58,8 +58,8 @@
 
 
 //to access cu_partition list
-#define WND_POSITION_1D(type, w, comp, gcnt, ctu_width, offset) ((type)(w).pwnd[comp]+gcnt*ctu_width[comp]+(offset))//((type)(w).pwnd[comp]+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+(offset))
-#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[(comp)]+(part_y)*(w).window_size_x[(comp)]+(gcnt)*ctu_width[comp]+(part_x))//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
+#define WND_POSITION_1D(type, w, comp, gcnt, ctu_width, offset) ((type)(w).pwnd[comp]+(offset))//((type)(w).pwnd[comp]+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+(offset))
+#define WND_POSITION_2D(type, w, comp, part_x, part_y, gcnt, ctu_width) ((type)(w).pwnd[(comp)]+(part_y)*(w).window_size_x[(comp)]+(part_x))//((type)(w).pwnd[comp]+((w).data_padding_y[comp]+part_y)*(w).window_size_x[comp]+(w).data_padding_x[comp]+gcnt*ctu_width[comp]+part_x)
 
 //random access
 #define WND_DATA_PTR(type, w, comp) ((type)(w).pwnd[comp])//+((w).data_padding_y[comp])*(w).window_size_x[comp]+(w).data_padding_x[comp])
@@ -187,18 +187,21 @@ void hmr_aligned_free(void *p);
 void wnd_alloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
-void wnd_copy(wnd_t * wnd_src, wnd_t * wnd_dst);
-void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu);
-void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst);
+
+typedef void (*f_copy_n_n)(void* src, uint32_t src_stride, void* dst, uint32_t dst_stride, int width, int height);//function interface for eficient low level abstraction
+#define WND_CPY_FUNC_16b_16b(funcs)	(funcs)->sse_copy_16_16
+#define WND_CPY_FUNC_8b_16b(funcs)	(funcs)->sse_copy_8_16
+#define WND_CPY_FUNC_16b_8b(funcs)	(funcs)->sse_copy_16_8
+void wnd_copy(f_copy_n_n func, wnd_t * wnd_src, wnd_t * wnd_dst);
+void wnd_copy_cu_2D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp);
+void wnd_copy_cu_1D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp);
+
+void wnd_copy_ctu(f_copy_n_n func, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu);
 void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd);
 void wnd_write2file(wnd_t *wnd_t, FILE* file);
-void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j);
+void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j, ctu_info_t *ctu);
 void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu);
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu);
-void mem_transfer_1d1d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height);
-void mem_transfer_1d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int dst_stride);
-void mem_transfer_2d1d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride);
-void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride, unsigned int dst_stride);
 
 
 //init_tables.c

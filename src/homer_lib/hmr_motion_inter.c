@@ -2495,7 +2495,7 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				int8_t  *aux_y, *aux_u, *aux_v;
 				int aux_y_stride, aux_ch_stride;
 
-				wnd_copy(&et->curr_mbs_wnd, &et->prediction_aux_wnd);
+				wnd_copy(WND_CPY_FUNC_16b_16b(et->funcs), &et->curr_mbs_wnd, &et->prediction_aux_wnd);
 
 				ref_other_y_stride = WND_STRIDE_2D(et->prediction_aux_wnd, Y_COMP);
 				ref_other_y = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+list_other], Y_COMP, curr_part_x, curr_part_y, gcnt, et->ctu_width);
@@ -3311,7 +3311,7 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 						best_sum = curr_cu_info->sum;
 						if(uiNoResidual==1)//if it is skipped write 0 in the residual and copy the prediction wnd to the decoder wnd
 						{
-							wnd_copy_cu_2D(et, curr_cu_info, &et->prediction_wnd[0], et->decoded_mbs_wnd[curr_depth+1]);
+							wnd_copy_cu_2D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, &et->prediction_wnd[0], et->decoded_mbs_wnd[curr_depth+1], ALL_COMP);
 							wnd_zero_cu_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
 							SET_ENC_INFO_BUFFS(et, curr_cu_info, curr_depth/*+(part_size_type!=SIZE_2Nx2N)*/, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);//consolidate in prediction depth
 						}
@@ -3962,7 +3962,7 @@ uint32_t check_rd_cost_merge_2nx2n_fast(henc_thread_t* et, ctu_info_t* ctu, int 
 						best_sum = curr_cu_info->sum;
 						if(uiNoResidual==1)//if it is skipped write 0 in the residual and copy the prediction wnd to the decoder wnd
 						{
-							wnd_copy_cu_2D(et, curr_cu_info, &et->prediction_wnd[0], et->decoded_mbs_wnd[curr_depth+1]);
+							wnd_copy_cu_2D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, &et->prediction_wnd[0], et->decoded_mbs_wnd[curr_depth+1], ALL_COMP);
 							wnd_zero_cu_1D(et, curr_cu_info, et->transform_quant_wnd[curr_depth+1]);
 							SET_ENC_INFO_BUFFS(et, curr_cu_info, curr_depth/*+(part_size_type!=SIZE_2Nx2N)*/, curr_cu_info->abs_index, curr_cu_info->num_part_in_cu);//consolidate in prediction depth
 						}

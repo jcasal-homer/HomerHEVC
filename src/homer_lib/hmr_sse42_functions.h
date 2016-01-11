@@ -27,6 +27,19 @@
 #include "hmr_private.h"
 #include "hmr_common.h"
 //SSE 4.2
+
+//------------------------------------------------------copy -------------------------------------------------------------------------
+
+void copy_16_8(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+void sse_copy_16_8(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+
+void copy_8_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+void sse_copy_8_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+
+void copy_16_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+void sse_copy_16_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width);
+
+
 //------------------------------------------------------sad -------------------------------------------------------------------------
 uint32_t sse_aligned_sad(int16_t *src, uint32_t src_stride, int16_t *pred, uint32_t pred_stride, int size);
 

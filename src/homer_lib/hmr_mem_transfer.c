@@ -26,6 +26,7 @@
 
 #include "hmr_common.h"
 #include "hmr_private.h"
+#include "hmr_sse42_functions.h"
 
 #define ALIGNMENT 64
 
@@ -98,21 +99,15 @@ void wnd_realloc(wnd_t *wnd, int size_x, int size_y, int offset_x, int offset_y,
 	wnd_alloc(wnd, size_x, size_y, offset_x, offset_y, pix_size);
 }
 
-void wnd_copy(wnd_t * wnd_src, wnd_t * wnd_dst)
+void wnd_copy(f_copy_n_n func, wnd_t * wnd_src, wnd_t * wnd_dst)
 {
 	int component;
 
-	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])
+	if(wnd_dst->data_width[0] != wnd_dst->data_width[0] || wnd_dst->data_height[0] != wnd_src->data_height[0])// || wnd_src->pix_size != wnd_dst->pix_size)
 	{
 		printf("error: wnd_copy: windows of different size can not be coppied!!\r\n");
 		return;
 	}
-
-	memcpy(wnd_dst->data_width, wnd_src->data_width, sizeof(wnd_src->data_width));
-	memcpy(wnd_dst->data_height, wnd_src->data_height, sizeof(wnd_src->data_height));
-	memcpy(wnd_dst->data_padding_x, wnd_src->data_padding_x, sizeof(wnd_src->data_padding_x));
-	memcpy(wnd_dst->data_padding_y, wnd_src->data_padding_y, sizeof(wnd_src->data_padding_y));
-	wnd_dst->pix_size = wnd_src->pix_size;
 
 	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
 	{
@@ -124,39 +119,102 @@ void wnd_copy(wnd_t * wnd_src, wnd_t * wnd_dst)
 		int width = WND_WIDTH_2D(*wnd_src, component);
 		int j;
 
-		for(j=0;j<height;j++)
-		{
-			memcpy(buff_dst, buff_src, width*wnd_src->pix_size);
-			buff_dst += wnd_src->pix_size*dst_stride;
-			buff_src += wnd_src->pix_size*src_stride;
-		}
+		func(buff_src, src_stride, buff_dst, dst_stride, height, width);
 	}
 }
 
-void wnd_copy_ctu(henc_thread_t* et, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu)
+void wnd_copy_cu_2D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp)
+{
+	int gcnt = 0;
+	int start_comp = comp, end_comp = comp+1;
+
+	if(comp >= ALL_COMP)
+	{
+		start_comp = Y_COMP;
+		end_comp = NUM_PICT_COMPONENTS;
+	}
+
+	for(comp=start_comp;comp<end_comp;comp++)
+	{
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
+		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
+		int src_stride = WND_STRIDE_2D(*wnd_src, comp);
+		int dst_stride = WND_STRIDE_2D(*wnd_dst, comp);
+		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, 0);//et->ctu_width);
+		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, 0);//et->ctu_width);
+
+		func(buff_src, src_stride, buff_dst, dst_stride, size, size);
+	}
+}
+
+
+void wnd_copy_cu_1D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp)
+{
+	int gcnt = 0;
+	int j;//, i;
+//	int comp;
+	int offset = (curr_part->abs_index<<4);
+	int start_comp = comp, end_comp = comp+1;
+
+	if(comp >= ALL_COMP)
+	{
+		start_comp = Y_COMP;
+		end_comp = NUM_PICT_COMPONENTS;
+	}
+
+	for(comp=start_comp;comp<end_comp;comp++)
+	{
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int offset = (comp==Y_COMP)?(curr_part->abs_index<<4):((curr_part->abs_index<<4)>>2);
+		int src_stride = size;//
+		int dst_stride = size;//
+		int16_t * buff_src = WND_POSITION_1D(int16_t*, *wnd_src, comp, gcnt, gcnt, offset);
+		int16_t * buff_dst = WND_POSITION_1D(int16_t*, *wnd_dst, comp, gcnt, gcnt, offset);
+
+		func(buff_src, src_stride, buff_dst, dst_stride, size, size);
+	}
+}
+
+
+//still to be tested
+void wnd_copy_cu_2D_1D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
+{
+	int gcnt = 0;
+	int j;//, i;
+	int comp;
+
+	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
+	{
+		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
+		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
+		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
+		int src_stride = WND_STRIDE_2D(*wnd_src, comp);
+		int dst_stride = WND_STRIDE_2D(*wnd_dst, comp);
+		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, 0);
+		int16_t * buff_dst = WND_POSITION_1D(int16_t *, *wnd_dst, comp, gcnt, 0, (curr_part->abs_index<<4));//(curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
+
+		func(buff_src, src_stride, buff_dst, size, size, size);
+	}
+}
+
+
+void wnd_copy_ctu(f_copy_n_n func, wnd_t * wnd_src, wnd_t * wnd_dst, ctu_info_t *ctu)
 {
 	int component;
 
-
 	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
 	{
-		int16_t *buff_src = WND_POSITION_2D(int16_t *, *wnd_src, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);//WND_DATA_PTR(int16_t *, *wnd_src, component);
-		int16_t *buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, component, ctu->x[component], ctu->y[component], 0, et->ctu_width);//WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int16_t *buff_src = WND_POSITION_2D(int16_t *, *wnd_src, component, ctu->x[component], ctu->y[component], 0, 0);//WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int16_t *buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, component, ctu->x[component], ctu->y[component], 0, 0);//WND_DATA_PTR(int16_t *, *wnd_src, component);
 		int src_stride =  WND_STRIDE_2D(*wnd_src, component);
 		int dst_stride =  WND_STRIDE_2D(*wnd_dst, component);
-		int height = et->ctu_height[component];
-		int width = et->ctu_width[component];
-		int j;
+		int size = (component==Y_COMP)?ctu->size:(ctu->size>>1);
 
-		for(j=0;j<height;j++)
-		{
-			memcpy(buff_dst, buff_src, width*sizeof(buff_src[0]));
-			buff_dst += dst_stride;
-			buff_src += src_stride;
-		}
+
+		func(buff_src, src_stride, buff_dst, dst_stride, size, size);
 	}
 }
-
 
 void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd)
 {
@@ -177,33 +235,6 @@ void wnd_zero_cu_1D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * w
 		}
 	}
 }
-
-void wnd_copy_cu_2D(henc_thread_t* et, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst)
-{
-	int gcnt = 0;
-	int j;//, i;
-	int comp;
-
-	for(comp=Y_COMP;comp<NUM_PICT_COMPONENTS;comp++)
-	{
-		int size = (comp==Y_COMP)?curr_part->size:curr_part->size_chroma;
-		int x_position = (comp==Y_COMP)?curr_part->x_position:curr_part->x_position_chroma;
-		int y_position = (comp==Y_COMP)?curr_part->y_position:curr_part->y_position_chroma;
-		int src_buff_stride = WND_STRIDE_2D(*wnd_src, comp);
-		int dst_buff_stride = WND_STRIDE_2D(*wnd_dst, comp);
-		int16_t * buff_src = WND_POSITION_2D(int16_t *, *wnd_src, comp, x_position, y_position, gcnt, et->ctu_width);
-		int16_t * buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, comp, x_position, y_position, gcnt, et->ctu_width);
-
-		for(j=0;j<size;j++)
-		{
-			memcpy(buff_dst, buff_src, size*sizeof(buff_src[0]));
-			buff_src += src_buff_stride;
-			buff_dst += dst_buff_stride;
-		}
-	}
-}
-
-
 
 //#ifdef WRITE_REF_FRAMES
 void wnd_write2file(wnd_t *wnd, FILE *file)
@@ -251,34 +282,33 @@ void wnd_write2file(wnd_t *wnd, FILE *file)
 //#endif
 
 
-void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j)//i,j are cu indexes
+void mem_transfer_move_curr_ctu_group(henc_thread_t* et, int i, int j, ctu_info_t *ctu)//i,j are cu indexes
 {
-	int width, height, component, l;
-	wnd_t* dst_wnd = &et->curr_mbs_wnd;
-	int16_t *src;
-	int16_t *dst;
-	int src_stride, dst_stride;
-	int data_size = sizeof(src[0]);
-	for(component=Y_COMP;component<=V_COMP;component++)
+	int component;
+	int width, height, width2, height2;
+	wnd_t *wnd_src = &et->enc_engine->current_pict.img2encode->img;
+	wnd_t *wnd_dst = &et->curr_mbs_wnd;;
+
+	for(component=Y_COMP;component<NUM_PICT_COMPONENTS;component++)
 	{
-		src = WND_POSITION_2D(int16_t *, et->enc_engine->current_pict.img2encode->img, component, (i*et->ctu_width[component]), (j*et->ctu_height[component]), 0, et->ctu_width);
-		dst = WND_POSITION_2D(int16_t *, *dst_wnd, component, 0, 0, 0, et->ctu_width);
+		int16_t *buff_src = WND_POSITION_2D(int16_t *, *wnd_src, component, ctu->x[component], ctu->y[component], 0, 0);//WND_DATA_PTR(int16_t *, *wnd_src, component);
+		int16_t *buff_dst = WND_POSITION_2D(int16_t *, *wnd_dst, component, 0, 0, 0, 0);
+		int src_stride =  WND_STRIDE_2D(*wnd_src, component);
+		int dst_stride =  WND_STRIDE_2D(*wnd_dst, component);
+		int size = (component==Y_COMP)?ctu->size:(ctu->size>>1);
 
-		src_stride =  WND_STRIDE_2D(et->enc_engine->current_pict.img2encode->img, component);
-		dst_stride =  WND_STRIDE_2D(*dst_wnd, component);
+		int width = ((ctu->x[component]+size)<et->pict_width[component])?size:(et->pict_width[component]-ctu->x[component]);
+		int height = ((ctu->y[component]+size)<et->pict_height[component])?size:(et->pict_height[component]-ctu->y[component]);
+//		width = ((i+1)*et->ctu_width[component]<et->pict_width[component])?et->ctu_width[component]:(et->pict_width[component]-(i*et->ctu_width[component]));
+//		height = ((j+1)*et->ctu_height[component]<et->pict_height[component])?et->ctu_height[component]:(et->pict_height[component]-(j*et->ctu_height[component]));
 
-		width = ((i+1)*et->ctu_width[component]<et->pict_width[component])?et->ctu_width[component]:(et->pict_width[component]-(i*et->ctu_width[component]));
-		height = ((j+1)*et->ctu_height[component]<et->pict_height[component])?et->ctu_height[component]:(et->pict_height[component]-(j*et->ctu_height[component]));
 
-		for(l=0;l<height;l++)
-		{
-			memcpy(dst,src,width*data_size);
-			dst += dst_stride;
-			src  += src_stride;
-		}
+
+		et->funcs->sse_copy_16_16(buff_src, src_stride, buff_dst, dst_stride, height, width);
+//		et->funcs->sse_copy_16_16(buff_src, src_stride, buff_dst, dst_stride, size, size);
 	}
-}
 
+}
 
 void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 {
@@ -289,7 +319,7 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 	int dst_stride;
 	int16_t *decoded_buff_src;
 	int16_t *decoded_buff_dst;
-	int copy_width, copy_height, decoded_frame_width, decoded_frame_height;
+	int width, height, decoded_frame_width, decoded_frame_height;
 
 	for(component=Y_COMP;component<=V_COMP;component++)
 	{
@@ -301,10 +331,10 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 
 		decoded_frame_width = decoded_dst_wnd->data_width[component];
 		decoded_frame_height = decoded_dst_wnd->data_height[component];
-		copy_width = ((ctu->x[component]+et->ctu_width[component])<decoded_frame_width)?(et->ctu_width[component]):(decoded_frame_width-ctu->x[component]);
-		copy_height = ((ctu->y[component]+et->ctu_height[component])<decoded_frame_height)?(et->ctu_height[component]):(decoded_frame_height-(ctu->y[component]));
+		width = ((ctu->x[component]+et->ctu_width[component])<decoded_frame_width)?(et->ctu_width[component]):(decoded_frame_width-ctu->x[component]);
+		height = ((ctu->y[component]+et->ctu_height[component])<decoded_frame_height)?(et->ctu_height[component]):(decoded_frame_height-(ctu->y[component]));
 //		mem_transfer_2d2d((uint8_t*)decoded_buff_src, (uint8_t*)decoded_buff_dst, copy_width*sizeof(decoded_buff_src[0]), copy_height, src_stride*sizeof(decoded_buff_src[0]), dst_stride*sizeof(decoded_buff_dst[0]));
-		for(j=0;j<copy_height;j++)
+/*		for(j=0;j<copy_height;j++)
 		{
 			for(i=0;i<copy_width;i++)
 			{
@@ -313,6 +343,8 @@ void mem_transfer_decoded_blocks(henc_thread_t* et, ctu_info_t* ctu)
 			decoded_buff_dst += dst_stride;
 			decoded_buff_src += src_stride;
 		}
+*/
+		et->funcs->sse_copy_16_16(decoded_buff_src, src_stride, decoded_buff_dst, dst_stride, height, width);
 	}
 }
 
@@ -387,80 +419,4 @@ void mem_transfer_intra_refs(henc_thread_t* et, ctu_info_t* ctu)
 	}
 }
 
-
-void mem_transfer_1d1d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height)
-{
-	uint l;
-	for(l=0;l<height*width;l+=16)
-	{
-#ifdef SSE_FUNCS_
-		sse_128_store_vector_a(dst+l, sse_128_load_vector_u(src+l));
-#else
-		memcpy(dst,src,height*width);
-#endif
-	}		
-}
-
-
-void mem_transfer_1d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int dst_stride)
-{
-	uint l;
-	for(l=0;l<height;l++)
-	{
-#ifdef SSE_FUNCS_
-		for(uint ll=0;ll<width;ll+=16)
-		{
-			sse_128_store_vector_a(dst+ll, sse_128_load_vector_u(src));
-			src +=16;
-		}
-		dst  += dst_stride;
-#else
-		memcpy(dst,src,width);
-		dst += dst_stride;
-		src += width;
-#endif
-	}		
-}
-
-
-
-void mem_transfer_2d1d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride)
-{
-	uint l;
-	for(l=0;l<height;l++)
-	{
-#ifdef SSE_FUNCS_
-		for(uint ll=0;ll<width;ll+=16)
-		{
-			sse_128_store_vector_u(dst+ll, sse_128_load_vector_u(src+ll));
-			dst+=16;
-		}
-		src  += src_stride;
-#else
-		memcpy(dst,src,width);
-		dst+=width;
-		src  += src_stride;
-#endif
-	}
-}
-
-void mem_transfer_2d2d(unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height, unsigned int src_stride, unsigned int dst_stride)
-{
-	uint l;
-	for(l=0;l<height;l++)
-	{
-#ifdef SSE_FUNCS_
-		for(uint ll=0;ll<width;ll+=16)
-		{
-			sse_128_store_vector_a(dst+ll, sse_128_load_vector_u(src+ll));
-		}
-		dst += dst_stride;
-		src  += src_stride;
-#else
-		memcpy(dst,src,width);
-		dst += dst_stride;
-		src  += src_stride;
-#endif
-	}
-}
 

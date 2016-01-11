@@ -96,7 +96,7 @@ void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t
 		int decoded_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->curr_reference_frame->img, component);
 		int16_t *decoded_buff  = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->curr_reference_frame->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 		int orig_buff_stride = WND_STRIDE_2D(wpp_thread->enc_engine->current_pict.img2encode->img, component);
-		uint8_t *orig_buff = WND_POSITION_2D(uint8_t *, wpp_thread->enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
+		int16_t *orig_buff = WND_POSITION_2D(int16_t *, wpp_thread->enc_engine->current_pict.img2encode->img, component, ctu->x[component], ctu->y[component], 0, wpp_thread->ctu_width);
 		int type_idx;
 		int chroma_shift = (component==Y_COMP)?0:1;
 		int height = height_luma>>chroma_shift;
@@ -109,10 +109,10 @@ void sao_get_ctu_stats(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t
 			int64_t *diff = curr_stat_data->diff;
 			int64_t *count = curr_stat_data->count;
 			int x,y, start_x, start_y, end_x, end_y, edge_type, first_line_start_x, first_line_end_x;
-			int8_t sign_left, sign_right, sign_down;
+			int16_t sign_left, sign_right, sign_down;
 			int16_t *src_line = decoded_buff;
 			int src_stride = decoded_buff_stride;
-			uint8_t *org_line = orig_buff;
+			int16_t *org_line = orig_buff;
 			int org_stride = orig_buff_stride;
 
 			switch(type_idx)
@@ -1432,7 +1432,7 @@ void hmr_wpp_sao_ctu(henc_thread_t *wpp_thread, slice_t *currslice, ctu_info_t* 
 	memset(&ctu->recon_params, 0, sizeof(ctu->recon_params));
 	memset(&ctu->stat_data[0][0], 0, sizeof(ctu->stat_data));
 
-	wnd_copy_ctu(wpp_thread, &wpp_thread->enc_engine->curr_reference_frame->img, &wpp_thread->enc_engine->sao_aux_wnd, ctu);
+	wnd_copy_ctu(wpp_thread->funcs->sse_copy_16_16, &wpp_thread->enc_engine->curr_reference_frame->img, &wpp_thread->enc_engine->sao_aux_wnd, ctu);
 	reference_picture_border_padding_ctu(&wpp_thread->enc_engine->sao_aux_wnd, ctu);
 
 	wpp_thread->funcs->get_sao_stats(wpp_thread, currslice, ctu, ctu->stat_data);
