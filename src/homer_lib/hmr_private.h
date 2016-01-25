@@ -241,6 +241,7 @@ typedef enum
 {
   REF_PIC_LIST_0 = 0,   // reference list 0
   REF_PIC_LIST_1 = 1,   // reference list 1
+  NUM_REF_LISTS = 2,
   REF_PIC_LIST_C = 2,   // combined reference list for uni-prediction in B-Slices
   REF_PIC_LIST_X = 100  // special mark
 }RefPicList;
@@ -775,12 +776,13 @@ struct cu_partition_info_t
 	int merge_flag, merge_idx, skipped;
 	int intra_cbf[NUM_PICT_COMPONENTS], intra_tr_idx, intra_mode[NUM_PICT_COMPONENTS];
 	int inter_cbf[NUM_PICT_COMPONENTS], inter_tr_idx;
+
 	motion_vector_t	inter_mv[2];
 	motion_vector_t	subpix_mv[2];
 	motion_vector_t	best_dif_mv[2];
 	int 	best_candidate_idx[2];
 	int		inter_ref_index[2];
-	int		inter_ref_list;
+//	int		inter_ref_list;
 };
 
 typedef struct ctu_info_t ctu_info_t ;
@@ -1003,6 +1005,7 @@ struct slice_t
 	uint32_t slice_beta_offset_div2;
 	uint32_t slice_tc_offset_div2;
 	uint32_t max_num_merge_candidates;
+	uint32_t list1_idx_to_list0_idx[MAX_NUM_REF];
 	uint32_t mvd_l1_zero_flag;
 
 	sps_t		*sps;
@@ -1131,8 +1134,8 @@ struct henc_thread_t
 	int				cu_current_x, cu_current_y;
 
 	wnd_t			curr_mbs_wnd;									//original MBs to be coded
+	wnd_t			curr_mbs_aux_wnd;								//aux buffs for bi prediction filter
 	wnd_t			prediction_wnd[3];								//prediction applied to original MBs [L0,L1 and biprediction]
-	wnd_t			prediction_aux_wnd;								//prediction applied to original MBs [L0,L1 and biprediction]
 	wnd_t			residual_wnd;									//residual after substracting prediction
 	wnd_t			residual_dec_wnd;								//decoded residual. output of inverse transform
 	wnd_t			transform_quant_wnd_[NUM_QUANT_WNDS];			//windows to be used with pointers 

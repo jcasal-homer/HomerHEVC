@@ -241,7 +241,7 @@ void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
 	wnd_src_aux.data_height[Y_COMP] = wnd_src_aux.window_size_y[Y_COMP] = enc_engine->pict_height[Y_COMP];
 	wnd_src_aux.data_height[U_COMP] = wnd_src_aux.window_size_y[U_COMP] = enc_engine->pict_height[U_COMP];
 	wnd_src_aux.data_height[V_COMP] = wnd_src_aux.window_size_y[V_COMP] = enc_engine->pict_height[V_COMP];
-	wnd_copy(WND_CPY_FUNC_8b_16b(&enc_engine->funcs), &wnd_src_aux, wnd_dst);
+	wnd_copy(WND_CPY_8b_16b(&enc_engine->funcs), &wnd_src_aux, wnd_dst);
 
 /*	for(comp=Y_COMP;comp<=V_COMP;comp++)
 	{
@@ -1096,10 +1096,11 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 					henc_th->pred_aux_buff_size = MAX_CU_SIZE*MAX_CU_SIZE;//size of auxiliar buffer
 					henc_th->pred_aux_buff = (short*) hmr_aligned_alloc (henc_th->pred_aux_buff_size, sizeof(short));
 
+					wnd_realloc(&henc_th->curr_mbs_aux_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->prediction_wnd[0], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->prediction_wnd[1], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->prediction_wnd[2], (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
-					wnd_realloc(&henc_th->prediction_aux_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int8_t));
+
 
 					wnd_realloc(&henc_th->residual_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
 					wnd_realloc(&henc_th->residual_dec_wnd, (henc_th->ctu_width[0]), henc_th->ctu_height[0], 0, 0, sizeof(int16_t));
@@ -1670,6 +1671,7 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 
 void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *currslice)
 {
+	int idx_l1;
 	int img_type = currpict->img2encode->img_type;
 	currslice->qp =  enc_engine->pict_qp;
 	currslice->poc = enc_engine->last_poc;
@@ -1732,24 +1734,6 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 
 	}
 
-	currslice->mvd_l1_zero_flag = FALSE;
-    if (currslice->slice_type == B_SLICE)
-    {
-		if(currslice->num_ref_idx[REF_PIC_LIST_0] == currslice->num_ref_idx[REF_PIC_LIST_1])
-		{
-			int i;
-			currslice->mvd_l1_zero_flag = TRUE;		
-			for ( i=0; i < currslice->num_ref_idx[REF_PIC_LIST_1]; i++ )
-			{
-				if (currslice->ref_poc_list[REF_PIC_LIST_1][i] != currslice->ref_poc_list[REF_PIC_LIST_0][i])
-				{
-					currslice->mvd_l1_zero_flag = TRUE;
-					break;
-				}
-			}
-		}
-    }
-
 	currslice->qp = enc_engine->pict_qp;
 
 	hmr_select_reference_picture_set(enc_engine->hvenc, currslice);
@@ -1779,6 +1763,42 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 
 	currslice->num_ref_idx[REF_PIC_LIST_0] = min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);// currslice->ref_pic_set->num_negative_pics;//;
 	currslice->num_ref_idx[REF_PIC_LIST_1] = (currslice->slice_type==P_SLICE)?0:min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);//currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
+
+	apply_reference_picture_set(enc_engine->hvenc, currslice);		
+
+
+	for (idx_l1 = 0; idx_l1 < currslice->num_ref_idx[REF_PIC_LIST_1]; idx_l1++ )
+	{
+		int idx_l0;
+		currslice->list1_idx_to_list0_idx[idx_l1] = -1;//if list1_idx_to_list0_idx=-1, reference frames are different
+		for ( idx_l0 = 0; idx_l0 < currslice->num_ref_idx[REF_PIC_LIST_0]; idx_l0++ )
+		{
+			if ( currslice->ref_pic_list[REF_PIC_LIST_0][idx_l0]->temp_info.poc == currslice->ref_pic_list[REF_PIC_LIST_1][idx_l1]->temp_info.poc )
+			{
+				currslice->list1_idx_to_list0_idx[idx_l1] = idx_l0;//list1_idx_to_list0_idx[ref_idx] shows the index in list0 that corresponds to and index in list1
+				break;
+			}
+		}
+	}
+
+	currslice->mvd_l1_zero_flag = FALSE;//this flags indicates if REF_PIC_LIST_1 references should be taken into account. If they are different from REF_PIC_LIST_0 references
+    if (currslice->slice_type == B_SLICE)
+    {
+		if(currslice->num_ref_idx[REF_PIC_LIST_0] == currslice->num_ref_idx[REF_PIC_LIST_1])
+		{
+			int i;
+			currslice->mvd_l1_zero_flag = TRUE;		
+			for ( i=0; i < currslice->num_ref_idx[REF_PIC_LIST_1]; i++ )
+			{
+				if (currslice->ref_poc_list[REF_PIC_LIST_1][i] != currslice->ref_poc_list[REF_PIC_LIST_0][i])
+				{
+					currslice->mvd_l1_zero_flag = FALSE;
+					break;
+				}
+			}
+		}
+    }
+
 
 	//init sao slice flags
 	sao_decide_pic_params(enc_engine->slice_enabled, currslice->sao_luma_flag, currslice->sao_chroma_flag);// decidePicParams(sliceEnabled, pPic->getSlice(0)->getDepth()); 
@@ -2573,7 +2593,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		mem_transfer_decoded_blocks(et, ctu);
 
 
-		wnd_copy(WND_CPY_FUNC_16b_16b(et->funcs), et->transform_quant_wnd[0], ctu->coeff_wnd);
+		wnd_copy(WND_CPY_16b_16b(et->funcs), et->transform_quant_wnd[0], ctu->coeff_wnd);
 
 #ifndef COMPUTE_AS_HM
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
@@ -2810,6 +2830,19 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 		hmr_slice_init(enc_engine, &enc_engine->current_pict, &currpict->slice);
 
+		//get free img for decoded blocks
+		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
+		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+
+		//reference prunning must be done in a selective way
+		if(enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]!=NULL)
+			cont_put(enc_engine->hvenc->cont_empty_reference_wnds,enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]);
+
+		enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index] = enc_engine->curr_reference_frame;
+		enc_engine->hvenc->reference_list_index = (enc_engine->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
+
+		enc_engine->avg_dist = enc_engine->hvenc->avg_dist;
+
 		if(enc_engine->bitrate_mode != BR_FIXED_QP)
 		{
 			if(currslice->poc==0)
@@ -2820,20 +2853,6 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		}
 		hmr_rd_init(enc_engine, &currpict->slice);
 
-		//get free img for decoded blocks
-		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
-		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
-
-		apply_reference_picture_set(enc_engine->hvenc, currslice);		
-
-		//reference prunning must be done in a selective way
-		if(enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]!=NULL)
-			cont_put(enc_engine->hvenc->cont_empty_reference_wnds,enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]);
-
-		enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index] = enc_engine->curr_reference_frame;
-		enc_engine->hvenc->reference_list_index = (enc_engine->hvenc->reference_list_index+1)&MAX_NUM_REF_MASK;
-
-		enc_engine->avg_dist = enc_engine->hvenc->avg_dist;
 
 		for(n = 0; n<enc_engine->wfpp_num_threads;n++)
 		{

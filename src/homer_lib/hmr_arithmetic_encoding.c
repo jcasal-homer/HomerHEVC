@@ -723,43 +723,43 @@ void write_ep_ex_golomb(enc_env_t* ee, uint symbol, uint count)
 }
 
 
-void encode_mv_diff(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
+void encode_mv_diff(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
 {
-	if (ctu->inter_mode[abs_index] & ( 1 << ref_list))
+	motion_vector_t *mv = &ctu->mv_diff[ref_list][abs_index];
+	int horizontal = mv->hor_vector;
+	int horizontal_not_0 = horizontal!=0?1:0;
+	int horizontal_abs = abs(horizontal);
+	int vertical = mv->ver_vector;
+	int vertical_not_0 = vertical!=0?1:0;
+	int vertical_abs = abs(vertical);
+	context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvd_model, 0, 0, 0);
+
+	if (ctu->inter_mode[abs_index]==3 && ref_list==REF_PIC_LIST_1 && slice->mvd_l1_zero_flag)
+		return;
+
+	ee->ee_encode_bin(ee, cm, horizontal_not_0);	
+	ee->ee_encode_bin(ee, cm, vertical_not_0);	
+
+	cm++;
+
+	if(horizontal_not_0)
+		ee->ee_encode_bin(ee, cm, horizontal_abs>1?1:0);	
+
+	if(vertical_not_0)
+		ee->ee_encode_bin(ee, cm, vertical_abs>1?1:0);	
+
+	if(horizontal_not_0)
 	{
-		motion_vector_t *mv = &ctu->mv_diff[ref_list][abs_index];
-		int horizontal = mv->hor_vector;
-		int horizontal_not_0 = horizontal!=0?1:0;
-		int horizontal_abs = abs(horizontal);
-		int vertical = mv->ver_vector;
-		int vertical_not_0 = vertical!=0?1:0;
-		int vertical_abs = abs(vertical);
-		context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_mvd_model, 0, 0, 0);
+		if(horizontal_abs>1)
+			write_ep_ex_golomb(ee, horizontal_abs-2, 1);
+		ee->ee_encode_bin_EP(ee, horizontal<0?1:0);
+	}
 
-		ee->ee_encode_bin(ee, cm, horizontal_not_0);	
-		ee->ee_encode_bin(ee, cm, vertical_not_0);	
-
-		cm++;
-
-		if(horizontal_not_0)
-			ee->ee_encode_bin(ee, cm, horizontal_abs>1?1:0);	
-
-		if(vertical_not_0)
-			ee->ee_encode_bin(ee, cm, vertical_abs>1?1:0);	
-
-		if(horizontal_not_0)
-		{
-			if(horizontal_abs>1)
-				write_ep_ex_golomb(ee, horizontal_abs-2, 1);
-			ee->ee_encode_bin_EP(ee, horizontal<0?1:0);
-		}
-
-		if(vertical_not_0)
-		{
-			if(vertical_abs>1)
-				write_ep_ex_golomb(ee, vertical_abs-2, 1);
-			ee->ee_encode_bin_EP(ee, vertical<0?1:0);
-		}
+	if(vertical_not_0)
+	{
+		if(vertical_abs>1)
+			write_ep_ex_golomb(ee, vertical_abs-2, 1);
+		ee->ee_encode_bin_EP(ee, vertical<0?1:0);
 	}
 }
 
@@ -813,9 +813,11 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 						encode_ref_frame_index(ee, slice, ctu, sub_part_idx, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
-					encode_mv_diff(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
-
-					encode_mv_diff_index(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
+					if(ctu->inter_mode[abs_index] & (1<<ref_list_idx))
+					{
+						encode_mv_diff(ee, slice, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
+						encode_mv_diff_index(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
+					}
 					//					encodeMvdPU       ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					//					encodeMVPIdxPU    ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 				}
@@ -1803,6 +1805,11 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 
 	encode_part_size(et, ee, curr_partition_info, part_size_type, is_intra);
 
+	if(ctu->ctu_number == 1 && curr_partition_info->list_index==1)
+	{
+		int iiiii=0;
+	}
+
 	if(is_intra)
 	{
 		encode_intra_dir_luma_ang(ee, ctu, curr_partition_info, TRUE);
@@ -2039,7 +2046,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->enc_engine->num_encoded_frames==13 && ctu->ctu_number==3 && curr_partition_info->abs_index>=192)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
+		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==1)// && curr_partition_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
 		{
 			int iiiiii=0;
 		}

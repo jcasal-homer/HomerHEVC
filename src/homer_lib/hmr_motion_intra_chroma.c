@@ -74,8 +74,8 @@ void synchronize_motion_buffers_chroma(henc_thread_t* et, cu_partition_info_t* c
 		int16_t * quant_buff_src = WND_POSITION_1D(int16_t  *, *quant_src, comp, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 		int16_t * quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, comp, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 
-		wnd_copy_cu_2D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, decoded_src, decoded_dst, comp);
-		wnd_copy_cu_1D(WND_CPY_FUNC_16b_16b(et->funcs), curr_cu_info, quant_src, quant_dst, comp);
+		wnd_copy_cu_2D(WND_CPY_16b_16b(et->funcs), curr_cu_info, decoded_src, decoded_dst, comp);
+		wnd_copy_cu_1D(WND_CPY_16b_16b(et->funcs), curr_cu_info, quant_src, quant_dst, comp);
 /*		for(j=0;j<curr_part->size_chroma;j++)
 		{
 			memcpy(quant_buff_dst, quant_buff_src, curr_part->size_chroma*sizeof(quant_buff_src[0]));
