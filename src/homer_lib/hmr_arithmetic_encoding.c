@@ -610,9 +610,9 @@ __inline void encode_merge_flag(enc_env_t* ee, uint merge_flag)
 	ee->ee_encode_bin(ee, cm, merge_flag);	
 }
 
-void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int num_merge_candidates)
+void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, int abs_index, int num_merge_candidates)
 {
-	int abs_index = curr_partition_info->abs_index;
+//	int abs_index = curr_partition_info->abs_index;
 	uint uiUnaryIdx = ctu->merge_idx[abs_index];
 	uint uiNumCand = num_merge_candidates;//pcCU->getSlice()->getMaxNumMergeCand();
 	if ( uiNumCand > 1 )
@@ -639,13 +639,12 @@ void encode_merge_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* cur
 
 }
 
-void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+void encode_inter_dir(enc_env_t* ee, ctu_info_t* ctu, int abs_index, int size)
 {
-	int abs_index = curr_partition_info->abs_index;
 	uint inter_dir = ctu->inter_mode[abs_index] - 1;
 	uint ctx      = ctu->pred_depth[abs_index];//pcCU->getCtxInterDir( uiAbsPartIdx );
 	context_model_t *cm = GET_CONTEXT_Z(ee->e_ctx->cu_inter_dir_model, 0, 0, 0); 
-	if (ctu->part_size_type[abs_index] == SIZE_2Nx2N || curr_partition_info->size != 8 )
+	if (ctu->part_size_type[abs_index] == SIZE_2Nx2N || size != 8 )
 	{
 		ee->ee_encode_bin(ee, cm+ctx, inter_dir == 2 ? 1 : 0);	
 	}
@@ -723,7 +722,7 @@ void write_ep_ex_golomb(enc_env_t* ee, uint symbol, uint count)
 }
 
 
-void encode_mv_diff(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
+void encode_mv_diff(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, int ref_list, int abs_index)
 {
 	motion_vector_t *mv = &ctu->mv_diff[ref_list][abs_index];
 	int horizontal = mv->hor_vector;
@@ -763,7 +762,7 @@ void encode_mv_diff(enc_env_t* ee, slice_t *slice, ctu_info_t* ctu, cu_partition
 	}
 }
 
-void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int ref_list, int abs_index)
+void encode_mv_diff_index(enc_env_t* ee, ctu_info_t* ctu, int ref_list, int abs_index)
 {
 	if(ctu->inter_mode[abs_index] & (1<<ref_list))
 	{
@@ -785,6 +784,7 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 	*/ 
 	int abs_index = curr_partition_info->abs_index;
 	int num_pu = ( partition_size_type == SIZE_2Nx2N ? 1 : ( partition_size_type == SIZE_NxN ? 4 : 2 ) );
+	int pu_size = num_pu*curr_partition_info->size;//
 	uint pred_depth = ctu->pred_depth[abs_index];
 	uint pu_offset = ( g_auiPUOffset[(uint32_t)partition_size_type] << ( ( et->max_cu_depth - pred_depth ) << 1 ) ) >> 4;
 
@@ -792,17 +792,22 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 	{
 		uint merge_flag = ctu->merge[sub_part_idx];
 
+		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number == 24 && sub_part_idx>=40)
+		{
+			int iiiii=0;
+		}
+
 		encode_merge_flag(ee, merge_flag);
 		if (merge_flag)
 		{
-			encode_merge_index(ee, ctu, curr_partition_info, slice->max_num_merge_candidates);
+			encode_merge_index(ee, ctu, sub_part_idx, slice->max_num_merge_candidates);
 		}
 		else
 		{
 			uint ref_list_idx;
 			if(slice->slice_type == B_SLICE)
 			{
-				encode_inter_dir(ee, ctu, curr_partition_info);
+				encode_inter_dir(ee, ctu, sub_part_idx, pu_size);
 			}
 			for ( ref_list_idx = REF_PIC_LIST_0; ref_list_idx <= REF_PIC_LIST_1; ref_list_idx++ )
 			{
@@ -813,16 +818,17 @@ void encode_inter_motion_info(henc_thread_t* et, enc_env_t* ee, slice_t *slice, 
 						encode_ref_frame_index(ee, slice, ctu, sub_part_idx, ref_list_idx);//encodeRefFrmIdxPU ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					}
 
-					if(ctu->inter_mode[abs_index] & (1<<ref_list_idx))
+					if(ctu->inter_mode[sub_part_idx] & (1<<ref_list_idx))
 					{
-						encode_mv_diff(ee, slice, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
-						encode_mv_diff_index(ee, ctu, curr_partition_info, ref_list_idx, sub_part_idx);
+						encode_mv_diff(ee, slice, ctu, ref_list_idx, sub_part_idx);
+						encode_mv_diff_index(ee, ctu, ref_list_idx, sub_part_idx);
 					}
 					//					encodeMvdPU       ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 					//					encodeMVPIdxPU    ( pcCU, uiSubPartIdx, RefPicList( uiRefListIdx ) );
 				}
 			}
 		}
+		curr_partition_info++;
 	}
 
 	return;
@@ -1793,7 +1799,7 @@ void ee_encode_coding_unit(henc_thread_t* et, enc_env_t* ee, ctu_info_t* ctu, cu
 
 	if(is_skipped)
 	{
-		encode_merge_index(ee, ctu, curr_partition_info, currslice->max_num_merge_candidates);
+		encode_merge_index(ee, ctu, abs_index, currslice->max_num_merge_candidates);
 		encode_end_of_cu(et, ee, currslice, ctu, curr_partition_info);
 		return;
 	}
@@ -2046,7 +2052,7 @@ void ee_encode_ctu(henc_thread_t* et, enc_env_t* ee, slice_t *currslice, ctu_inf
 	//coding_quadtree
 	while(curr_depth!=0|| depth_state[curr_depth]!=1)
 	{
-		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==1)// && curr_partition_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
+		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number == 24 && curr_partition_info->abs_index>=32)// && ctu->ctu_number==1)// && curr_partition_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
 		{
 			int iiiiii=0;
 		}

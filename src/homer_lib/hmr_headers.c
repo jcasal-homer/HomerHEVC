@@ -146,7 +146,24 @@ void hmr_short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 	}
 	if (rps->inter_ref_pic_set_prediction_flag)
 	{
-	
+//		int delta_rps = rps->getDeltaRPS();
+//		if(calledFromSliceHeader)
+//		{
+//			WRITE_UVLC( rps->getDeltaRIdxMinus1(), "delta_idx_minus1" ); // delta index of the Reference Picture Set used for prediction minus 1
+//		}
+
+//		WRITE_CODE( (deltaRPS >=0 ? 0: 1), 1, "delta_rps_sign" ); //delta_rps_sign
+//		WRITE_UVLC( abs(deltaRPS) - 1, "abs_delta_rps_minus1"); // absolute delta RPS minus 1
+
+//		for(Int j=0; j < rps->getNumRefIdc(); j++)
+//		{
+//			Int refIdc = rps->getRefIdc(j);
+//			WRITE_CODE( (refIdc==1? 1: 0), 1, "used_by_curr_pic_flag" ); //first bit is "1" if Idc is 1 
+//			if (refIdc != 1) 
+//			{
+//				WRITE_CODE( refIdc>>1, 1, "use_delta_flag" ); //second bit is "1" if Idc is 2, "0" otherwise.
+//			}
+//		}	
 	}
 	else
 	{
@@ -159,9 +176,12 @@ void hmr_short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 			prev = rps->delta_poc_s0[j];
 			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S0_flag[j], 1);//inter_ref_pic_set_prediction_flag
 		}
+		prev = 0;
 		for(j=0;j<rps->num_positive_pics;j++)
 		{
-			//...................
+//			hmr_bitstream_write_bits_uvlc(bs, rps->delta_poc_s0[j]-prev-1);//delta_poc_s0_minus1
+//			prev = rps->delta_poc_s0[j];
+//			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S1_flag[j], 1);//inter_ref_pic_set_prediction_flag
 		}
 	}
 }

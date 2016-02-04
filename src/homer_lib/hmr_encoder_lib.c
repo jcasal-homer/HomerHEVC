@@ -607,27 +607,40 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				else if(hvenc->num_b == 0)
 				{
 					int j;
-					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-i;
+					if(i==0)
+						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-(i);
+					else
+						hvenc->ref_pic_set_list[i].num_negative_pics = i;//hvenc->num_ref_frames-(hvenc->num_ref_frames-i-1);
+
 					for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
 					{
 						hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
 						hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
 					}
 					hvenc->ref_pic_set_list[i].num_positive_pics = 0;
-					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
+					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
+					hvenc->ref_pic_set_list[i].num_pics = hvenc->ref_pic_set_list[i].num_negative_pics + hvenc->ref_pic_set_list[i].num_positive_pics;
 				}
 				else
 				{
 					int j;
-					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-i;
+					if(i==0)
+						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-(i);
+					else
+						hvenc->ref_pic_set_list[i].num_negative_pics = i;//hvenc->num_ref_frames-(hvenc->num_ref_frames-i-1);
+
+					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
 					for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
 					{
 						hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
 						hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+
+//						if(i>1 && ((i)+hvenc->ref_pic_set_list[i].delta_poc_s0[j])<=0)//absPOC = curPOC+m_GOPList[curGOP].m_referencePics[i];//TAppEncCfg line 998 HM-13
+//							hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 1;
 					}
 					hvenc->ref_pic_set_list[i].num_positive_pics = 0;
-					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
 				}
+				hvenc->ref_pic_set_list[i].num_pics = hvenc->ref_pic_set_list[i].num_negative_pics + hvenc->ref_pic_set_list[i].num_positive_pics;
 			}
 
 			for(n_enc_engines=0;n_enc_engines<hvenc->num_encoder_engines;n_enc_engines++)
@@ -1597,7 +1610,10 @@ void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 			int poc_idx = currslice->poc%hvenc->intra_period;
 			if(poc_idx<hvenc->num_ref_frames)
 			{
-				currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
+//				if(hvenc->num_b==0)//this is for HM compatibility. Order difers from IPPPP, to IBBBBB
+//					currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
+//				else
+					currslice->ref_pic_set_index = poc_idx;
 			}
 		}
 		currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
@@ -2988,9 +3004,10 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			char stringP[] = "P";
 			char stringB[] = "B";
 			char *frame_type_str;
+			uint poc = currpict->img2encode->temp_info.poc;
 			frame_type_str=currpict->img2encode->img_type==IMAGE_I?stringI:currpict->img2encode->img_type==IMAGE_P?stringP:stringB;
 
-			printf("\r\nengine:%d, frame:%d, %s, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
+			printf("\r\nengine:%d, POC:%d, %s, bits:%d,", enc_engine->index,poc, frame_type_str, enc_engine->slice_bs.streambytecnt*8);
 			//printf("\r\nmodule:%d, frame:%d, %s, target:%.0f, bits:%d,", enc_engine->index,enc_engine->num_encoded_frames, frame_type_str, enc_engine->rc.target_pict_size, enc_engine->slice_bs.streambytecnt*8);
 #ifdef COMPUTE_METRICS
 
@@ -3010,6 +3027,22 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			printf("qp: %d, ", enc_engine->pict_qp);			
 //#endif
 			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
+
+			if(currpict->img2encode->img_type!=IMAGE_I)
+			{
+				int list, i;
+				
+				for(list=0;list<2;list++)
+				{
+					printf("[L%d:", list);
+					for(i=0;i<currslice->num_ref_idx[list];i++)
+					{
+						printf(" %d,", currslice->ref_pic_list[list][i]->temp_info.poc);						
+					}
+					printf("] ");
+				}
+			}
+
 			fflush(stdout);
 		}
 #endif

@@ -43,14 +43,14 @@
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-#define FILE_IN  "C:\\Patrones\\DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
+#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//"C:\\PruebasCiresXXI\\Robots.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	208//248//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	144//184//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	720//248//624//192//(208)//(384+16)//1280//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	576//184//352//128//(144)//(256+16)//720//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -334,13 +334,13 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->width = HOR_SIZE;
 	cfg->height = VER_SIZE;
 	cfg->frame_rate = FPS;
-	cfg->intra_period = 20;//1;
+	cfg->intra_period = 100;//1;
 	cfg->gop_size = 1;//1;
 	cfg->num_b = 1;
 	cfg->max_pred_partition_depth = 3;
 	cfg->max_intra_tr_depth = 1;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_ref_frames = 1;
+	cfg->num_ref_frames = 3;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;
@@ -385,7 +385,7 @@ int main (int argc, char **argv)
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-//	strcpy(file_ref_name, FILE_REF);
+	strcpy(file_ref_name, FILE_REF);
 
 
 	//get default config
