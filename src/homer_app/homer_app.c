@@ -340,7 +340,7 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->max_pred_partition_depth = 3;
 	cfg->max_intra_tr_depth = 1;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_ref_frames = 3;
+	cfg->num_ref_frames = 1;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;
