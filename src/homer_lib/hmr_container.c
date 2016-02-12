@@ -86,7 +86,7 @@ int get_num_elements(void* h)
 
 
 //------------------------------------------------------ SYNC hmr_container ------------------------------------------------
-//in this hmr_container it is supposed to be only one writer and only one reader
+//in this hmr_container it is supposed to be called only by one writer and one reader
 typedef struct sync_list_t sync_list_t;
 struct sync_list_t
 {
@@ -171,3 +171,8 @@ void sync_cont_get_filled(void* h,void **p)
 	cont->buffs_filled.read &= MAX_CONT_ELEMENTS_MASK;
 }
 
+int sync_cont_is_empty(void* h)
+{
+	sync_hmr_container_t *cont = (sync_hmr_container_t *)h;
+	return cont->buffs_filled.read == cont->buffs_filled.write;
+}

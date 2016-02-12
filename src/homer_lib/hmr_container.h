@@ -30,7 +30,7 @@
 #define MAX_CONT_ELEMENTS		32
 #define MAX_CONT_ELEMENTS_MASK	(MAX_CONT_ELEMENTS-1)
 
-//hmr_container without sync - not atomic. All functions must be called in the same threads
+//hmr_container without sync - not atomic. All functions must be called whithin the same thread
 void	cont_init(void** h);
 void	cont_delete(void* h);
 void	cont_reset(void* cont);
@@ -46,5 +46,6 @@ void sync_cont_put_empty(void* h,void *p);
 void sync_cont_get_empty(void* h,void **p);
 void sync_cont_put_filled(void* h,void *p);
 void sync_cont_get_filled(void* h,void **p);
+int sync_cont_is_empty(void* h);
 
 #endif //__HOMER_HEVC_CONTAINER_H__

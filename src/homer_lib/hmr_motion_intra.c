@@ -875,8 +875,8 @@ void synchronize_motion_buffers_luma(henc_thread_t* et, cu_partition_info_t* cur
 	int16_t * quant_buff_dst = WND_POSITION_1D(int16_t  *, *quant_dst, Y_COMP, gcnt, et->ctu_width, (curr_cu_info->abs_index<<et->num_partitions_in_cu_shift));
 
 */
-	wnd_copy_cu_2D(WND_CPY_16b_16b(et->funcs), curr_cu_info, decoded_src, decoded_dst, Y_COMP);
-	wnd_copy_cu_1D(WND_CPY_16b_16b(et->funcs), curr_cu_info, quant_src, quant_dst, Y_COMP);
+	wnd_copy_cu_2D(et->funcs->sse_copy_16_16, curr_cu_info, decoded_src, decoded_dst, Y_COMP);
+	wnd_copy_cu_1D(et->funcs->sse_copy_16_16, curr_cu_info, quant_src, quant_dst, Y_COMP);
 /*	for(j=0;j<curr_cu_info->size;j++)
 	{
 //		memcpy(quant_buff_dst, quant_buff_src, curr_cu_info->size*sizeof(quant_buff_src[0]));

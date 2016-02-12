@@ -674,11 +674,14 @@ struct wnd_t
 //#endif
 };
 
-typedef union temporal_info_t temporal_info_t;
-union temporal_info_t
+//typedef union temporal_info_t temporal_info_t;
+//union temporal_info_t
+typedef struct temporal_info_t temporal_info_t;
+struct temporal_info_t
 {
 	uint64_t	pts;
 	uint32_t	poc;
+	uint32_t	gop_decode_order_idx;
 };
 
 typedef struct video_frame_t video_frame_t;
@@ -687,6 +690,7 @@ struct video_frame_t
 	wnd_t			img;
 	int				img_type;
 	temporal_info_t	temp_info;
+	int				sublayer;
 	int				is_reference;
 };
 
@@ -880,6 +884,24 @@ struct context_model_buff_t
 	const uint8_t *ref_ctx_model;
 };
 
+
+#define MAX_GOP_SIZE 16
+
+typedef struct gop_info_t gop_info_t;
+struct gop_info_t
+{
+	uint32_t gop_size;
+	uint32_t gop_num_b;
+	uint32_t gop_first_poc;
+	uint32_t gop_decode_order_poc[MAX_GOP_SIZE];
+	uint32_t gop_decode_order_poc_inv[MAX_GOP_SIZE];
+	uint32_t gop_decode_order_type[MAX_GOP_SIZE];
+	uint32_t gop_decode_order_layer[MAX_GOP_SIZE];
+	uint32_t gop_decode_order_is_reference[MAX_GOP_SIZE];
+	void	*gop_frame_container;
+};
+
+
 //estos contextos en el HM estan dentro de TEncSbac
 typedef struct entropy_model_t entropy_model_t;
 struct entropy_model_t
@@ -1005,17 +1027,18 @@ struct slice_t
 	uint32_t slice_beta_offset_div2;
 	uint32_t slice_tc_offset_div2;
 	uint32_t max_num_merge_candidates;
-	uint32_t list1_idx_to_list0_idx[MAX_NUM_REF];
+	int32_t list1_idx_to_list0_idx[MAX_NUM_REF];
 	uint32_t mvd_l1_zero_flag;
 
 	sps_t		*sps;
 	pps_t		*pps;
 	
 	int qp;
-	uint32_t poc;
 	uint32_t depth;
 	uint32_t sublayer;//TLayer
 	uint32_t referenced;
+	uint32_t poc;
+	uint32_t gop_decode_order_idx;
 	uint32_t num_ref_idx[2];
 	uint32_t ref_pic_set_index;
 	ref_pic_set_t	*ref_pic_set;
@@ -1204,10 +1227,11 @@ struct henc_thread_t
 };
 
 
+#define MAX_NUM_INPUT_GOPS					(1+1)//one extra to benefit multitasking
 #define MAX_NUM_ENCODER_ENGINES				8
 #define STREAMS_PER_ENGINE					2
 #define MAX_NUM_THREADS						32
-#define NUM_INPUT_FRAMES(num_engines)		(num_engines)//((STREAMS_PER_ENGINE-1)*num_engines)
+#define NUM_INPUT_FRAMES(num_engines)		(num_engines+1)//((STREAMS_PER_ENGINE-1)*num_engines)
 #define NUM_OUTPUT_NALUS(num_engines)		(2*NUM_INPUT_FRAMES(num_engines))
 //#define NUM_OUTPUT_NALUS_MASK	(NUM_OUTPUT_NALUS-1)
 struct hvenc_engine_t
@@ -1274,7 +1298,7 @@ struct hvenc_engine_t
 
 	int				bit_depth;
 	int				max_sublayers;
-	int				max_layers;
+//	int				max_layers;
 
 	//sao cfg
 	int 			calculate_preblock_stats;
@@ -1284,7 +1308,7 @@ struct hvenc_engine_t
 	video_frame_t	*curr_reference_frame;
 	wnd_t			sao_aux_wnd;
 
-	int				last_poc, last_idr;//, num_pictures;
+	int				last_idr;//, num_pictures;
 	int				num_ref_lists;
 	int				num_refs_idx_active_list[2];
 	int				num_ref_frames;
@@ -1323,7 +1347,7 @@ struct hvenc_engine_t
 	//rate control
 	rate_control_t		rc;
 
-	//input and output
+	//input and output semaphores for mutexes
 	hmr_sem_t		input_sem;
 	hmr_sem_ptr		input_signal;
 	hmr_sem_ptr		input_wait;
@@ -1354,7 +1378,7 @@ struct hvenc_enc_t
 	int				last_idr, last_intra, last_gop_reinit;
 	double			avg_dist;
 	uint32_t		poc;
-	int				max_sublayers, max_layers;
+	int				max_sublayers;//, max_layers;
 
 	int				profile;
 	int				intra_period;
@@ -1378,7 +1402,6 @@ struct hvenc_enc_t
 
 	bitstream_t	aux_bs;//list of bitstreams for coef wfpp encoding
 
-
 	//reference pictures
 	video_frame_t		ref_wnds[MAX_NUM_REF*2];
 //	int					ref_pic_set_index;//moved to slice_t
@@ -1389,7 +1412,10 @@ struct hvenc_enc_t
 	video_frame_t		*reference_picture_buffer[MAX_NUM_REF];//reference windows being used
 	int					reference_list_index;
 
-	//input and output
+	//input and output module
+	gop_info_t			input_gops[MAX_NUM_INPUT_GOPS];
+	void				*gop_container;
+
 	video_frame_t		input_frames[NUM_INPUT_FRAMES(MAX_NUM_ENCODER_ENGINES)];
 	void				*input_hmr_container;
 	output_set_t		output_sets[NUM_OUTPUT_NALUS(MAX_NUM_ENCODER_ENGINES)];
@@ -1411,7 +1437,8 @@ struct hvenc_enc_t
 	double				*scaling_error_pyramid[NUM_SCALING_MODES][NUM_SCALING_LISTS][NUM_SCALING_REM_LISTS];//[4][6][6]//quizas esto lo tendriamos que pasar a int. tiene valores muy bajos
 
 	rate_control_t		rc;
-
+	gop_info_t			*input_gop;
+	gop_info_t			default_gop;
 	low_level_funcs_t	funcs;
 };
 

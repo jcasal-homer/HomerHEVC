@@ -147,7 +147,9 @@ void *HOMER_enc_init()
 //	memcpy(hvenc->ang_table, ang_table, sizeof(ang_table));
 //	memcpy(hvenc->inv_ang_table, inv_ang_table, sizeof(inv_ang_table));
 
-	sync_cont_init(&hvenc->input_hmr_container);	
+	sync_cont_init(&hvenc->gop_container);
+	sync_cont_init(&hvenc->input_hmr_container);
+//	cont_init(&hvenc->input_hmr_container);
 	cont_init(&hvenc->output_hmr_container);
 	cont_init(&hvenc->cont_empty_reference_wnds);
 
@@ -214,69 +216,202 @@ void *HOMER_enc_init()
 }
 
 
-void put_frame_to_encode(hvenc_enc_t* enc_engine, encoder_in_out_t* input_frame)
+void gop_reinit(gop_info_t *gop)
 {
-	video_frame_t	*p;
-	uint8_t *src;
-	int16_t *dst;
-	int stride_dst, stride_src;
+	gop->gop_size = 0;
+	gop->gop_num_b = 0;
+	gop->gop_first_poc = 0;
+	memset(gop->gop_decode_order_poc, 0, sizeof(gop->gop_decode_order_poc));
+	memset(gop->gop_decode_order_poc_inv, 0, sizeof(gop->gop_decode_order_poc_inv));
+	memset(gop->gop_decode_order_type, 0, sizeof(gop->gop_decode_order_type));
+	memset(gop->gop_decode_order_layer, 0, sizeof(gop->gop_decode_order_layer));
+	memset(gop->gop_decode_order_is_reference, 0, sizeof(gop->gop_decode_order_is_reference));
+
+	if(gop->gop_frame_container==NULL)
+		sync_cont_init(&gop->gop_frame_container);
+	else
+		sync_cont_reset(gop->gop_frame_container);
+}
+
+void gop_copy_restart(gop_info_t *src_gop, gop_info_t *dst_gop)
+{
+	dst_gop->gop_size = src_gop->gop_size;
+	dst_gop->gop_num_b = src_gop->gop_num_b;
+	dst_gop->gop_first_poc = src_gop->gop_first_poc;
+	memcpy(dst_gop->gop_decode_order_poc, src_gop->gop_decode_order_poc, sizeof(dst_gop->gop_decode_order_poc));
+	memcpy(dst_gop->gop_decode_order_poc_inv, src_gop->gop_decode_order_poc_inv, sizeof(dst_gop->gop_decode_order_poc_inv));
+	memcpy(dst_gop->gop_decode_order_type, src_gop->gop_decode_order_type, sizeof(dst_gop->gop_decode_order_type));
+	memcpy(dst_gop->gop_decode_order_layer, src_gop->gop_decode_order_layer, sizeof(dst_gop->gop_decode_order_layer));
+	memcpy(dst_gop->gop_decode_order_is_reference, src_gop->gop_decode_order_is_reference, sizeof(dst_gop->gop_decode_order_is_reference));
+
+	if(dst_gop->gop_frame_container==NULL)
+		sync_cont_init(&dst_gop->gop_frame_container);
+	else
+		sync_cont_reset(dst_gop->gop_frame_container);
+}
+
+
+void gop_delete(gop_info_t *gop)
+{
+	sync_cont_delete(gop->gop_frame_container);	
+}
+
+
+
+void put_frame_to_encode(hvenc_enc_t* enc, encoder_in_out_t* input_frame)
+{
+	video_frame_t *pic;
+	gop_info_t *gop;
 	int comp, j;
 	wnd_t wnd_src_aux;
 	wnd_t *wnd_dst;
+	uint32_t current_poc = enc->poc;
+	uint32_t img_type = input_frame->image_type;
 
-	sync_cont_get_empty(enc_engine->input_hmr_container, (void**)&p);
+	//--insert frame into the input frame list--
+	sync_cont_get_empty(enc->input_hmr_container, (void**)&pic);
 
-	p->temp_info.pts = input_frame->pts;
-	p->img_type = input_frame->image_type;
+	pic->temp_info.pts = input_frame->pts;
+	pic->img_type = input_frame->image_type;
+	pic->temp_info.poc = enc->poc++;
 
-	wnd_dst = &p->img;
+	wnd_dst = &pic->img;
 	wnd_src_aux.data_width[0] = wnd_dst->data_width[0];
 	wnd_src_aux.pix_size = 1;//wnd_dst->pix_size;
 	wnd_src_aux.pwnd[Y_COMP] = input_frame->stream.streams[Y_COMP];
 	wnd_src_aux.pwnd[U_COMP] = input_frame->stream.streams[U_COMP];
 	wnd_src_aux.pwnd[V_COMP] = input_frame->stream.streams[V_COMP];
-	wnd_src_aux.data_width[Y_COMP] = wnd_src_aux.window_size_x[Y_COMP] = enc_engine->pict_width[Y_COMP];
-	wnd_src_aux.data_width[U_COMP] = wnd_src_aux.window_size_x[U_COMP] = enc_engine->pict_width[U_COMP];
-	wnd_src_aux.data_width[V_COMP] = wnd_src_aux.window_size_x[V_COMP] = enc_engine->pict_width[V_COMP];
-	wnd_src_aux.data_height[Y_COMP] = wnd_src_aux.window_size_y[Y_COMP] = enc_engine->pict_height[Y_COMP];
-	wnd_src_aux.data_height[U_COMP] = wnd_src_aux.window_size_y[U_COMP] = enc_engine->pict_height[U_COMP];
-	wnd_src_aux.data_height[V_COMP] = wnd_src_aux.window_size_y[V_COMP] = enc_engine->pict_height[V_COMP];
-	wnd_copy(WND_CPY_8b_16b(&enc_engine->funcs), &wnd_src_aux, wnd_dst);
+	wnd_src_aux.data_width[Y_COMP] = wnd_src_aux.window_size_x[Y_COMP] = enc->pict_width[Y_COMP];
+	wnd_src_aux.data_width[U_COMP] = wnd_src_aux.window_size_x[U_COMP] = enc->pict_width[U_COMP];
+	wnd_src_aux.data_width[V_COMP] = wnd_src_aux.window_size_x[V_COMP] = enc->pict_width[V_COMP];
+	wnd_src_aux.data_height[Y_COMP] = wnd_src_aux.window_size_y[Y_COMP] = enc->pict_height[Y_COMP];
+	wnd_src_aux.data_height[U_COMP] = wnd_src_aux.window_size_y[U_COMP] = enc->pict_height[U_COMP];
+	wnd_src_aux.data_height[V_COMP] = wnd_src_aux.window_size_y[V_COMP] = enc->pict_height[V_COMP];
+	wnd_copy(enc->funcs.sse_copy_8_16, &wnd_src_aux, wnd_dst);
 
-/*	for(comp=Y_COMP;comp<=V_COMP;comp++)
+	sync_cont_put_filled(enc->input_hmr_container, pic);
+	//-----
+
+	//check if there are enough available frames to create a gop to encode
+	if(current_poc==0 || 
+		(enc->intra_period!=0 && current_poc==(enc->last_intra + enc->intra_period) && img_type == IMAGE_AUTO) || 
+		(enc->intra_period==0 && current_poc==0) || img_type == IMAGE_I)
 	{
-		//src = input_frame->stream.streams[comp];
-		src = WND_DATA_PTR(uint8_t*, wnd_src_aux, comp);
-		dst = WND_DATA_PTR(int16_t*, *wnd_dst, comp);
-		stride_src = input_frame->stream.data_stride[comp];//,  enc_engine->pict_width[comp];
-		stride_dst = WND_STRIDE_2D(*wnd_dst, comp);
+		//this is an I image - create intra gop 
+		sync_cont_get_empty(enc->gop_container, (void**)&gop);
+		gop_reinit(gop);
+		gop->gop_size = 1;//just the I image
+		gop->gop_first_poc = pic->temp_info.poc;
 
-		for(j=0;j<enc_engine->pict_height[comp];j++)
+		sync_cont_get_filled(enc->input_hmr_container, (void**)&pic);
+		pic->img_type = IMAGE_I;
+		pic->temp_info.gop_decode_order_idx = 0;
+		pic->sublayer = 0;
+		pic->is_reference = TRUE;
+		enc->last_intra = enc->last_intra = pic->temp_info.poc;
+		enc->last_gop_reinit = pic->temp_info.poc;
+		sync_cont_put_filled(gop->gop_frame_container, pic);
+
+		sync_cont_put_filled(enc->gop_container, gop);
+	}
+	else if((current_poc-enc->last_intra)%enc->gop_size == 0)
+	{
+/*		if((enc->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || (enc->intra_period==0 && enc->num_b==0))//IPPPPPP..
 		{
-			int i;
-			for(i=0;i<enc_engine->pict_width[comp];i++)
+			int n;
+			sync_cont_get_empty(enc->gop_container, (void**)&gop);
+			gop_reinit(gop);
+
+			gop->gop_size = enc->gop_size;
+			gop->gop_num_b = enc->num_b;
+			for(n=0;n<gop->gop_size;n++)
 			{
-				dst[i] = (int16_t)src[i];
+				sync_cont_get_filled(enc->input_hmr_container, (void**)&pic);
+				pic->img_type = IMAGE_P;
+				pic->temp_info.gop_decode_order_idx = n;
+				pic->sublayer = 0;
+
+				if(n == 0)
+					gop->gop_first_poc = pic->temp_info.poc;
+				
+				sync_cont_put_filled(gop->gop_frame_container, pic);
 			}
-			//memcpy(dst, src, enc_engine->pict_width[comp]);
-			src += stride_src;
-			dst += stride_dst;
+			
+			sync_cont_put_filled(enc->gop_container, gop);
+		}
+		else if((enc->num_b!=0 && img_type == IMAGE_AUTO) || img_type == IMAGE_B || enc->intra_period==0)
+*/		{
+			int n;
+			video_frame_t *picts[MAX_GOP_SIZE];
+			sync_cont_get_empty(enc->gop_container, (void**)&gop);
+			gop_copy_restart(&enc->default_gop, gop);
+
+			gop->gop_size = enc->gop_size;
+			gop->gop_num_b = enc->num_b;
+
+			//change frame order from poc order to decode order (2 loops)
+			for(n=0;n<gop->gop_size;n++)
+			{
+//				if(n==gop->gop_size-1)
+//					gop->gop_decode_order_poc[n] = 0;
+//				else
+//					gop->gop_decode_order_poc[n] = n+1;
+
+				sync_cont_get_filled(enc->input_hmr_container, (void**)&picts[gop->gop_decode_order_poc_inv[n]]);
+
+//				if(gop->gop_decode_order_poc[n]==0 && gop->gop_size>gop->gop_num_b)
+//					picts[gop->gop_decode_order_poc[n]]->img_type = IMAGE_P;
+//				else
+//					picts[gop->gop_decode_order_poc[n]]->img_type = IMAGE_B;
+
+				picts[gop->gop_decode_order_poc_inv[n]]->img_type = gop->gop_decode_order_type[gop->gop_decode_order_poc_inv[n]];
+				picts[gop->gop_decode_order_poc_inv[n]]->sublayer = gop->gop_decode_order_layer[gop->gop_decode_order_poc_inv[n]];
+				picts[gop->gop_decode_order_poc_inv[n]]->is_reference = gop->gop_decode_order_is_reference[gop->gop_decode_order_poc_inv[n]];
+				picts[gop->gop_decode_order_poc_inv[n]]->temp_info.gop_decode_order_idx = gop->gop_decode_order_poc_inv[n];
+			}
+			
+			gop->gop_first_poc = current_poc;			
+			for(n=0;n<gop->gop_size;n++)
+			{
+				if(gop->gop_first_poc > picts[n]->temp_info.poc)
+					gop->gop_first_poc = picts[n]->temp_info.poc;
+				
+				sync_cont_put_filled(gop->gop_frame_container, picts[n]);
+			}
+			
+			sync_cont_put_filled(enc->gop_container, gop);
 		}
 	}
-*/
-	sync_cont_put_filled(enc_engine->input_hmr_container, p);
 }
 
-int get_frame_to_encode(hvenc_enc_t* venc, video_frame_t **picture)
+int get_frame_to_encode(hvenc_enc_t* enc, video_frame_t **picture)//, int poc)
 {
-	sync_cont_get_filled(venc->input_hmr_container, (void**)picture);
+	//get a new gop to encode if needed
+	if(enc->input_gop == NULL)
+	{
+		sync_cont_get_filled(enc->gop_container, (void**)&enc->input_gop);//get new gop to process
+	}
+	if(enc->input_gop == NULL)
+		return FALSE;
+	
 
+	//get next frame to encode
+	sync_cont_get_filled(enc->input_gop->gop_frame_container, (void**)picture);
+		
 	return (*picture)!=NULL;
 }
 
-void put_available_frame(hvenc_enc_t * venc, video_frame_t *picture)
+void put_available_frame(hvenc_enc_t * enc, video_frame_t *picture)
 {
-	sync_cont_put_empty(venc->input_hmr_container, picture);
+	//put frame as avaliable
+	sync_cont_put_empty(enc->input_hmr_container, picture);
+
+	//if gop is finished, make it available
+	if(sync_cont_is_empty(enc->input_gop->gop_frame_container))
+	{
+		sync_cont_put_empty(enc->gop_container, (void*)enc->input_gop);//leave gop available as it is already finished
+		enc->input_gop = NULL;
+	}
 }
 
 
@@ -298,7 +433,7 @@ void HOMER_enc_close(void* h)
 		{
 			int n_mods;
 			for(n_mods = 0;n_mods<hvenc->num_encoder_engines;n_mods++)
-				sync_cont_put_filled(hvenc->input_hmr_container, NULL);//wake encoder_engine_thread if it is waiting
+				sync_cont_put_filled(hvenc->gop_container, NULL);//wake encoder_engine_thread if it is waiting
 			JOIN_THREADS(hvenc->encoder_mod_thread, hvenc->num_encoder_engines);
 		}
 	}
@@ -466,6 +601,7 @@ void HOMER_enc_close(void* h)
 	hmr_bitstream_free(&hvenc->sps_nalu.bs);
 	hmr_bitstream_free(&hvenc->vps_nalu.bs);
 
+	sync_cont_delete(hvenc->gop_container);
 	sync_cont_delete(hvenc->input_hmr_container);
 	cont_delete(hvenc->output_hmr_container);
 	cont_delete(hvenc->cont_empty_reference_wnds);
@@ -473,6 +609,11 @@ void HOMER_enc_close(void* h)
 	for(i=0;i<2*MAX_NUM_REF;i++)
 	{
 		wnd_delete(&hvenc->ref_wnds[i].img);
+	}
+
+	for(i=0;i<MAX_NUM_INPUT_GOPS;i++)
+	{
+		gop_delete(&hvenc->input_gops[i]);
 	}
 
 	for(i=0;i<NUM_INPUT_FRAMES(hvenc->num_encoder_engines);i++)
@@ -561,13 +702,12 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				{
 					int n_mods;
 					for(n_mods = 0;n_mods<hvenc->num_encoder_engines;n_mods++)
-						sync_cont_put_filled(hvenc->input_hmr_container, NULL);//wake encoder_engine_thread if it is waiting
+						sync_cont_put_filled(hvenc->gop_container, NULL);//wake encoder_engine_thread if it is waiting
 					JOIN_THREADS(hvenc->encoder_mod_thread, hvenc->num_encoder_engines);
 				}
 			}
 
-			hvenc->max_sublayers = 1;//TLayers en HM
-			hvenc->max_layers = 1;
+//			hvenc->max_layers = 1;
 
 			hvenc->profile = cfg->profile;
 
@@ -579,6 +719,8 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
 			hvenc->num_encoder_engines = max(cfg->num_enc_engines,1,100);
+
+			hvenc->max_sublayers = (hvenc->num_b==0 || hvenc->num_b==hvenc->gop_size)?1:2;//TLayers en HM
 
 			//sao
 			sao_init(hvenc->bit_depth);
@@ -593,22 +735,64 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hmr_bitstream_free(&hvenc->pps_nalu.bs);
 			hmr_bitstream_alloc(&hvenc->pps_nalu.bs, 256);
 
+			//hvenc->num_short_term_ref_pic_sets = hvenc->gop_size+(hvenc->intra_period==1?1:(hvenc->num_b!=0 && hvenc->gop_size>hvenc->num_b)?hvenc->num_ref_frames-1:hvenc->num_ref_frames);//gop size does not mean the same as HM. Here it means numB+1
 			hvenc->num_short_term_ref_pic_sets = hvenc->gop_size+(hvenc->intra_period==1?1:hvenc->num_ref_frames);//gop size does not mean the same as HM. Here it means numB+1
 			if(hvenc->ref_pic_set_list)
 				memset(hvenc->ref_pic_set_list, 0, sizeof(ref_pic_set_t));
 			else
 				hvenc->ref_pic_set_list = (ref_pic_set_t*)calloc (hvenc->num_short_term_ref_pic_sets, sizeof(ref_pic_set_t));
 
+			//Create default gop struct for frame type and frame poc
+			memset(&hvenc->default_gop, 0, sizeof(hvenc->default_gop));
+			hvenc->default_gop.gop_size = hvenc->gop_size;
+			hvenc->default_gop.gop_num_b = hvenc->num_b;
+
+			//create gop format
+			for(i=0;i<hvenc->default_gop.gop_size;i++)
+			{
+				if(hvenc->default_gop.gop_num_b==0 || hvenc->default_gop.gop_size==hvenc->default_gop.gop_num_b)
+				{
+					hvenc->default_gop.gop_decode_order_poc[i] = i;
+					hvenc->default_gop.gop_decode_order_poc_inv[i] = i;
+					if(hvenc->default_gop.gop_num_b==0)
+						hvenc->default_gop.gop_decode_order_type[i] = IMAGE_P;
+					else
+						hvenc->default_gop.gop_decode_order_type[i] = IMAGE_B;
+					hvenc->default_gop.gop_decode_order_layer[i] = 0;//P
+					hvenc->default_gop.gop_decode_order_layer[i] = 0;//P
+					hvenc->default_gop.gop_decode_order_is_reference[i] = TRUE;
+				}
+				else //if(hvenc->default_gop.gop_num_b>0 && hvenc->default_gop.gop_size>hvenc->default_gop.gop_num_b)
+				{
+					if(i==hvenc->default_gop.gop_size-1)
+					{
+						hvenc->default_gop.gop_decode_order_poc[0] = i;//P
+						hvenc->default_gop.gop_decode_order_poc_inv[i] = 0;//P
+						hvenc->default_gop.gop_decode_order_type[hvenc->default_gop.gop_decode_order_poc_inv[i]] = IMAGE_P;
+						hvenc->default_gop.gop_decode_order_layer[hvenc->default_gop.gop_decode_order_poc_inv[i]] = 0;//P
+						hvenc->default_gop.gop_decode_order_is_reference[hvenc->default_gop.gop_decode_order_poc_inv[i]] = TRUE;
+					}
+					else
+					{
+						hvenc->default_gop.gop_decode_order_poc[i+1] = i;//B
+						hvenc->default_gop.gop_decode_order_poc_inv[i] = i+1;//B
+						hvenc->default_gop.gop_decode_order_type[hvenc->default_gop.gop_decode_order_poc_inv[i]] = IMAGE_B;
+						hvenc->default_gop.gop_decode_order_layer[hvenc->default_gop.gop_decode_order_poc_inv[i]] = 1;//P
+						hvenc->default_gop.gop_decode_order_is_reference[hvenc->default_gop.gop_decode_order_poc_inv[i]] = FALSE;
+					}
+				}
+			}
+
 			//TEncTop::xInitRPS
 			for(i=0;i<hvenc->num_short_term_ref_pic_sets-1;i++)
 			{
 				if(hvenc->intra_period==1)
 					hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->ref_pic_set_list[i].num_positive_pics = hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;
-				else if(hvenc->num_b == 0)
+				else if(hvenc->num_b == 0 || hvenc->default_gop.gop_size==hvenc->default_gop.gop_num_b)
 				{
 					int j;
 					if(i==0)
-						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-(i);
+						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames;//-(i);
 					else
 						hvenc->ref_pic_set_list[i].num_negative_pics = i;//hvenc->num_ref_frames-(hvenc->num_ref_frames-i-1);
 
@@ -624,21 +808,36 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				else
 				{
 					int j;
-					if(i==0)
-						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames-(i);
-					else
-						hvenc->ref_pic_set_list[i].num_negative_pics = i;//hvenc->num_ref_frames-(hvenc->num_ref_frames-i-1);
 
-					hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 0;					
-					for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
+					if(hvenc->default_gop.gop_decode_order_type[i] == IMAGE_P)
 					{
-						hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
-						hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames;//-(i);
+						for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
+						{
+							hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j*hvenc->default_gop.gop_size + (hvenc->default_gop.gop_num_b+1));//use the last n pictures
+							hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
 
-//						if(i>1 && ((i)+hvenc->ref_pic_set_list[i].delta_poc_s0[j])<=0)//absPOC = curPOC+m_GOPList[curGOP].m_referencePics[i];//TAppEncCfg line 998 HM-13
-//							hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 1;
+	//						if(i>1 && ((i)+hvenc->ref_pic_set_list[i].delta_poc_s0[j])<=0)//absPOC = curPOC+m_GOPList[curGOP].m_referencePics[i];//TAppEncCfg line 998 HM-13
+	//							hvenc->ref_pic_set_list[i].inter_ref_pic_set_prediction_flag = 1;
+						}
+						hvenc->ref_pic_set_list[i].num_positive_pics = 0;//-(i);
 					}
-					hvenc->ref_pic_set_list[i].num_positive_pics = 0;
+					else
+					{
+						hvenc->ref_pic_set_list[i].num_negative_pics = hvenc->num_ref_frames;//-(i);
+						hvenc->ref_pic_set_list[i].num_positive_pics = hvenc->num_ref_frames;
+							
+						for(j=0;j<hvenc->ref_pic_set_list[i].num_negative_pics;j++)
+						{
+							hvenc->ref_pic_set_list[i].delta_poc_s0[j] = -(j+1);//use the last n pictures
+							hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[j] = 1;
+						}
+						for(j=0;j<hvenc->ref_pic_set_list[i].num_positive_pics;j++)
+						{
+							hvenc->ref_pic_set_list[i].delta_poc_s0[hvenc->ref_pic_set_list[i].num_negative_pics+j] = (j+1);//use the last n pictures
+							hvenc->ref_pic_set_list[i].used_by_curr_pic_S0_flag[hvenc->ref_pic_set_list[i].num_negative_pics+j] = 1;
+						}
+					}
 				}
 				hvenc->ref_pic_set_list[i].num_pics = hvenc->ref_pic_set_list[i].num_negative_pics + hvenc->ref_pic_set_list[i].num_positive_pics;
 			}
@@ -1010,7 +1209,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 
 				phvenc_engine->max_sublayers = hvenc->max_sublayers;//TLayers en HM
-				phvenc_engine->max_layers = hvenc->max_layers;
+//				phvenc_engine->max_layers = hvenc->max_layers;
 
 				for(ithreads=0;ithreads<phvenc_engine->wfpp_num_threads;ithreads++)
 				{
@@ -1256,6 +1455,13 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->pict_width[1] = hvenc->pict_width[2] = phvenc_engine->pict_width[1];
 			hvenc->pict_height[1] = hvenc->pict_height[2] = phvenc_engine->pict_height[1];
 
+			sync_cont_reset(hvenc->gop_container);
+			for(i=0;i<MAX_NUM_INPUT_GOPS;i++)
+			{
+				gop_reinit(&hvenc->input_gops[i]);
+				sync_cont_put_empty(hvenc->gop_container, &hvenc->input_gops[i]);
+			}
+
 			sync_cont_reset(hvenc->input_hmr_container);
 			for(i=0;i<NUM_INPUT_FRAMES(hvenc->num_encoder_engines);i++)
 			{
@@ -1293,8 +1499,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->vps.sub_layer_ordering_info_present_flag = 1;
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
-				hvenc->vps.max_num_reorder_pics[i] = 0;
-				hvenc->vps.max_dec_pic_buffering[i] = (hvenc->intra_period==1)?1:hvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
+				int layer_incr = min(i,hvenc->max_sublayers-1);
+				hvenc->vps.max_num_reorder_pics[i] = 0 + layer_incr;
+				hvenc->vps.max_dec_pic_buffering[i] = (hvenc->intra_period==1)?1:hvenc->num_ref_frames+1+layer_incr;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				hvenc->vps.max_latency_increase[i] = 0;
 			}
 	
@@ -1322,8 +1529,9 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->sps.log2_max_pic_order_cnt_lsb_minus4 = 0;//4; //bits for poc=8 - must be bigger than idr period
 			for(i = 0; i < MAX_TLAYER; i++)
 			{
-				hvenc->sps.max_num_reorder_pics[i] = 0;
-				hvenc->sps.max_dec_pic_buffering[i] = (hvenc->intra_period==1)?1:hvenc->num_ref_frames+1;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
+				int layer_incr = min(i,hvenc->max_sublayers-1);
+				hvenc->sps.max_num_reorder_pics[i] = 0+layer_incr;
+				hvenc->sps.max_dec_pic_buffering[i] = (hvenc->intra_period==1)?1:hvenc->num_ref_frames+1+layer_incr;//m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
 				hvenc->sps.max_latency_increase[i] = 0;
 			}
 
@@ -1605,15 +1813,29 @@ void hmr_select_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 	}
 	else if(hvenc->intra_period>0)// && getDecodingRefreshType() > 0)
 	{
-		if(currslice->poc>0)
+		if(hvenc->num_b == 0 || hvenc->gop_size==hvenc->num_b)
 		{
-			int poc_idx = currslice->poc%hvenc->intra_period;
-			if(poc_idx<hvenc->num_ref_frames)
+			if(currslice->poc>0)
 			{
-//				if(hvenc->num_b==0)//this is for HM compatibility. Order difers from IPPPP, to IBBBBB
-//					currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
-//				else
-					currslice->ref_pic_set_index = poc_idx;
+				int poc_idx = currslice->poc%hvenc->intra_period;
+	//			if(currslice->gop_decode_order_idx < hvenc->num_ref_frames)
+				if(poc_idx<hvenc->num_ref_frames)
+				{
+	//				if(hvenc->num_b==0)//this is for HM compatibility. Order difers from IPPPP, to IBBBBB
+	//					currslice->ref_pic_set_index = hvenc->num_ref_frames-poc_idx;
+	//				else
+						currslice->ref_pic_set_index = poc_idx;//currslice->gop_decode_order_idx+1;
+				}
+			}
+		}
+		else//if(hvenc->default_gop.gop_num_b>0 && hvenc->default_gop.gop_size>hvenc->default_gop.gop_num_b)
+		{
+//			if(currslice->poc>0)
+			{
+//				if(currslice->gop_decode_order_idx < hvenc->num_ref_frames)
+				{
+					currslice->ref_pic_set_index = min(currslice->gop_decode_order_idx, hvenc->num_short_term_ref_pic_sets-2);
+				}
 			}
 		}
 		currslice->ref_pic_set = &hvenc->ref_pic_set_list[currslice->ref_pic_set_index];
@@ -1631,7 +1853,7 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 
 	currslice->ref_pic_list_cnt[REF_PIC_LIST_0] = currslice->ref_pic_list_cnt[REF_PIC_LIST_1] = 0;
 
-	if(currslice->poc == 8)
+	if(currslice->poc == 1)
 	{
 		int iiiii=0;
 	}
@@ -1685,12 +1907,54 @@ void apply_reference_picture_set(hvenc_enc_t* hvenc, slice_t *currslice)
 
 }
 
+
+int is_temporal_layer_switching_point(hvenc_enc_t* hvenc, uint32_t poc, int layer)
+{
+	int i, j;
+	video_frame_t *iter_pic, *rpc_pic;
+
+	for(i=0;i<MAX_NUM_REF-1;i++)
+	{
+		iter_pic = hvenc->reference_picture_buffer[i];
+		rpc_pic = hvenc->reference_picture_buffer[i+1];
+		if(iter_pic!=NULL && rpc_pic!=NULL)
+		{
+			if(rpc_pic->is_reference && rpc_pic->temp_info.poc != poc)
+			{
+				if(rpc_pic->sublayer >= layer)
+					return FALSE;
+			}
+		}
+	}
+
+	return TRUE;
+/*  TComPic* rpcPic;
+  // loop through all pictures in the reference picture buffer
+  TComList<TComPic*>::iterator iterPic = rcListPic.begin();
+  while ( iterPic != rcListPic.end())
+  {
+    rpcPic = *(iterPic++);
+    if(rpcPic->getSlice(0)->isReferenced() && rpcPic->getPOC() != getPOC())
+    {
+      if(rpcPic->getTLayer() >= getTLayer())
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
+*/}
+
 void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *currslice)
 {
 	int idx_l1;
 	int img_type = currpict->img2encode->img_type;
 	currslice->qp =  enc_engine->pict_qp;
-	currslice->poc = enc_engine->last_poc;
+	currslice->poc = currpict->img2encode->temp_info.poc;
+	currslice->gop_decode_order_idx = currpict->img2encode->temp_info.gop_decode_order_idx;
+	currslice->sublayer = currpict->img2encode->sublayer;
+	currslice->slice_temporal_layer_non_reference_flag = !currpict->img2encode->is_reference;
 	currslice->sps = &enc_engine->hvenc->sps;
 	currslice->pps = &enc_engine->hvenc->pps;
 	currslice->slice_index = 0;
@@ -1706,16 +1970,17 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	currslice->max_num_merge_candidates = enc_engine->num_merge_mvp_candidates;
 	enc_engine->last_intra = enc_engine->hvenc->last_intra;
 //	if((currslice->poc%enc_engine->intra_period)==0)
-	if(currslice->poc==0 || (enc_engine->intra_period!=0 && currslice->poc==(enc_engine->last_intra + enc_engine->intra_period) && img_type == IMAGE_AUTO) || (enc_engine->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
+//	if(currslice->poc==0 || (enc_engine->intra_period!=0 && currslice->poc==(enc_engine->last_intra + enc_engine->intra_period) && img_type == IMAGE_AUTO) || (enc_engine->intra_period==0 && currslice->poc==0) || img_type == IMAGE_I)
+	if(img_type == IMAGE_I)
 	{
-		enc_engine->hvenc->last_intra = enc_engine->last_intra = currslice->poc;
-		enc_engine->hvenc->last_gop_reinit = enc_engine->last_gop_reinit = currslice->poc;
-		currpict->img2encode->img_type = IMAGE_I;
+		enc_engine->last_intra = enc_engine->hvenc->last_intra;				//enc_engine->hvenc->last_intra = enc_engine->last_intra = currslice->poc;
+		enc_engine->last_gop_reinit = enc_engine->hvenc->last_gop_reinit;	//enc_engine->hvenc->last_gop_reinit = enc_engine->last_gop_reinit = currslice->poc;
+//		currpict->img2encode->img_type = IMAGE_I;
 		currslice->slice_type = I_SLICE;
-		currslice->slice_temporal_layer_non_reference_flag = 0;
+//		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
-		currslice->sublayer = 0;
+//		currslice->sublayer = currpict->img2encode->sublayer;
 		currslice->depth = 0;
 
 #ifndef COMPUTE_AS_HM
@@ -1727,27 +1992,34 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 */
 #endif
 	}
-	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || (enc_engine->intra_period==0 && enc_engine->num_b==0))
+//	else if((enc_engine->num_b==0 && img_type == IMAGE_AUTO) || img_type == IMAGE_P || (enc_engine->intra_period==0 && enc_engine->num_b==0))
+	else if(img_type == IMAGE_P)
 	{
+//		currpict->img2encode->img_type = IMAGE_P;
 		currslice->slice_type = P_SLICE;
-		currpict->img2encode->img_type = IMAGE_P;
-		currslice->slice_temporal_layer_non_reference_flag = 0;
+//		currslice->slice_temporal_layer_non_reference_flag = 0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
-		currslice->sublayer = 0;
+//		currslice->sublayer = 0;
 		currslice->depth = 0;	
 
 	}
-	else if((enc_engine->num_b!=0 && img_type == IMAGE_AUTO) || img_type == IMAGE_B || enc_engine->intra_period==0)
+	//else if((enc_engine->num_b!=0 && img_type == IMAGE_AUTO) || img_type == IMAGE_B || enc_engine->intra_period==0)
+	else if(img_type == IMAGE_B)
 	{
+//		currpict->img2encode->img_type = IMAGE_B;//IMAGE_P;
 		currslice->slice_type = B_SLICE;//P_SLICE;
-		currpict->img2encode->img_type = IMAGE_B;//IMAGE_P;
-		currslice->slice_temporal_layer_non_reference_flag = 0;
+//		currslice->slice_temporal_layer_non_reference_flag = (currslice->sublayer>0)?1:0;
 		currslice->is_dependent_slice = 0;
 		currslice->nalu_type = get_nal_unit_type(enc_engine, currslice, currslice->poc);//NALU_CODED_SLICE_IDR;
-		currslice->sublayer = 0;
+//		currslice->sublayer = 0;
 		currslice->depth = 0;	
 
+	}
+
+	if(currslice->poc == 1)
+	{
+		int iiii=0;
 	}
 
 	currslice->qp = enc_engine->pict_qp;
@@ -1760,7 +2032,7 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	}
 	enc_engine->last_idr = enc_engine->hvenc->last_idr;
 
-	if(currslice->poc == 0)//if(enc_engine->last_poc == 0)//first image?
+	if(currslice->poc == 0)//first image?
 	{
 //		sublayer_non_reference = 0;		
 	}
@@ -1777,10 +2049,40 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 	}
 
 
-	currslice->num_ref_idx[REF_PIC_LIST_0] = min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);// currslice->ref_pic_set->num_negative_pics;//;
-	currslice->num_ref_idx[REF_PIC_LIST_1] = (currslice->slice_type==P_SLICE)?0:min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);//currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
+//	currslice->num_ref_idx[REF_PIC_LIST_0] = min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);// currslice->ref_pic_set->num_negative_pics;//;
+//	currslice->num_ref_idx[REF_PIC_LIST_1] = (currslice->slice_type==P_SLICE)?0:min(enc_engine->num_ref_frames, currslice->ref_pic_set->num_pics);//currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
+	currslice->num_ref_idx[REF_PIC_LIST_0] = currslice->ref_pic_set->num_pics;// currslice->ref_pic_set->num_negative_pics;//;
+	currslice->num_ref_idx[REF_PIC_LIST_1] = (currslice->slice_type==P_SLICE)?0:currslice->ref_pic_set->num_pics;//currslice->ref_pic_set->num_positive_pics;//enc_engine->num_refs_idx_active_list[REF_PIC_LIST_1];
 
 	apply_reference_picture_set(enc_engine->hvenc, currslice);		
+
+	if(currslice->slice_temporal_layer_non_reference_flag)
+	{
+	      if (currslice->nalu_type == NALU_CODED_SLICE_TRAIL_R && !(enc_engine->gop_size == 1 && currslice->slice_type == I_SLICE))
+			  currslice->nalu_type = NALU_CODED_SLICE_TRAIL_N;
+
+		  if(currslice->nalu_type == NALU_CODED_SLICE_RADL_R)
+			currslice->nalu_type = NALU_CODED_SLICE_RADL_N;
+
+		  if(currslice->nalu_type == NALU_CODED_SLICE_RASL_R)
+			currslice->nalu_type = NALU_CODED_SLICE_RASL_N;
+	}
+
+	if(currslice->sublayer>0 && !(currslice->nalu_type == NALU_CODED_SLICE_RADL_N || currslice->nalu_type == NALU_CODED_SLICE_RADL_R   // Check if not a leading picture          
+		|| currslice->nalu_type == NALU_CODED_SLICE_RASL_N || currslice->nalu_type == NALU_CODED_SLICE_RASL_R))
+	{
+		if(is_temporal_layer_switching_point(enc_engine->hvenc, currslice->poc, currslice->sublayer) || currslice->sps->temporal_id_nesting_flag)
+		{
+			if(currslice->slice_temporal_layer_non_reference_flag)
+			{
+				currslice->nalu_type = NALU_CODED_SLICE_TSA_N;
+			}
+			else
+			{
+				currslice->nalu_type = NALU_CODED_SLICE_TSA_R;
+			}
+		}	
+	}          
 
 
 	for (idx_l1 = 0; idx_l1 < currslice->num_ref_idx[REF_PIC_LIST_1]; idx_l1++ )
@@ -2609,7 +2911,7 @@ THREAD_RETURN_TYPE wfpp_encoder_thread(void *h)
 		mem_transfer_decoded_blocks(et, ctu);
 
 
-		wnd_copy(WND_CPY_16b_16b(et->funcs), et->transform_quant_wnd[0], ctu->coeff_wnd);
+		wnd_copy(et->funcs->sse_copy_16_16, et->transform_quant_wnd[0], ctu->coeff_wnd);
 
 #ifndef COMPUTE_AS_HM
 		hmr_deblock_sao_pad_sync_ctu(et, currslice, ctu);
@@ -2822,16 +3124,15 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		int		nalu_list_size = NALU_SET_SIZE;
 		nalu_t	**output_nalu_list;// = ouput_sets->nalu_list;
 		int		engine;
+		//Get into input mutex
 		SEM_WAIT(enc_engine->input_wait);
-		//get next image
+		//get next image in decode order with pts and poc
 		if(!get_frame_to_encode(enc_engine->hvenc, &enc_engine->current_pict.img2encode))//get next image to encode and init type
 		{
 			SEM_POST(enc_engine->input_signal);
 			return THREAD_RETURN;
 		}
-		//entra seccion critica
-		enc_engine->last_poc = enc_engine->hvenc->poc;
-		enc_engine->hvenc->poc++;
+		
 		enc_engine->num_encoded_frames = enc_engine->hvenc->num_encoded_frames;
 		enc_engine->hvenc->num_encoded_frames++;
 
@@ -2848,7 +3149,9 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 		//get free img for decoded blocks
 		cont_get(enc_engine->hvenc->cont_empty_reference_wnds,(void**)&enc_engine->curr_reference_frame);
-		enc_engine->curr_reference_frame->temp_info.poc = currslice->poc;//assign temporal info to decoding window for future use as reference
+		enc_engine->curr_reference_frame->img_type = enc_engine->current_pict.img2encode->img_type;
+		enc_engine->curr_reference_frame->temp_info = enc_engine->current_pict.img2encode->temp_info;//currslice->poc;//assign temporal info to decoding window for future use as reference
+		enc_engine->curr_reference_frame->sublayer = enc_engine->current_pict.img2encode->sublayer;
 
 		//reference prunning must be done in a selective way
 		if(enc_engine->hvenc->reference_picture_buffer[enc_engine->hvenc->reference_list_index]!=NULL)
@@ -2876,7 +3179,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			//reset remafore
 			SEM_RESET(enc_engine->thread[n]->synchro_wait[0])
 		}
-		SEM_POST(enc_engine->input_signal);		
+
+		SEM_POST(enc_engine->input_signal);		//Leave input mutex
 
 		CREATE_THREADS((&enc_engine->hthreads[0]), wfpp_encoder_thread, enc_engine->thread, enc_engine->wfpp_num_threads)
 		JOIN_THREADS(enc_engine->hthreads, enc_engine->wfpp_num_threads-1)
@@ -2950,7 +3254,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 
 		//----------------------------end calc average statistics (distortion, qp)----------------------------------
-		SEM_WAIT(enc_engine->output_wait);
+		SEM_WAIT(enc_engine->output_wait);//Get output mutex
 		
 		if(currslice->nalu_type == NALU_CODED_SLICE_IDR_W_RADL)
 		{
@@ -2978,6 +3282,10 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		enc_engine->slice_nalu->temporal_id = enc_engine->slice_nalu->rsvd_zero_bits = 0;
 		output_nalu_list[output_nalu_cnt++] = enc_engine->slice_nalu;
 
+		if(currslice->poc==1)
+		{
+			int iiiii=0;
+		}
 		hmr_put_slice_header(enc_engine, currslice);//slice header
 		if(enc_engine->wfpp_enable)
 			hmr_slice_header_code_wfpp_entry_points(enc_engine);
@@ -2989,8 +3297,8 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 			enc_engine->slice_bs.streambytecnt += enc_engine->aux_bs[i].streambytecnt;
 		}
 
-		//escribimos la nalu
-		hmr_bitstream_put_nal_unit_header(&enc_engine->slice_nalu->bs, currslice->nalu_type, 0, 0);
+		//write the slice nalu
+		hmr_bitstream_put_nal_unit_header(&enc_engine->slice_nalu->bs, currslice->nalu_type, currslice->sublayer, 0);
 		hmr_bitstream_nalu_ebsp(&enc_engine->slice_bs,&enc_engine->slice_nalu->bs);
 
 #ifdef WRITE_REF_FRAMES
@@ -3026,7 +3334,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 //#ifndef COMPUTE_AS_HM
 			printf("qp: %d, ", enc_engine->pict_qp);			
 //#endif
-			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
+//			printf("pts: %d, ", enc_engine->current_pict.img2encode->temp_info.pts);			
 
 			if(currpict->img2encode->img_type!=IMAGE_I)
 			{
@@ -3057,10 +3365,10 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 //		reference_picture_border_padding(&enc_engine->curr_reference_frame->img);
 //		enc_engine->reference_picture_buffer[enc_engine->reference_list_index] = enc_engine->curr_reference_frame;
 //		enc_engine->reference_list_index = (enc_engine->reference_list_index+1)&MAX_NUM_REF_MASK;
-//		enc_engine->last_poc++;
 
 		ouput_sets->pts = enc_engine->current_pict.img2encode->temp_info.pts;
 		ouput_sets->image_type = enc_engine->current_pict.img2encode->img_type;
+		
 		put_available_frame(enc_engine->hvenc, enc_engine->current_pict.img2encode);
 
 		ouput_sets->num_nalus = output_nalu_cnt;
@@ -3069,7 +3377,7 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 
 		enc_engine->num_encoded_frames_in_engine++;
 
-		SEM_POST(enc_engine->output_signal);
+		SEM_POST(enc_engine->output_signal);//Leave output mutex
 	}
 
 	return THREAD_RETURN;

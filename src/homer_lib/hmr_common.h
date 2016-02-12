@@ -82,7 +82,7 @@ typedef enum {
   NALU_CODED_SLICE_TRAIL_R,			// 1
   
   NALU_CODED_SLICE_TSA_N,			// 2
-  NALU_CODED_SLICE_TLA_R,				// 3   // Current name in the spec: TSA_R
+  NALU_CODED_SLICE_TSA_R,				// 3   // Current name in the spec: TSA_R
   
   NALU_CODED_SLICE_STSA_N,			// 4
   NALU_CODED_SLICE_STSA_R,			// 5
@@ -189,9 +189,9 @@ void wnd_delete(wnd_t *wnd_t);
 void wnd_realloc(wnd_t *wnd_t, int size_x, int size_y, int offset_x, int offset_y, int pix_size);
 
 typedef void (*f_copy_n_n)(void* src, uint32_t src_stride, void* dst, uint32_t dst_stride, int width, int height);//function interface for eficient low level abstraction
-#define WND_CPY_16b_16b(funcs)	(funcs)->sse_copy_16_16
-#define WND_CPY_8b_16b(funcs)	(funcs)->sse_copy_8_16
-#define WND_CPY_16b_8b(funcs)	(funcs)->sse_copy_16_8
+//#define WND_CPY_16b_16b(funcs)	(funcs)->sse_copy_16_16
+//#define WND_CPY_8b_16b(funcs)	(funcs)->sse_copy_8_16
+//#define WND_CPY_16b_8b(funcs)	(funcs)->sse_copy_16_8
 void wnd_copy(f_copy_n_n func, wnd_t * wnd_src, wnd_t * wnd_dst);
 void wnd_copy_cu_2D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp);
 void wnd_copy_cu_1D(f_copy_n_n func, cu_partition_info_t* curr_part, wnd_t * wnd_src, wnd_t * wnd_dst, int comp);

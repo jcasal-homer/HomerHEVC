@@ -69,13 +69,27 @@ void hmr_put_profile_and_level(bitstream_t *bs, profile_tier_level_t* ptl, int p
 
 	for(i = 0; i < maxNumSubLayersMinus1; i++)
 	{
-		hmr_bitstream_write_bits(bs, ptl->subLayerProfilePresentFlag[i], 1);
+		if(profilePresentFlag)
+			hmr_bitstream_write_bits(bs, ptl->subLayerProfilePresentFlag[i], 1);
+
 		hmr_bitstream_write_bits(bs, ptl->subLayerLevelPresentFlag[i], 1);
-		if( profilePresentFlag && ptl->subLayerProfilePresentFlag[i])
+	}
+
+	if (maxNumSubLayersMinus1 > 0)
+	{
+		for (i = maxNumSubLayersMinus1; i < 8; i++)
+		{
+			hmr_bitstream_write_bits(bs, 0, 2);//reserved_zero_2bits
+		}
+	}
+
+	for(i = 0; i < maxNumSubLayersMinus1; i++)
+	{
+		if(profilePresentFlag && ptl->subLayerProfilePresentFlag[i])
 		{
 			hmr_put_profile_tier(bs, &ptl->subLayerPTL[i]);  // sub_layer_...
 		}
-		if( ptl->subLayerLevelPresentFlag[i] )
+		if(ptl->subLayerLevelPresentFlag[i])
 		{
 			hmr_bitstream_write_bits(bs, ptl->subLayerPTL[i].levelIdc, 8);
 		}
@@ -177,11 +191,11 @@ void hmr_short_term_ref_pic_set(bitstream_t	*bs, ref_pic_set_t *rps, int idx)
 			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S0_flag[j], 1);//inter_ref_pic_set_prediction_flag
 		}
 		prev = 0;
-		for(j=0;j<rps->num_positive_pics;j++)
+		for(j=rps->num_negative_pics;j<rps->num_negative_pics+rps->num_positive_pics;j++)
 		{
-//			hmr_bitstream_write_bits_uvlc(bs, rps->delta_poc_s0[j]-prev-1);//delta_poc_s0_minus1
-//			prev = rps->delta_poc_s0[j];
-//			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S1_flag[j], 1);//inter_ref_pic_set_prediction_flag
+			hmr_bitstream_write_bits_uvlc(bs, rps->delta_poc_s0[j]-prev-1);//delta_poc_s1_minus1
+			prev = rps->delta_poc_s0[j];
+			hmr_bitstream_write_bits(bs, rps->used_by_curr_pic_S0_flag[j], 1);//used_by_curr_pic_S1_flag
 		}
 	}
 }
