@@ -132,33 +132,6 @@ typedef __m128i	__m128_i8;
 #define sse_128_clip_16(val,min,max)		_mm_max_epi16(_mm_min_epi16(val, max), min)
 
 
-//ssd 16 bits
-__inline __m128_i32 sse_128_ssd_i16_i32_(__m128_i16 a,__m128_i16 b)
-{
-	__m128_i16 _128_i16_sub1 = sse_128_sub_i16(a, b);
-	return sse_128_madd_i16_i32(_128_i16_sub1, _128_i16_sub1);
-}
 
-//horizontal accumulator
-__inline uint32_t sse_128_hacc_i16_(__m128_i16 a)
-{
-//	a = sse_128_hadd_i16(a, a);
-//	a = sse_128_hadd_i16(a, a); 
-//	a = sse_128_hadd_i16(a, a); 
-//	return sse_128_get_data_u16(a,0);
-	a = sse_128_add_i16(a, sse128_unpackhi_u64(a, a));
-	a = sse_128_add_i16(a, sse_128_shift_r_i64(a, 32));
-	return sse_128_get_data_u16(a,0) + sse_128_get_data_u16(a,1);
-}
-
-__inline uint32_t sse_128_hacc_i32_(__m128_i16 a)
-{
-	a = sse_128_hadd_i32(a, a);
-	a = sse_128_hadd_i32(a, a); 
-//	a = sse_128_hadd_i32(a, a); 
-	return sse_128_get_data_u32(a,0);
-//	a = sse_128_add_i32(a, sse128_unpackhi_u64(a, a));
-//	return sse_128_get_data_u32(a,0) + sse_128_get_data_u32(a,1);
-}
 
 #endif	/*__HOMER_HEVC_SSE42_PRIMITIVES__*/

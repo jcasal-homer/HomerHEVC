@@ -38,19 +38,19 @@
 #endif
 
 
-//#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
+#define FILE_IN  "C:\\Patrones\\DemoVideos\\demo_video.yuv"
 //#define FILE_IN  "C:\\Patrones\\TestEBU720p50.yuv"//TestEBU720p50Train.yuv"//BrazilianDancer.yuv"//DebugPattern_384x256.yuv"//Flags.yuv"//"C:\\PruebasCiresXXI\\Robots.yuv"//TestEBU720p50_synthetic.yuv"//sinthetic_freeze.yuv"//720p5994_parkrun_ter.yuv"
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
+//#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	720//(208)//1280//248//624//192//(384+16)//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	576//(144)//720//184//352//128//(256+16)//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	1280//(208)//1280//248//624//192//(384+16)//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	720//(144)//720//184//352//128//(256+16)//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -88,8 +88,9 @@ void print_help()
 	printf("-frame_rate: \t\t\t\t Default = 25 fps\r\n");	
 	printf("-cu_size: \t\t\t\t cu size [16,32 or 64]. Default = 64 (only 64 supported for inter prediction)\r\n");
 	printf("-intra_period: \t\t\t\t [0-....], 0=infinite. Default = 100 \r\n");
-	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.. profile. Default = 1\r\n");
-	printf("-num_ref_frames: \t\t\t Default = 1 (only 1 reference currently supported) \r\n");	
+	printf("-gop_size: \t\t\t\t 0:intra profile, 1: IPPP.., 2: IBP..profile. Default = 2\r\n");
+	printf("-b_frames: \t\t\t\t [0,1] Just 1 B frame currently supported. Default = 1\r\n");
+	printf("-num_ref_frames: \t\t\t [0,8] Default = 1\r\n");	
 	printf("-qp: \t\t\t\t\t qp[0-51]. default = 32\r\n");
 	printf("-motion_estimation_precision: \t\t 0=pel, 1=half_pel, 2=quarter_pel. default = 2\r\n");
 	printf("-chroma_qp_offset: \t\t\t chroma_qp_offset[-12,12]. default = 2\r\n");	
@@ -193,6 +194,11 @@ void parse_args(int argc, char* argv[], HVENC_Cfg *cfg, int *num_frames, int *sk
 		{
 			args_parsed++;
 			sscanf( argv[args_parsed++], "%d", &cfg->gop_size);
+		}
+		else if(strcmp(argv[args_parsed], "-b_frames")==0 && args_parsed+1<argc)//Number of P and B frames repeated in a video sequence
+		{
+			args_parsed++;
+			sscanf( argv[args_parsed++], "%d", &cfg->num_b);
 		}
 		else if(strcmp(argv[args_parsed], "-num_ref_frames")==0 && args_parsed+1<argc)//Number of reference frames to be used as reference for inter prediction
 		{
@@ -303,8 +309,8 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->height = 720;
 	cfg->profile = PROFILE_MAIN;
 	cfg->intra_period = 100;//1;
-	cfg->gop_size = 1;//1;
-	cfg->num_b = 0;
+	cfg->gop_size = 2;//1;
+	cfg->num_b = 1;
 	cfg->motion_estimation_precision = QUARTER_PEL;//HALF_PEL;//PEL;//
 	cfg->qp = 32;//32;
 	cfg->frame_rate = 25;
@@ -313,9 +319,9 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->max_pred_partition_depth = 4;
 	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_enc_engines = 1;
+	cfg->num_enc_engines = 3;
 	cfg->wfpp_enable = 1;
-	cfg->wfpp_num_threads = 1;
+	cfg->wfpp_num_threads = 10;
 	cfg->sign_hiding = 1;
 	cfg->sample_adaptive_offset = 1;
 	cfg->rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
@@ -341,15 +347,15 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
 	cfg->num_ref_frames = 1;
-	cfg->num_enc_engines = 3;
-	cfg->wfpp_num_threads = 10;
+	cfg->num_enc_engines = 1;
+	cfg->wfpp_num_threads = 1;
 	cfg->reinit_gop_on_scene_change = 0;
 	cfg->sample_adaptive_offset = 1;
-	cfg->bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
 	cfg->bitrate = 600;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
-	cfg->performance_mode = PERF_FASTER_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
+	cfg->performance_mode = PERF_FULL_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
 }
 
 int main (int argc, char **argv)
@@ -361,7 +367,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 1200;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1000;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -377,20 +383,20 @@ int main (int argc, char **argv)
 
 	pEncoder = HOMER_enc_init();
 
-	printf("*********************************************************************************************\r\n");
-	printf("                                     HomerHEVC console App					\r\n");
-	printf("*********************************************************************************************\r\n");
-	printf("*********************************************************************************************\r\n");
+	printf("***********************************************************************************\r\n");
+	printf("                             HomerHEVC console App					\r\n");
+	printf("***********************************************************************************\r\n");
+	printf("***********************************************************************************\r\n");
 	printf("HomerApp:\r\n");
 
 	strcpy(file_in_name, FILE_IN);
 	strcpy(file_out_name, FILE_OUT);
-	strcpy(file_ref_name, FILE_REF);
+//	strcpy(file_ref_name, FILE_REF);
 
 
 	//get default config
 	get_default_config(&HmrCfg);//	
-	get_debug_config(&HmrCfg);
+//	get_debug_config(&HmrCfg);
 
 	//get app arguments
 	parse_args(argc, argv, &HmrCfg, &num_frames, &skipped_frames);

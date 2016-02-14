@@ -27,20 +27,8 @@
 
 #include "hmr_sse42_primitives.h"
 
-__inline __m128_i16 sse_128_sad_16b_(int16_t * src, int16_t * pred)
-{
-		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
-		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
-		return sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);
-}
-#define SSE42_128_SAD_i16	sse_128_sad_16b_
 
-__inline __m128_i32 sse_128_ssd_16b_32b_(int16_t * src, int16_t * pred)
-{
-		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
-		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
-		return sse_128_ssd_i16_i32_(_128_i16_src0, _128_i16_pred0);
-}
+#define SSE42_128_SAD_i16	sse_128_sad_16b_
 #define SSE42_128_SSD_i16_i32	sse_128_ssd_16b_32b_
 
 

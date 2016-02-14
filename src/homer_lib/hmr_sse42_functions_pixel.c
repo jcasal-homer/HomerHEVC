@@ -27,8 +27,52 @@
 #include "hmr_sse42_primitives.h"
 #include "hmr_sse42_macros.h"
 #include "hmr_sse42_functions.h"
-
+#include <string.h>
 //#define EXTRA_OPTIMIZATION	1
+
+
+//ssd 16 bits
+__m128_i32 sse_128_ssd_i16_i32_(__m128_i16 a,__m128_i16 b)
+{
+	__m128_i16 _128_i16_sub1 = sse_128_sub_i16(a, b);
+	return sse_128_madd_i16_i32(_128_i16_sub1, _128_i16_sub1);
+}
+
+//horizontal accumulator
+uint32_t sse_128_hacc_i16_(__m128_i16 a)
+{
+//	a = sse_128_hadd_i16(a, a);
+//	a = sse_128_hadd_i16(a, a); 
+//	a = sse_128_hadd_i16(a, a); 
+//	return sse_128_get_data_u16(a,0);
+	a = sse_128_add_i16(a, sse128_unpackhi_u64(a, a));
+	a = sse_128_add_i16(a, sse_128_shift_r_i64(a, 32));
+	return sse_128_get_data_u16(a,0) + sse_128_get_data_u16(a,1);
+}
+
+uint32_t sse_128_hacc_i32_(__m128_i16 a)
+{
+	a = sse_128_hadd_i32(a, a);
+	a = sse_128_hadd_i32(a, a); 
+//	a = sse_128_hadd_i32(a, a); 
+	return sse_128_get_data_u32(a,0);
+//	a = sse_128_add_i32(a, sse128_unpackhi_u64(a, a));
+//	return sse_128_get_data_u32(a,0) + sse_128_get_data_u32(a,1);
+}
+
+__m128_i16 sse_128_sad_16b_(int16_t * src, int16_t * pred)
+{
+		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
+		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
+		return sse_128_sad_i16(_128_i16_src0, _128_i16_pred0);
+}
+
+__m128_i32 sse_128_ssd_16b_32b_(int16_t * src, int16_t * pred)
+{
+		__m128_i16	_128_i16_src0 = sse_128_load_vector_a(src);//
+		__m128_i16	_128_i16_pred0 = sse_128_load_vector_u(pred); 	
+		return sse_128_ssd_i16_i32_(_128_i16_src0, _128_i16_pred0);
+}
 
 void copy_16_16(void* vsrc, uint32_t src_stride, void* vdst, uint32_t dst_stride, int height, int width)
 {

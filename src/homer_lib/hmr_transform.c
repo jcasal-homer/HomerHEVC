@@ -378,7 +378,6 @@ void partialButterflyInverse16(short *src, short *dst,int shift, int dst_stride)
     }    
     for (k=0;k<8;k++)
     {
-	clip((E[k] + O[k] + add)>>shift , -32768, 32767);
       dst[k]   = clip((E[k] + O[k] + add)>>shift, -32768, 32767);
       dst[k+8] = clip((E[7-k] - O[7-k] + add)>>shift, -32768, 32767);
     }   

@@ -743,6 +743,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			cfg->gop_size = clip(cfg->gop_size, 1, cfg->num_b+1);
 			cfg->intra_period = clip(cfg->intra_period, cfg->gop_size+1, ((cfg->intra_period-1)/cfg->gop_size)*cfg->gop_size + 1);
 			cfg->num_ref_frames = (cfg->gop_size==cfg->num_b)?1:clip(cfg->num_ref_frames,0,16);
+			cfg->num_enc_engines = min(cfg->num_enc_engines,MAX_NUM_ENCODER_ENGINES);
 			//---------------- config restrictions ------------------------------
 
 
@@ -755,7 +756,7 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 			hvenc->num_ref_frames = hvenc->intra_period==1?0:cfg->num_ref_frames;	
 			hvenc->ctu_height[0] = hvenc->ctu_width[0] = cfg->cu_size;
 			hvenc->ctu_height[1] = hvenc->ctu_width[1] = hvenc->ctu_height[2] = hvenc->ctu_width[2] = cfg->cu_size>>1;
-			hvenc->num_encoder_engines = max(cfg->num_enc_engines,1,100);
+			hvenc->num_encoder_engines = min(cfg->num_enc_engines,MAX_NUM_ENCODER_ENGINES);
 
 			hvenc->max_sublayers = (hvenc->num_b==0 || hvenc->num_b==hvenc->gop_size)?1:2;//TLayers en HM
 
@@ -2054,11 +2055,6 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 
 	}
 
-	if(currslice->poc == 1)
-	{
-		int iiii=0;
-	}
-
 	currslice->qp = enc_engine->pict_qp;
 
 	hmr_select_reference_picture_set(enc_engine->hvenc, currslice);
@@ -2120,7 +2116,6 @@ void hmr_slice_init(hvenc_engine_t* enc_engine, picture_t *currpict, slice_t *cu
 			}
 		}	
 	}          
-
 
 	for (idx_l1 = 0; idx_l1 < currslice->num_ref_idx[REF_PIC_LIST_1]; idx_l1++ )
 	{
@@ -2378,7 +2373,7 @@ void wfpp_encode_ctu(henc_thread_t* et, ctu_info_t *ctu)
 		PRINTF_CTU_ENCODE("ee_copy, ctu_num:%d, ee_index_dst:%d\r\n", ctu_num, (2*ee_index+1)%et->enc_engine->num_ee);			
 	}
 
-	if((et->wfpp_enable && ctu_x+1==et->pict_width_in_ctu) || !et->wfpp_enable && ctu_x+1==et->pict_total_ctu)
+	if((et->wfpp_enable && ctu_x+1==et->pict_width_in_ctu) || (!et->wfpp_enable) && (ctu_x+1==et->pict_total_ctu))
 	{
 		ee_end_slice(et->ee, currslice, ctu);
 		PRINTF_CTU_ENCODE("ee_end_slice, ctu_num:%d\r\n", ctu_num);
@@ -3093,11 +3088,6 @@ void hmr_sao_encode_ctus_hm(hvenc_engine_t* enc_engine, slice_t *currslice)
 			}
 		}
 		
-		if(enc_engine->num_encoded_frames==2 && ctu->ctu_number==5)
-		{
-			int iiii=0;
-		}
-
 		ee_encode_ctu(et, et->ee, currslice, ctu, 0);
 		et->num_encoded_ctus++;
 		et->num_bits += hmr_bitstream_bitcount(et->ee->bs)-bits_allocated;

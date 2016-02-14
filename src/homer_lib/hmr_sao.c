@@ -424,19 +424,19 @@ int sao_get_merge_list(henc_thread_t *wpp_thread, ctu_info_t *ctu, sao_blk_param
 	return numValidMergeCandidates;
 }
 
-__inline double xRoundIbdi2(int bit_depth, double x)
+double xRoundIbdi2(int bit_depth, double x)
 {
 	return ((x)>0) ? (int)(((int)(x)+(1<<(bit_depth-8-1)))/(1<<(bit_depth-8))) : ((int)(((int)(x)-(1<<(bit_depth-8-1)))/(1<<(bit_depth-8))));
 }
 
-__inline double x_round_ibdi(int bit_depth, double x)
+double x_round_ibdi(int bit_depth, double x)
 {
 	return (bit_depth > 8 ? xRoundIbdi2(bit_depth, (x)) : ((x)>=0 ? ((int)((x)+0.5)) : ((int)((x)-0.5)))) ;
 }
 
 
 //inline Int64 TEncSampleAdaptiveOffset::estSaoDist(Int64 count, Int64 offset, Int64 diffSum, Int shift)
-__inline int64_t est_sao_dist(int64_t count, int64_t offset, int64_t diffSum, int shift)
+int64_t est_sao_dist(int64_t count, int64_t offset, int64_t diffSum, int shift)
 {
   return (( count*offset*offset-diffSum*offset*2 ) >> shift);
 }

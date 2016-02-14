@@ -50,7 +50,7 @@ const uint8_t sm_betaTable[52] =
   } 
 */ 
 
-__inline uint bx_index(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int deblock_dir, int cu_width_units, int deblock_edge_idx, int index)
+uint bx_index(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int deblock_dir, int cu_width_units, int deblock_edge_idx, int index)
 {
 	if(deblock_dir==EDGE_VER)
 		return et->enc_engine->raster2abs_table[et->enc_engine->abs2raster_table[curr_cu_info->abs_index]+index*cu_width_units+deblock_edge_idx];
@@ -261,18 +261,18 @@ void get_boundary_strength_single(henc_thread_t* et, slice_t *currslice, ctu_inf
 //	m_aapucBS[dir][uiAbsPartIdx] = uiBs;
 }
 
-__inline int calc_dp( int16_t* src, int offset)
+int calc_dp( int16_t* src, int offset)
 {
   return abs( src[-offset*3] - 2*src[-offset*2] + src[-offset] ) ;
 }
   
-__inline int calc_dq( int16_t* src, int offset)
+int calc_dq( int16_t* src, int offset)
 {
   return abs( src[0] - 2*src[offset] + src[offset*2] );
 }
 
 
-__inline int use_strong_filter( int offset, int d, int beta, int tc, int16_t* src)
+int use_strong_filter( int offset, int d, int beta, int tc, int16_t* src)
 {
   int16_t m4  = src[0];
   int16_t m3  = src[-offset];
@@ -284,7 +284,7 @@ __inline int use_strong_filter( int offset, int d, int beta, int tc, int16_t* sr
   return ( (d_strong < (beta>>3)) && (d<(beta>>2)) && ( abs(m3-m4) < ((tc*5+1)>>1)) );
 }
 
-__inline void filter_luma( int16_t* src, int offset, int tc , int sw, int bPartPNoFilter, int bPartQNoFilter, int iThrCut, int bFilterSecondP, int bFilterSecondQ)
+void filter_luma( int16_t* src, int offset, int tc , int sw, int bPartPNoFilter, int bPartQNoFilter, int iThrCut, int bFilterSecondP, int bFilterSecondQ)
 {
 	int delta;
 
@@ -475,7 +475,7 @@ void deblock_filter_luma(henc_thread_t* et, ctu_info_t *ctu, cu_partition_info_t
 
 
 //__inline Void TComLoopFilter::xPelFilterChroma( Pel* piSrc, Int iOffset, Int tc, Bool bPartPNoFilter, Bool bPartQNoFilter)
-__inline void filter_chroma( int16_t* src, int offset, int tc , int bPartPNoFilter, int bPartQNoFilter)
+void filter_chroma( int16_t* src, int offset, int tc , int bPartPNoFilter, int bPartQNoFilter)
 {
   int delta;
   

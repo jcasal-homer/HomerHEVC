@@ -408,7 +408,7 @@ void encode_split_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr
 }
 
 
-__inline void encode_skip_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+void encode_skip_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {
 	ctu_info_t	*ctu_left, *ctu_top;
 	uint		aux_part_idx = 0;
@@ -427,13 +427,13 @@ __inline void encode_skip_flag(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info
 	ee->ee_encode_bin(ee, cm, skip_flag);
 }
 
-__inline void encode_pred_mode(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
+void encode_pred_mode(enc_env_t* ee, ctu_info_t* ctu, cu_partition_info_t* curr_partition_info)
 {	
 	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_pred_mode_flag_model, 0, 0, 0); 
 	ee->ee_encode_bin(ee, cm, ctu->pred_mode[curr_partition_info->abs_index]);	
 }
 
-__inline void encode_part_size(henc_thread_t* et, enc_env_t* ee, cu_partition_info_t* curr_partition_info, PartSize part_size_type, int is_intra)
+void encode_part_size(henc_thread_t* et, enc_env_t* ee, cu_partition_info_t* curr_partition_info, PartSize part_size_type, int is_intra)
 {
 	if (is_intra)
 	{
@@ -542,7 +542,7 @@ __inline void encode_part_size(henc_thread_t* et, enc_env_t* ee, cu_partition_in
 	}
 }
 
-__inline int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int* arr_intra_dir, int* piMode)
+int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* curr_partition_info, int* arr_intra_dir, int* piMode)
 {
 	ctu_info_t	*ctu_left, *ctu_top;
 	uint		aux_part_idx = 0;
@@ -604,7 +604,7 @@ __inline int get_intra_dir_luma_predictor(ctu_info_t* ctu, cu_partition_info_t* 
 }
 
 
-__inline void encode_merge_flag(enc_env_t* ee, uint merge_flag)
+void encode_merge_flag(enc_env_t* ee, uint merge_flag)
 {	
 	context_model_t *cm = GET_CONTEXT_XYZ(ee->e_ctx->cu_merge_flag_model, 0, 0, 0); 
 	ee->ee_encode_bin(ee, cm, merge_flag);	
