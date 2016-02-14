@@ -99,11 +99,15 @@ void hmr_rc_init_pic(hvenc_engine_t* enc_engine, slice_t *currslice)
 		case  I_SLICE:
 		{
 			enc_engine->rc.target_pict_size = min(intra_avg_size, enc_engine->rc.vbv_fullness);///*(2.25-((double)enc_engine->avg_dist/15000.))**/2.25*enc_engine->rc.average_pict_size*sqrt((double)clipped_intra_period);
+			if(enc_engine->num_b>0)
+				enc_engine->rc.target_pict_size *= (1.0+.1*enc_engine->num_b);//.5*enc_engine->rc.average_pict_size;
 			break;
 		}
 		case  P_SLICE:
 		{
 			enc_engine->rc.target_pict_size = (enc_engine->rc.average_pict_size*clipped_intra_period-intra_avg_size)/(clipped_intra_period-1);//.5*enc_engine->rc.average_pict_size;
+			if(enc_engine->num_b>0)
+				enc_engine->rc.target_pict_size *= (1.0+.1*enc_engine->num_b);//.5*enc_engine->rc.average_pict_size;
 			break;	
 		}
 		case  B_SLICE:
@@ -316,6 +320,11 @@ int hmr_rc_calc_cu_qp(henc_thread_t* curr_thread, ctu_info_t *ctu/*, cu_partitio
 		{
 			qp/=clip(1.5-((double)enc_engine->avg_dist/15000.),1.15,1.5);
 		}
+		else if(currslice->slice_type == B_SLICE && enc_engine->num_b!=enc_engine->gop_size)
+		{
+			qp*=clip(1.125-((double)enc_engine->avg_dist/15000.),1.15,1.5);
+		}
+
 		else if(enc_engine->is_scene_change)
 			qp/=1.1;
 	}

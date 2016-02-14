@@ -262,6 +262,8 @@ void homer_update_cand_list( uint uiMode, double Cost, uint BitCost, int CandMod
 uint32_t motion_inter(henc_thread_t* et, ctu_info_t* ctu);
 void hmr_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 void hmr_interpolate_chroma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+
+void weighted_average_motion(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth);
 //void hmr_fake_interpolate_luma(int16_t *src, int src_stride, int16_t *dst, int dst_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 //void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t *ctu_rd, cu_partition_info_t *parent_part_info, int parent_cost, int children_cost, int is_max_depth, uint *cost_sum);
 void consolidate_prediction_info(henc_thread_t *et, ctu_info_t *ctu, ctu_info_t *ctu_rd, cu_partition_info_t *parent_part_info, uint parent_cost, uint children_cost, int is_max_depth, uint *cost_sum);

@@ -176,6 +176,7 @@ void *HOMER_enc_init()
 		hvenc->funcs.interpolate_luma_m_compensation = sse_interpolate_luma;
 		hvenc->funcs.interpolate_chroma_m_compensation = sse_interpolate_chroma;
 		hvenc->funcs.interpolate_luma_m_estimation = sse_interpolate_luma;//hmr_fake_interpolate_luma;//
+		hvenc->funcs.weighted_average_motion = sse_weighted_average_motion;//weighted_average_motion;//
 
 		hvenc->funcs.quant = sse_aligned_quant;
 		hvenc->funcs.inv_quant = sse_aligned_inv_quant;
@@ -202,6 +203,7 @@ void *HOMER_enc_init()
 		hvenc->funcs.interpolate_luma_m_compensation = hmr_interpolate_luma;
 		hvenc->funcs.interpolate_chroma_m_compensation = hmr_interpolate_chroma;
 		hvenc->funcs.interpolate_luma_m_estimation = hmr_interpolate_luma;
+		hvenc->funcs.weighted_average_motion = weighted_average_motion;
 
 		hvenc->funcs.quant = quant;
 		hvenc->funcs.inv_quant = iquant;
@@ -266,14 +268,28 @@ void put_frame_to_encode(hvenc_enc_t* enc, encoder_in_out_t* input_frame)
 	wnd_t wnd_src_aux;
 	wnd_t *wnd_dst;
 	uint32_t current_poc = enc->poc;
-	uint32_t img_type = input_frame->image_type;
+	uint32_t img_type;// = input_frame->image_type;
+
+	if(input_frame==NULL)//we are closing
+	{
+		sync_cont_put_filled(enc->gop_container, NULL);
+		return;
+	}
+
+	img_type = input_frame->image_type;
 
 	//--insert frame into the input frame list--
 	sync_cont_get_empty(enc->input_hmr_container, (void**)&pic);
 
+
 	pic->temp_info.pts = input_frame->pts;
 	pic->img_type = input_frame->image_type;
 	pic->temp_info.poc = enc->poc++;
+
+	if((pic->temp_info.poc+1)%9==0)
+	{
+		int iiiii=0;
+	}
 
 	wnd_dst = &pic->img;
 	wnd_src_aux.data_width[0] = wnd_dst->data_width[0];
@@ -391,20 +407,12 @@ int get_frame_to_encode(hvenc_enc_t* enc, video_frame_t **picture)//, int poc)
 	{
 		sync_cont_get_filled(enc->gop_container, (void**)&enc->input_gop);//get new gop to process
 	}
-	if(enc->input_gop == NULL)
+	if(enc->input_gop == NULL)// we are closing the encoder
 		return FALSE;
 	
 
 	//get next frame to encode
 	sync_cont_get_filled(enc->input_gop->gop_frame_container, (void**)picture);
-		
-	return (*picture)!=NULL;
-}
-
-void put_available_frame(hvenc_enc_t * enc, video_frame_t *picture)
-{
-	//put frame as avaliable
-	sync_cont_put_empty(enc->input_hmr_container, picture);
 
 	//if gop is finished, make it available
 	if(sync_cont_is_empty(enc->input_gop->gop_frame_container))
@@ -412,6 +420,14 @@ void put_available_frame(hvenc_enc_t * enc, video_frame_t *picture)
 		sync_cont_put_empty(enc->gop_container, (void*)enc->input_gop);//leave gop available as it is already finished
 		enc->input_gop = NULL;
 	}
+
+	return (*picture)!=NULL;
+}
+
+void put_available_frame(hvenc_enc_t * enc, video_frame_t *picture)
+{
+	//put frame as avaliable
+	sync_cont_put_empty(enc->input_hmr_container, picture);
 }
 
 
@@ -671,7 +687,22 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 
 	switch (cmd)
 	{
-		case HENC_SETCFG :
+		case HOMER_END:
+		{
+			int engines;
+			if(hvenc->run == TRUE && hvenc->stop == FALSE)
+			{
+				hvenc->stop = TRUE;
+				for(engines=0;engines<hvenc->num_encoder_engines;engines++)
+				{
+					//we close sending null frames, that will be passed all over the encoder chain
+					HOMER_enc_encode(hvenc, NULL);//, nalu_out, &num_nalus);
+				}
+				JOIN_THREADS(hvenc->encoder_mod_thread, hvenc->num_encoder_engines);			
+			}
+		}
+		break;
+		case HOMER_SETCFG :
 		{
 			HVENC_Cfg *cfg = (HVENC_Cfg *)in;
 			int n_enc_engines;
@@ -707,7 +738,13 @@ int HOMER_enc_control(void *h, int cmd, void *in)
 				}
 			}
 
-//			hvenc->max_layers = 1;
+			//---------------- config restrictions ------------------------------
+			cfg->num_b = clip(cfg->num_b,0,1);//now we admit up to 1 b frame
+			cfg->gop_size = clip(cfg->gop_size, 1, cfg->num_b+1);
+			cfg->intra_period = clip(cfg->intra_period, cfg->gop_size+1, ((cfg->intra_period-1)/cfg->gop_size)*cfg->gop_size + 1);
+			cfg->num_ref_frames = (cfg->gop_size==cfg->num_b)?1:clip(cfg->num_ref_frames,0,16);
+			//---------------- config restrictions ------------------------------
+
 
 			hvenc->profile = cfg->profile;
 
@@ -3129,10 +3166,12 @@ THREAD_RETURN_TYPE encoder_engine_thread(void *h)
 		//get next image in decode order with pts and poc
 		if(!get_frame_to_encode(enc_engine->hvenc, &enc_engine->current_pict.img2encode))//get next image to encode and init type
 		{
+			// we are closing the encoder..
+			enc_engine->hvenc->run = FALSE;
 			SEM_POST(enc_engine->input_signal);
 			return THREAD_RETURN;
 		}
-		
+
 		enc_engine->num_encoded_frames = enc_engine->hvenc->num_encoded_frames;
 		enc_engine->hvenc->num_encoded_frames++;
 

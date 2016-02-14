@@ -42,7 +42,8 @@ extern "C" {
 
 
 enum HOMER_CMD {
-	HENC_SETCFG
+	HOMER_SETCFG,
+	HOMER_END,
 };
 
 

@@ -972,20 +972,20 @@ void remove_high_freq(int16_t* src, int src_stride, int16_t* dst, int dst_stride
 
 
 //xCheckBestMVP
-uint32_t select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, mv_candiate_list_t	*mv_candidate_list, motion_vector_t *mv, int *best_candidate)
+uint32_t select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_info, mv_candiate_list_t	*search_candidate_list, motion_vector_t *mv, int *best_candidate)
 {
-//	mv_candiate_list_t	*mv_candidate_list = &et->amvp_candidates[ref_pic_list];
+//	mv_candiate_list_t	*search_candidate_list = &et->amvp_candidates[ref_pic_list];
 	int idx;
 	uint32_t best_cost = INT_MAX, best_idx = 0;
 
-	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
+	for (idx = 0; idx < search_candidate_list->num_mv_candidates; idx++)
 	{
 #ifdef COMPUTE_AS_HM
-		double cost_mvx = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
-		double cost_mvy = 30*sqrt((float)abs(mv_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
+		double cost_mvx = 30*sqrt((float)abs(search_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
+		double cost_mvy = 30*sqrt((float)abs(search_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
 #else
-		double cost_mvx = curr_cu_info->qp*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
-		double cost_mvy = curr_cu_info->qp*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
+		double cost_mvx = curr_cu_info->qp*squareRoot((float)abs(search_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
+		double cost_mvy = curr_cu_info->qp*squareRoot((float)abs(search_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
 #endif
 		uint32_t cost = (uint32_t) (3.+cost_mvx+cost_mvy+.5);
 
@@ -1000,38 +1000,36 @@ uint32_t select_mv_candidate(henc_thread_t* et, cu_partition_info_t* curr_cu_inf
 	return best_cost;
 }
 
-int select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_info, int ref_pic_list, motion_vector_t *mv)
+
+uint32_t select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_info, mv_candiate_list_t	*search_candidate_list, motion_vector_t *mv, int *best_candidate)
 {
 #ifdef COMPUTE_AS_HM
 	return 0;
 #else
-	mv_candiate_list_t	*mv_candidate_list = &et->amvp_candidates[ref_pic_list];
+//	mv_candiate_list_t	*search_candidate_list = &et->amvp_candidates[ref_pic_list];
 	int idx;
 	uint32_t best_cost = INT_MAX, best_idx = 0;
 
-	for (idx = 0; idx < mv_candidate_list->num_mv_candidates; idx++)
+	for (idx = 0; idx < search_candidate_list->num_mv_candidates; idx++)
 	{
 		double correction = calc_mv_correction(curr_cu_info->qp, et->enc_engine->avg_dist);//.25+et->enc_engine->avg_dist*et->enc_engine->avg_dist/5000000.;
-//		int cost_mvx = 10*abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector);
-//		int cost_mvy = 10*abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector);
-//		int cost_mvx = curr_cu_info->qp/clip((3500000/(et->enc_engine->avg_dist*et->enc_engine->avg_dist)),.35,4.)*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-//		int cost_mvy = curr_cu_info->qp/clip((3500000/(et->enc_engine->avg_dist*et->enc_engine->avg_dist)),.35,4.)*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
-		double cost_mvx = correction*((float)abs(mv_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
-		double cost_mvy = correction*((float)abs(mv_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
-//		double cost_mvx = curr_cu_info->qp*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].hor_vector - mv->hor_vector));
-//		double cost_mvy = curr_cu_info->qp*squareRoot((float)abs(mv_candidate_list->mv_candidates[idx].ver_vector - mv->ver_vector));
+		double cost_mvx = correction*((float)abs(search_candidate_list->mv_candidates[idx].mv.hor_vector - mv->hor_vector));
+		double cost_mvy = correction*((float)abs(search_candidate_list->mv_candidates[idx].mv.ver_vector - mv->ver_vector));
 
 		uint32_t cost = (uint32_t) (cost_mvx+cost_mvy+.5);
 
 		if(best_cost>cost)
 		{
 			best_cost = cost;
-//			best_idx = idx;		
+			best_idx = idx;		
 		}
 	}
+
+	*best_candidate = best_idx;
 	return best_cost;
 #endif
 }
+
 
 
 static const int s_acMvRefineH_HM[9][2] =
@@ -1409,7 +1407,7 @@ uint32_t hmr_bi_motion_estimation_HM(henc_thread_t* et, ctu_info_t* ctu, cu_part
 }
 
 uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_info_t* curr_cu_info, int16_t *orig_buff, int orig_buff_stride, int16_t *reference_buff, int reference_buff_stride, int curr_part_global_x, 
-						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv, motion_vector_t *subpix_mv, uint32_t threshold, unsigned int action)
+						int curr_part_global_y, int init_x, int init_y, int curr_part_size, int curr_part_size_shift, int search_range_x, int search_range_y, int frame_size_x, int frame_size_y, motion_vector_t *mv, motion_vector_t *subpix_mv, mv_candiate_list_t *amvp_candidate_list, uint32_t threshold, unsigned int action)
 {
 	int i, l; 
 	int xlow, xhigh, ylow, yhigh;
@@ -1417,12 +1415,12 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	int prev_best_x, prev_best_y, curr_best_x, curr_best_y, best_x = 0, best_y = 0;
 	int dist = 1;
 	int end;
-	mv_candiate_list_t	*mv_candidate_list = &et->mv_search_candidates;//&et->mv_candidates[REF_PIC_LIST_0];
+	mv_candiate_list_t	*search_candidate_list = &et->mv_search_candidates;//&et->mv_candidates[REF_PIC_LIST_0];
 	int mv_cost = 0;
 	motion_vector_t half_mv;
 	int next_start;
 	int search_size, diamond_size;
-
+	int best_candidate;
 	subpix_mv->hor_vector = 0;
 	subpix_mv->ver_vector = 0;
 
@@ -1455,7 +1453,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 		subpix_mv->hor_vector = 0;
 		subpix_mv->ver_vector = 0;
 
-		mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
+		mv_cost = select_mv_candidate_fast(et, curr_cu_info, amvp_candidate_list, mv, &best_candidate);
 		curr_best_rd = curr_best_sad+mv_cost;
 
 		best_sad = curr_best_sad;
@@ -1469,11 +1467,11 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 	//	curr_best_x = 0;
 	//	curr_best_y = 0;
 
-		for(i=0;i<mv_candidate_list->num_mv_candidates;i++)
+		for(i=0;i<search_candidate_list->num_mv_candidates;i++)
 		{
 			uint32_t curr_sad, curr_rd;
-			int curr_x = mv_candidate_list->mv_candidates[i].mv.hor_vector>>2;
-			int curr_y = mv_candidate_list->mv_candidates[i].mv.ver_vector>>2;
+			int curr_x = search_candidate_list->mv_candidates[i].mv.hor_vector>>2;
+			int curr_y = search_candidate_list->mv_candidates[i].mv.ver_vector>>2;
 
 			if(curr_x == 0 && curr_y == 0)
 			{
@@ -1484,7 +1482,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 				curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
 				mv->hor_vector = curr_x<<2;
 				mv->ver_vector = curr_y<<2;
-				mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
+				mv_cost = select_mv_candidate_fast(et, curr_cu_info, amvp_candidate_list, mv, &best_candidate);
 				curr_rd = curr_sad+mv_cost;
 				if(curr_rd < curr_best_rd)
 				{
@@ -1517,7 +1515,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 				mv->hor_vector = curr_x<<2;
 				mv->ver_vector = curr_y<<2;
-				mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
+				mv_cost = select_mv_candidate_fast(et, curr_cu_info, amvp_candidate_list, mv, &best_candidate);
 				curr_rd = curr_sad+mv_cost;
 				if(curr_rd < curr_best_rd)
 				{
@@ -1572,7 +1570,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 
 						mv->hor_vector = curr_x<<2;
 						mv->ver_vector = curr_y<<2;
-						mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
+						mv_cost = select_mv_candidate_fast(et, curr_cu_info, amvp_candidate_list, mv, &best_candidate);
 						curr_rd = curr_sad+mv_cost;
 						if(curr_rd < curr_best_rd)
 						{
@@ -1631,7 +1629,7 @@ uint32_t hmr_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, cu_partition_
 					curr_sad = et->funcs->sad(orig_buff, orig_buff_stride, reference_buff+curr_y*reference_buff_stride+curr_x, reference_buff_stride, curr_cu_info->size);
 					mv->hor_vector = curr_x<<2;
 					mv->ver_vector = curr_y<<2;
-					mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, mv);
+					mv_cost = select_mv_candidate_fast(et, curr_cu_info, amvp_candidate_list, mv, &best_candidate);
 					curr_rd = curr_sad+mv_cost;
 					if(curr_rd < curr_best_rd)
 					{
@@ -1996,6 +1994,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2023,6 +2022,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2051,6 +2051,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2078,6 +2079,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2106,6 +2108,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2156,6 +2159,7 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 	if(cnt >= currslice->max_num_merge_candidates)
 	{
 		currslice->max_num_merge_candidates = cnt;
+		mv_candidate_list0->num_mv_candidates = mv_candidate_list1->num_mv_candidates = cnt;
 		return;
 	}
 
@@ -2196,20 +2200,20 @@ void get_merge_mvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t*
 }
 
 
-int add_amvp_cand(mv_candiate_list_t *mv_candidate_list, slice_t *currslice, ctu_info_t* ctu, int ref_pic_list, int ref_idx, int part_idx)
+int add_amvp_cand(mv_candiate_list_t *search_candidate_list, slice_t *currslice, ctu_info_t* ctu, int ref_pic_list, int ref_idx, int part_idx)
 {
 //	int added = FALSE;
 	int ref_pic_list_2nd = (ref_pic_list==REF_PIC_LIST_0)?REF_PIC_LIST_1:REF_PIC_LIST_0;
 
 	if(ctu!=NULL && ctu->mv_ref_idx[ref_pic_list][part_idx]>=0 && currslice->ref_pic_list[ref_pic_list][ref_idx]->temp_info.poc == currslice->ref_poc_list[ref_pic_list][ctu->mv_ref_idx[ref_pic_list][part_idx]])
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list][part_idx];
+		search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list][part_idx];
 		return TRUE;
 	}
 
 	if(ctu!=NULL && ctu->mv_ref_idx[ref_pic_list_2nd][part_idx]>=0 && currslice->ref_pic_list[ref_pic_list][ref_idx]->temp_info.poc == currslice->ref_poc_list[ref_pic_list_2nd][ctu->mv_ref_idx[ref_pic_list_2nd][part_idx]])
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list_2nd][part_idx];
+		search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list_2nd][part_idx];
 		return TRUE;
 	}
 	return FALSE;
@@ -2245,7 +2249,7 @@ motion_vector_t scale_mv( motion_vector_t mv, int iScale )
 	return aux;
 }
 
-int add_amvp_cand_order(mv_candiate_list_t *mv_candidate_list, slice_t *currslice, ctu_info_t* ctu, int ref_pic_list, int ref_idx, int part_idx)
+int add_amvp_cand_order(mv_candiate_list_t *search_candidate_list, slice_t *currslice, ctu_info_t* ctu, int ref_pic_list, int ref_idx, int part_idx)
 {
 	int ref_pic_list_2nd;
 	int curr_poc = currslice->poc;
@@ -2295,7 +2299,7 @@ int add_amvp_cand_order(mv_candiate_list_t *mv_candidate_list, slice_t *currslic
 					rc_mv = scale_mv(mv_pred, iScale); //cMvPred.scaleMv( iScale );
 				}
 			}
-			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv = rc_mv;
+			search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv = rc_mv;
 			return TRUE;
 		}
 	}
@@ -2325,14 +2329,14 @@ int add_amvp_cand_order(mv_candiate_list_t *mv_candidate_list, slice_t *currslic
 					rc_mv = scale_mv(mv_pred, iScale); //cMvPred.scaleMv( iScale );
 				}
 			}
-			mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv = rc_mv;
+			search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv = rc_mv;
 			return TRUE;
 		}
 	}
 
 /*	if(ctu!=NULL && ctu->mv_ref_idx[ref_pic_list][part_idx]>=0 && currslice->ref_pic_list[ref_pic_list][ref_idx]->temp_info.poc == currslice->ref_poc_list[ref_pic_list][ctu->mv_ref_idx[ref_pic_list][part_idx]])
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list][part_idx];
+		search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv = ctu->mv_ref[ref_pic_list][part_idx];
 		added = TRUE;
 	}
 */	return FALSE;
@@ -2340,9 +2344,9 @@ int add_amvp_cand_order(mv_candiate_list_t *mv_candidate_list, slice_t *currslic
 
 
 //fillMvpCand
-void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, mv_candiate_list_t	*mv_candidate_list, int ref_pic_list, int ref_idx, PartSize part_size_type)//get candidates for motion search from the neigbour CUs
+void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu, cu_partition_info_t *curr_cu_info, mv_candiate_list_t	*search_candidate_list, int ref_pic_list, int ref_idx, PartSize part_size_type)//get candidates for motion search from the neigbour CUs
 {
-//	mv_candiate_list_t	*mv_candidate_list = &et->amvp_candidates[ref_pic_list];
+//	mv_candiate_list_t	*search_candidate_list = &et->amvp_candidates[ref_pic_list];
 	ctu_info_t	*ctu_left=NULL, *ctu_left_bottom=NULL, *ctu_top=NULL, *ctu_top_right=NULL, *ctu_top_left=NULL;
 	uint	part_idx_lb, part_idx_l, aux_part_idx;
 	int	added = FALSE,  added_smvp = FALSE;
@@ -2358,7 +2362,7 @@ void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu,
 	cu_partition_info_t *partition_tr = &ctu->partition_list[et->partition_depth_start[et->max_cu_depth]]+abs_index_tr;
 	int left_pixel_x = ctu->x[Y_COMP]+curr_cu_info->x_position+curr_cu_info->size;
 
-	mv_candidate_list->num_mv_candidates = 0;
+	search_candidate_list->num_mv_candidates = 0;
 
 	partition_info_lb->left_bottom_neighbour = curr_cu_info->left_bottom_neighbour;
 
@@ -2374,53 +2378,53 @@ void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu,
 	}
 
 	//get spatial candidates
-	added = add_amvp_cand(mv_candidate_list, currslice, ctu_left_bottom, ref_pic_list, ref_idx, part_idx_lb);
+	added = add_amvp_cand(search_candidate_list, currslice, ctu_left_bottom, ref_pic_list, ref_idx, part_idx_lb);
 	if(!added)
 	{
 		ctu_left = get_pu_left(ctu, partition_info_lb, &part_idx_l);//ctu->ctu_left;
-		added = add_amvp_cand(mv_candidate_list, currslice, ctu_left, ref_pic_list, ref_idx, part_idx_l);
+		added = add_amvp_cand(search_candidate_list, currslice, ctu_left, ref_pic_list, ref_idx, part_idx_l);
 	}
 
 	if(!added)
 	{
-		added = add_amvp_cand_order(mv_candidate_list, currslice, ctu_left_bottom, ref_pic_list, ref_idx, part_idx_lb);
+		added = add_amvp_cand_order(search_candidate_list, currslice, ctu_left_bottom, ref_pic_list, ref_idx, part_idx_lb);
 		if(!added)
 		{
-			added = add_amvp_cand_order(mv_candidate_list, currslice, ctu_left, ref_pic_list, ref_idx, part_idx_l);
+			added = add_amvp_cand_order(search_candidate_list, currslice, ctu_left, ref_pic_list, ref_idx, part_idx_l);
 		}
 	}
 
 	partition_tr->top_right_neighbour = curr_cu_info->top_right_neighbour;
 	ctu_top_right = get_pu_top_right(ctu, partition_tr, &aux_part_idx);
-	added = add_amvp_cand(mv_candidate_list, currslice, ctu_top_right, ref_pic_list, ref_idx, aux_part_idx);
+	added = add_amvp_cand(search_candidate_list, currslice, ctu_top_right, ref_pic_list, ref_idx, aux_part_idx);
 
 	if(!added)
 	{
 		ctu_top = get_pu_top(ctu, partition_tr, &aux_part_idx, 0);
-		added = add_amvp_cand(mv_candidate_list, currslice, ctu_top, ref_pic_list, ref_idx, aux_part_idx);
+		added = add_amvp_cand(search_candidate_list, currslice, ctu_top, ref_pic_list, ref_idx, aux_part_idx);
 	}
 
 	if(!added)
 	{
 		ctu_top_left = get_pu_top_left(ctu, partition_tl, &aux_part_idx);
-		added = add_amvp_cand(mv_candidate_list, currslice, ctu_top_left, ref_pic_list, ref_idx, aux_part_idx);
+		added = add_amvp_cand(search_candidate_list, currslice, ctu_top_left, ref_pic_list, ref_idx, aux_part_idx);
 	}
 
 	if (!added_smvp)
 	{
 		ctu_top_right = get_pu_top_right(ctu, partition_tr, &aux_part_idx);
-		added = add_amvp_cand_order(mv_candidate_list, currslice, ctu_top_right, ref_pic_list, ref_idx, aux_part_idx);
+		added = add_amvp_cand_order(search_candidate_list, currslice, ctu_top_right, ref_pic_list, ref_idx, aux_part_idx);
 
 		if(!added)
 		{
 			ctu_top = get_pu_top(ctu, partition_tr, &aux_part_idx, 0);
-			added = add_amvp_cand_order(mv_candidate_list, currslice, ctu_top, ref_pic_list, ref_idx, aux_part_idx);
+			added = add_amvp_cand_order(search_candidate_list, currslice, ctu_top, ref_pic_list, ref_idx, aux_part_idx);
 		}
 
 		if(!added)
 		{
 			ctu_top_left = get_pu_top_left(ctu, partition_tl, &aux_part_idx);
-			added = add_amvp_cand_order(mv_candidate_list, currslice, ctu_top_left, ref_pic_list, ref_idx, aux_part_idx);
+			added = add_amvp_cand_order(search_candidate_list, currslice, ctu_top_left, ref_pic_list, ref_idx, aux_part_idx);
 		}
 	}
 
@@ -2430,21 +2434,21 @@ void get_amvp_candidates(henc_thread_t* et, slice_t *currslice, ctu_info_t* ctu,
 		//reorder		�?
 	}
 
-	if(mv_candidate_list->num_mv_candidates==2 && mv_candidate_list->mv_candidates[0].mv.hor_vector == mv_candidate_list->mv_candidates[1].mv.hor_vector && mv_candidate_list->mv_candidates[0].mv.ver_vector == mv_candidate_list->mv_candidates[1].mv.ver_vector)
+	if(search_candidate_list->num_mv_candidates==2 && search_candidate_list->mv_candidates[0].mv.hor_vector == search_candidate_list->mv_candidates[1].mv.hor_vector && search_candidate_list->mv_candidates[0].mv.ver_vector == search_candidate_list->mv_candidates[1].mv.ver_vector)
 	{
-		mv_candidate_list->num_mv_candidates = 1;
+		search_candidate_list->num_mv_candidates = 1;
 	}
 
 	//get temporal candidates
 
 	//.....
-	if(mv_candidate_list->num_mv_candidates>AMVP_MAX_NUM_CANDS)
-		mv_candidate_list->num_mv_candidates=AMVP_MAX_NUM_CANDS;
+	if(search_candidate_list->num_mv_candidates>AMVP_MAX_NUM_CANDS)
+		search_candidate_list->num_mv_candidates=AMVP_MAX_NUM_CANDS;
 
-	while(mv_candidate_list->num_mv_candidates<AMVP_MAX_NUM_CANDS)
+	while(search_candidate_list->num_mv_candidates<AMVP_MAX_NUM_CANDS)
 	{
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates].mv.hor_vector = 0;
-		mv_candidate_list->mv_candidates[mv_candidate_list->num_mv_candidates++].mv.ver_vector = 0;
+		search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates].mv.hor_vector = 0;
+		search_candidate_list->mv_candidates[search_candidate_list->num_mv_candidates++].mv.ver_vector = 0;
 	}
 }
 
@@ -2493,6 +2497,11 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 //	int acc_cost[MAX_PARTITION_DEPTH] = {0,0,0,0,0};
 	int num_partitions, npart, part_incr = 1;
 
+	if(ctu->ctu_number == 2)
+	{
+		int iiiii=0;
+	}
+
 	curr_cu_info = &ctu->partition_list[et->partition_depth_start[curr_depth]]+part_position;
 
 	if(part_size_type == SIZE_2Nx2N)
@@ -2522,6 +2531,11 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 		int ref_index_bi[2];
 		int mvp_idx[2];
 		int best_cand_idx[2];
+
+		if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==46 && curr_cu_info->abs_index>=112)// && curr_cu_info->depth==3 && npart==2)// && curr_cu_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
+		{
+			int iiiiii=0;
+		}
 
 		curr_depth = curr_cu_info->depth;
 		curr_part_x = curr_cu_info->x_position;
@@ -2592,32 +2606,42 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 					}
 				}
 #else
-				et->mv_search_candidates.num_mv_candidates = 0;
-		//		get_mv_search_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for motion search from the neigbour CUs
-				for(i=0;i<et->amvp_candidates[ref_list].num_mv_candidates;i++)
-				{
-					motion_vector_t mv = et->amvp_candidates[ref_list].mv_candidates[i].mv;
-					if(mv.hor_vector!=0 && mv.ver_vector!=0)
+					et->mv_search_candidates.num_mv_candidates = 0;
+			//		get_mv_search_candidates(et, currslice, ctu, curr_cu_info, REF_PIC_LIST_0, ref_idx, part_size_type);//get candidates for motion search from the neigbour CUs
+					for(i=0;i<amvp_candidate_list.num_mv_candidates;i++)//for(i=0;i<et->amvp_candidates[ref_list].num_mv_candidates;i++)
 					{
-						et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++].mv = mv;	
+						motion_vector_t mv = amvp_candidate_list.mv_candidates[i].mv; //et->amvp_candidates[ref_list].mv_candidates[i].mv;
+						if(mv.hor_vector!=0 && mv.ver_vector!=0)
+						{
+							et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++].mv = mv;	
+						}
+					}
+			//		if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 || curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
+					if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[ref_list].hor_vector!=0 && curr_cu_info->parent->inter_mv[ref_list].ver_vector!=0))
+					{
+						et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++].mv = curr_cu_info->parent->inter_mv[ref_list];	
+					}
+		
+					if((action & (MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK) && !(action & (MOTION_PEL_MASK))))
+					{
+						mv = curr_cu_info->inter_mv[ref_list];
+						subpix_mv = curr_cu_info->subpix_mv[ref_list];		
+					}
+
+					cost = hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, MOTION_SEARCH_RANGE_X, MOTION_SEARCH_RANGE_Y, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, &amvp_candidate_list, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
+					//mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+					mv_cost = select_mv_candidate_fast(et, curr_cu_info, &amvp_candidate_list, &mv, &mvp_candidate_idx);
+//					select_mv_candidate_fast(henc_thread_t* et, cu_partition_info_t* curr_cu_info, mv_candiate_list_t	*search_candidate_list, motion_vector_t *mv, int *best_candidate)
+					//mv_cost = select_mv_candidate(et, curr_cu_info, &amvp_candidate_list, &mv, &mvp_candidate_idx);
+			//		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
+					curr_cu_info->subpix_mv[REF_PIC_LIST_0] = subpix_mv;
+
+					if(ref_list == REF_PIC_LIST_0)
+					{
+						mv_temp_l0[ref_idx] = mv;
+						cost_temp_l0[ref_idx] = cost;
 					}
 				}
-		//		if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].hor_vector!=0 || curr_cu_info->parent->inter_mv[REF_PIC_LIST_0].ver_vector!=0))
-				if(curr_cu_info->parent && (curr_cu_info->parent->inter_mv[ref_list].hor_vector!=0 && curr_cu_info->parent->inter_mv[ref_list].ver_vector!=0))
-				{
-					et->mv_search_candidates.mv_candidates[et->mv_search_candidates.num_mv_candidates++].mv = curr_cu_info->parent->inter_mv[ref_list];	
-				}
-		
-				if((action & (MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK) && !(action & (MOTION_PEL_MASK))))
-				{
-					mv = curr_cu_info->inter_mv[ref_list];
-					subpix_mv = curr_cu_info->subpix_mv[ref_list];		
-				}
-
-				cost = hmr_motion_estimation(et, ctu, curr_cu_info, orig_buff, orig_buff_stride, reference_buff_cu_position, reference_buff_stride, curr_part_global_x, curr_part_global_y, 0, 0, curr_part_size, curr_part_size_shift, MOTION_SEARCH_RANGE_X, MOTION_SEARCH_RANGE_Y, et->pict_width[Y_COMP], et->pict_height[Y_COMP], &mv, &subpix_mv, threshold, action);//|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK);	
-				mv_cost = select_mv_candidate_fast(et, curr_cu_info, REF_PIC_LIST_0, &mv);
-		//		mv_cost = select_mv_candidate(et, curr_cu_info, REF_PIC_LIST_0, &mv);
-				curr_cu_info->subpix_mv[REF_PIC_LIST_0] = subpix_mv;
 #endif
 
 				//-----------------Juan para deshabilitar la eleccion de la segunda referencia------------------------
@@ -2657,8 +2681,8 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 			int ref_idx = 0, num_ref_idx;
 			uint cost, mv_cost;
 			//curr_cu_info->best_candidate_idx[ref_pic_list] = best_idx;
-			//curr_cu_info->best_dif_mv->hor_vector = mv->hor_vector-mv_candidate_list->mv_candidates[best_idx].mv.hor_vector;
-			//curr_cu_info->best_dif_mv->ver_vector = mv->ver_vector-mv_candidate_list->mv_candidates[best_idx].mv.ver_vector;
+			//curr_cu_info->best_dif_mv->hor_vector = mv->hor_vector-search_candidate_list->mv_candidates[best_idx].mv.hor_vector;
+			//curr_cu_info->best_dif_mv->ver_vector = mv->ver_vector-search_candidate_list->mv_candidates[best_idx].mv.ver_vector;
 
 			mv_bi[REF_PIC_LIST_0] = curr_cu_info->inter_mv[REF_PIC_LIST_0];
 			mv_bi[REF_PIC_LIST_1] = curr_cu_info->inter_mv[REF_PIC_LIST_1];
@@ -2692,7 +2716,7 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				pred_other_u = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+REF_PIC_LIST_1], U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 				pred_other_v = WND_POSITION_2D(int16_t *, et->prediction_wnd[1+REF_PIC_LIST_1], V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 
-				reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_1][ref_idx]->img;//[0] up to now we only use one reference	
+				reference_wnd = &currslice->ref_pic_list[REF_PIC_LIST_1][ref_idx]->img;
 				reference_buff_stride = WND_STRIDE_2D(*reference_wnd, Y_COMP);
 				reference_buff_cu_position = WND_POSITION_2D(int16_t *, *reference_wnd, Y_COMP, curr_part_global_x, curr_part_global_y, gcnt, et->ctu_width);
 				reference_buff_stride_chroma = WND_STRIDE_2D(*reference_wnd, U_COMP);
@@ -2802,7 +2826,11 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 			}
 		}
 
+#ifdef COMPUTE_AS_HM
 		if(best_cost_bi <= best_cost[REF_PIC_LIST_0] && best_cost_bi <= best_cost[REF_PIC_LIST_1])
+#else
+		if((best_cost_bi+mv_best_cost_bi) <= best_cost[REF_PIC_LIST_0]+mv_best_cost[REF_PIC_LIST_0] && best_cost_bi <= best_cost[REF_PIC_LIST_1]+mv_best_cost[REF_PIC_LIST_1])
+#endif
 		{
 			sad+=best_cost_bi;
 			mv_total_cost += mv_best_cost_bi;
@@ -2817,7 +2845,11 @@ int hmr_cu_motion_estimation(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 			curr_cu_info->inter_ref_index[REF_PIC_LIST_1] =  ref_index_bi[REF_PIC_LIST_1];
 			curr_cu_info->inter_mode = (0x1<<REF_PIC_LIST_0) | (0x1<<REF_PIC_LIST_1);
 		}
+#ifdef COMPUTE_AS_HM
 		else if(best_cost[REF_PIC_LIST_0]<=best_cost[REF_PIC_LIST_1])
+#else
+		else if(best_cost[REF_PIC_LIST_0]+mv_best_cost[REF_PIC_LIST_0]<=best_cost[REF_PIC_LIST_1]+mv_best_cost[REF_PIC_LIST_1])
+#endif
 		{
 			sad+=best_cost[REF_PIC_LIST_0];
 			mv_total_cost += mv_best_cost[REF_PIC_LIST_0];
@@ -3006,7 +3038,7 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 #ifdef COMPUTE_AS_HM
 			mv_cost += select_mv_candidate(et, curr_cu_info, &et->amvp_candidates[ref_list], &mv, &curr_cu_info->best_candidate_idx[ref_list]);
 #else
-			mv_cost = select_mv_candidate(et, curr_cu_info, ref_list, &mv, &curr_cu_info->best_candidate_idx[ref_list]);
+			mv_cost += select_mv_candidate(et, curr_cu_info, &et->amvp_candidates[ref_list], &mv, &curr_cu_info->best_candidate_idx[ref_list]);
 #endif
 			curr_cu_info->best_dif_mv[ref_list].hor_vector = mv.hor_vector-et->amvp_candidates[ref_list].mv_candidates[curr_cu_info->best_candidate_idx[ref_list]].mv.hor_vector;
 			curr_cu_info->best_dif_mv[ref_list].ver_vector = mv.ver_vector-et->amvp_candidates[ref_list].mv_candidates[curr_cu_info->best_candidate_idx[ref_list]].mv.ver_vector;
@@ -3025,9 +3057,9 @@ int predict_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int p
 
 		if(!uni_prediction)
 		{
-			weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][Y_COMP], pred_buff_stride, pred_aux_buffs[REF_PIC_LIST_1][Y_COMP], pred_buff_stride, pred_buff, pred_buff_stride, curr_cu_info->size, curr_cu_info->size, et->bit_depth);
-			weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][U_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][U_COMP], pred_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
-			weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][V_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][V_COMP], pred_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
+			et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][Y_COMP], pred_buff_stride, pred_aux_buffs[REF_PIC_LIST_1][Y_COMP], pred_buff_stride, pred_buff, pred_buff_stride, curr_cu_info->size, curr_cu_info->size, et->bit_depth);
+			et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][U_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][U_COMP], pred_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
+			et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][V_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][V_COMP], pred_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
 		}
 
 		et->funcs->predict(orig_buff, orig_buff_stride, pred_buff, pred_buff_stride, residual_buff, residual_buff_stride, curr_part_size);
@@ -3106,7 +3138,10 @@ int encode_inter(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int depth, int pa
 #else
 	max_tr_processing_depth = et->max_cu_size_shift-cu_min_tu_size_shift;
 	if(et->performance_mode >= PERF_FAST_COMPUTATION)
-		max_tr_processing_depth = depth==0?1:depth;//max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
+	{
+		int aux_proc_depth = depth==0?1:(depth+((part_size_type!=SIZE_2Nx2N)?1:0));
+		max_tr_processing_depth = aux_proc_depth;//max_tr_processing_depth = (depth+2<=max_tr_processing_depth)?depth+2:((depth+1<=max_tr_processing_depth)?depth+1:max_tr_processing_depth);
+	}
 #endif
 
 	//skip first level 
@@ -3532,7 +3567,7 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 	residual_buff_u = WND_POSITION_2D(int16_t *, et->residual_wnd, U_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 	residual_buff_v = WND_POSITION_2D(int16_t *, et->residual_wnd, V_COMP, curr_part_x_chroma, curr_part_y_chroma, gcnt, et->ctu_width);
 
-	for(uiMergeCand = 0; uiMergeCand < et->merge_mvp_candidates[0].num_mv_candidates; ++uiMergeCand)
+	for(uiMergeCand = 0; uiMergeCand < numValidMergeCand; ++uiMergeCand)
 	{
 		int data_size_x, data_size_y, data_padding_x, data_padding_y;
 		int search_point_x, search_point_y;
@@ -3630,9 +3665,9 @@ uint32_t check_rd_cost_merge_2nx2n(henc_thread_t* et, ctu_info_t* ctu, int depth
 
 						if(is_bi_predict)//currslice->slice_type == B_SLICE && (mv_cand0->ref_idx>=0 && mv_cand1->ref_idx>=0) && !EQUAL_MOTION(mv_cand0, mv_cand1))
 						{
-							weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][Y_COMP], pred_buff_stride, pred_aux_buffs[REF_PIC_LIST_1][Y_COMP], pred_buff_stride, pred_buff, pred_buff_stride, curr_cu_info->size, curr_cu_info->size, et->bit_depth);
-							weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][U_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][U_COMP], pred_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
-							weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][V_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][V_COMP], pred_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
+							et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][Y_COMP], pred_buff_stride, pred_aux_buffs[REF_PIC_LIST_1][Y_COMP], pred_buff_stride, pred_buff, pred_buff_stride, curr_cu_info->size, curr_cu_info->size, et->bit_depth);
+							et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][U_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][U_COMP], pred_buff_stride_chroma, pred_buff_u, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
+							et->funcs->weighted_average_motion(pred_aux_buffs[REF_PIC_LIST_0][V_COMP], pred_buff_stride_chroma, pred_aux_buffs[REF_PIC_LIST_1][V_COMP], pred_buff_stride_chroma, pred_buff_v, pred_buff_stride_chroma, curr_cu_info->size_chroma, curr_cu_info->size_chroma, et->bit_depth);
 						}
 						motion_compensation_done = TRUE;
 					}
@@ -3759,7 +3794,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 //	else
 		avg_distortion = et->enc_engine->avg_dist;
 
-	if(et->index==0 && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/10)
+	if(et->index==0 && currslice->slice_type == P_SLICE && et->enc_engine->num_encoded_frames >1 && et->enc_engine->is_scene_change == 0 && 20<currslice->poc-et->enc_engine->hvenc->last_gop_reinit && total_partitions>et->enc_engine->pict_total_ctu*et->num_partitions_in_cu/10)
 	{
 		if(total_intra_partitions > (total_partitions*.7))
 		{
@@ -3824,7 +3859,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 				curr_cu_info->prediction_mode = INTER_MODE;
 				if(curr_cu_info->depth >= perf_min_depth)//-1)
 				{
-					if(et->enc_engine->num_encoded_frames==2 && ctu->ctu_number==2 && curr_cu_info->depth==1)// && curr_cu_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
+					if(et->enc_engine->num_encoded_frames==1 && ctu->ctu_number==5 && curr_cu_info->abs_index>=144 && curr_cu_info->depth==2)// && curr_cu_info->abs_index>=32)// && curr_partition_info->abs_index>=192)// && curr_depth==2)
 					{
 						int iiiiii=0;
 					}
@@ -3893,7 +3928,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 #else
 					if(!is_skipped && (curr_cu_info->size < 64 || (sad<100*curr_cu_info->num_part_in_cu)))// && curr_cu_info->size == 64))
 					{
-						mv_cost = predict_inter_uni(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
+						mv_cost = predict_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 						dist = encode_inter(et, ctu, gcnt, curr_depth, position, SIZE_2Nx2N);
 					}
 					else
@@ -3987,6 +4022,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 #else
 					intra_cost = intra_dist*(1.275-clip(((double)total_intra_partitions/(double)total_partitions), .0, .15))+clip(avg_distortion-400,40,avg_distortion)/1.75*curr_depth;
 					intra_cost+=cost_rd(et->enc_engine->avg_dist, curr_cu_info->sum);
+					//if(intra_cost*(1.+curr_cu_info[0].qp/50.0)<cost)
 					if(intra_cost<cost)
 #endif
 					{	//we prefer intra and it is already in its buffer
@@ -4034,7 +4070,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 					uint aux_dist = curr_cu_info->parent->distortion;
 					uint aux_sum = curr_cu_info->parent->sum;
 
-					if(et->enc_engine->num_encoded_frames==2 && ctu->ctu_number==5 && curr_cu_info->abs_index>=32)// && curr_depth==3)
+					if(et->enc_engine->num_encoded_frames==1 && curr_cu_info->abs_index>=32)// && ctu->ctu_number==5 )// && curr_depth==3)
 					{
 						int iiiiii=0;
 					}
@@ -4043,7 +4079,7 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 					sad = hmr_cu_motion_estimation(et, ctu, gcnt, curr_depth, position, SIZE_NxN, 0, motion_estimation_precision);//(MOTION_PEL_MASK|MOTION_HALF_PEL_MASK|MOTION_QUARTER_PEL_MASK));//.25*avg_distortion*curr_cu_info->num_part_in_cu);
 
 
-					if(et->enc_engine->num_encoded_frames == 11 && ctu->ctu_number == 5 && curr_cu_info->abs_index == 176)
+					if(et->enc_engine->num_encoded_frames == 1 && ctu->ctu_number == 5 && curr_cu_info->abs_index == 176)
 					{
 						int iiiii=0;
 					}
@@ -4114,7 +4150,8 @@ uint32_t motion_inter_full(henc_thread_t* et, ctu_info_t* ctu)
 */
 						if(intra_cost < cost)
 #else
-						if(1.25*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
+						//if((1.25+curr_cu_info[0].qp/25.0)*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
+						if((1.25)*intra_cost+45*intra_sum<cost+45*previous_sum)// && intra_cost<64*curr_cu_info->variance)
 #endif
 						{	//we prefer intra and it is already in its buffer
 							curr_cu_info->cost = (uint32_t)intra_cost;

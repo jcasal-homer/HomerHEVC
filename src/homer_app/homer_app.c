@@ -43,14 +43,14 @@
 //#define FILE_IN  "C:\\Patrones\\demo_pattern_192x128.yuv"//DebugPattern_384x256.yuv"//table_tennis_420.yuv"//LolaTest420.yuv"//demo_pattern_192x128.yuv"//"C:\\Patrones\\DebugPattern_248x184.yuv"//"C:\\Patrones\\DebugPattern_384x256.yuv"//DebugPattern_208x144.yuv"//Prueba2_deblock_192x128.yuv"//demo_pattern_192x128.yuv"
 //#define FILE_IN  "C:\\Patrones\\LolaTest420.yuv"
 //#define FILE_IN  "C:\\Patrones\\720p5994_parkrun_ter.yuv"//1080p_pedestrian_area.yuv"
-#define FILE_IN  "C:\\Patrones\\DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//table_tennis_420.yuv"//
+#define FILE_IN  "C:\\Patrones\\table_tennis_420.yuv"//DebugPattern_208x144.yuv"//DebugPattern_248x184.yuv"//
 
 #define FILE_OUT	"C:\\Patrones\\homer_development.265"//Flags.265"//Flags_zeros_3.265"//output_Homer_synthetic_full_HM_prueba.265"//DebugPattern_248x184.265"//
 #define FILE_REF	"C:\\Patrones\\refs_Homer.yuv"
 
 
-#define HOR_SIZE	(208)//1280//248//720//624//192//(384+16)//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
-#define VER_SIZE	(144)//720//184//576//352//128//(256+16)//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
+#define HOR_SIZE	720//(208)//1280//248//624//192//(384+16)//1920//1280//(2*192)//1280//720//(2*192)//(192+16)//720//320//720
+#define VER_SIZE	576//(144)//720//184//352//128//(256+16)//1080//720//(2*128)//720//576//(2*128)//(128+16)//320//576
 #define FPS			25//25//50
 
 
@@ -313,9 +313,9 @@ void get_default_config(HVENC_Cfg *cfg)
 	cfg->max_pred_partition_depth = 4;
 	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
-	cfg->num_enc_engines = 3;
+	cfg->num_enc_engines = 1;
 	cfg->wfpp_enable = 1;
-	cfg->wfpp_num_threads = 10;
+	cfg->wfpp_num_threads = 1;
 	cfg->sign_hiding = 1;
 	cfg->sample_adaptive_offset = 1;
 	cfg->rd_mode = RD_FAST;	  //0 no rd, 1 similar to HM, 2 fast
@@ -337,16 +337,16 @@ void get_debug_config(HVENC_Cfg *cfg)
 	cfg->intra_period = 100;//1;
 	cfg->gop_size = 2;//1;
 	cfg->num_b = 1;
-	cfg->max_pred_partition_depth = 3;
-	cfg->max_intra_tr_depth = 1;
+	cfg->max_pred_partition_depth = 4;
+	cfg->max_intra_tr_depth = 2;
 	cfg->max_inter_tr_depth = 1;
 	cfg->num_ref_frames = 1;
 	cfg->num_enc_engines = 3;
 	cfg->wfpp_num_threads = 10;
 	cfg->reinit_gop_on_scene_change = 0;
-	cfg->sample_adaptive_offset = 0;
-	cfg->bitrate_mode = BR_CBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
-	cfg->bitrate = 100;//in kbps
+	cfg->sample_adaptive_offset = 1;
+	cfg->bitrate_mode = BR_VBR;//BR_CBR;//BR_FIXED_QP;//0=fixed qp, 1=cbr (constant bit rate)
+	cfg->bitrate = 600;//in kbps
 	cfg->vbv_size = cfg->bitrate*1.;//in kbps - used for cbr and vbr
 	cfg->vbv_init = cfg->vbv_size*0.35;//in kbps
 	cfg->performance_mode = PERF_FASTER_COMPUTATION;//PERF_UFAST_COMPUTATION;//PERF_FAST_COMPUTATION;//0=PERF_FULL_COMPUTATION (HM)
@@ -361,7 +361,7 @@ int main (int argc, char **argv)
 	int frames_read = 0, encoded_frames = 0;
 	FILE *infile = NULL, *outfile = NULL, *reffile = NULL;
 	int skipped_frames = 0;//2075;//400+1575+25;//25;//1050;//800;//200;//0;
-	int num_frames = 15;//1500;//500;//2200;//100;//700;//15;
+	int num_frames = 1200;//1500;//500;//2200;//100;//700;//15;
 
 	unsigned char *frame[3];
 	stream_t stream;
@@ -437,7 +437,7 @@ int main (int argc, char **argv)
 	printf("Input file: %s\r\n", file_in_name);
 	printf("Output file: %s\r\n", file_out_name);
 	
-	if(!HOMER_enc_control(pEncoder,HENC_SETCFG,&HmrCfg))
+	if(!HOMER_enc_control(pEncoder,HOMER_SETCFG,&HmrCfg))
 		return -1;
 
 
@@ -483,6 +483,11 @@ int main (int argc, char **argv)
 //				encoder_engine_thread(pEncoder);
 				frames_read++;			
 			}
+			else
+			{
+				HOMER_enc_control(pEncoder,HOMER_END,NULL);
+			}
+
 
 			HOMER_enc_get_coded_frame(pEncoder, &output_frame, nalu_out, &num_nalus);
 
@@ -504,7 +509,7 @@ int main (int argc, char **argv)
 
 				encoded_frames++;
 			}
-			if(encoded_frames == num_frames || (bAllFilesFilled && encoded_frames==frames_read-skipped_frames))
+			if(bAllFilesFilled && (encoded_frames==frames_read-skipped_frames || num_nalus==0))// || encoded_frames == num_frames)
 			{
 				bCoding = 0;
 			}

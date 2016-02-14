@@ -31,7 +31,7 @@
 //#define WRITE_REF_FRAMES		1
 
 #define COMPUTE_SSE_FUNCS		1
-#define COMPUTE_AS_HM			1	//to debug against HM
+//#define COMPUTE_AS_HM			1	//to debug against HM
 #define DBG_TRACE				1
 #define DBG_TRACE_RESULTS		1
 //#define COMPUTE_METRICS			1
@@ -1080,6 +1080,7 @@ struct low_level_funcs_t
 	void (*interpolate_chroma_m_compensation)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 	void (*interpolate_luma_m_estimation)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
 //	void (*interpolate_chroma_m_estimation)(int16_t *reference_buff, int reference_buff_stride, int16_t *pred_buff, int pred_buff_stride, int fraction, int width, int height, int is_vertical, int is_first, int is_last);
+	void (*weighted_average_motion)(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth);
 
 	void (*quant)(henc_thread_t* et, int16_t* src, int16_t* dst, int scan_mode, int depth, int comp, int cu_mode, int is_intra, int *ac_sum, int cu_size, int per, int rem);
 	void (*inv_quant)(henc_thread_t* et, short * src, short * dst, int depth, int comp, int is_intra, int cu_size, int per, int rem);
@@ -1373,7 +1374,7 @@ struct hvenc_enc_t
 	int				num_encoder_engines;
 //	hmr_mutex		mutex_start_frame; 
 
-	int				run;
+	int				run, stop;
 	int				num_encoded_frames;
 	int				last_idr, last_intra, last_gop_reinit;
 	double			avg_dist;

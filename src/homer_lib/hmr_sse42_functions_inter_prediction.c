@@ -842,3 +842,111 @@ void sse_interpolate_chroma(int16_t *reference_buff, int reference_buff_stride, 
 			sse_hmr_interpolate_chroma_nxn(reference_buff, reference_buff_stride, pred_buff, pred_buff_stride, fraction, width, height, is_vertical, is_first, is_last);
 	}
 }
+
+
+
+void sse_weighted_average_motion_4xm(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth)
+{
+	int x, y;
+	int max_pix_val = (1<<bit_depth)-1;
+	int shift = IF_INTERNAL_PREC + 1 - bit_depth;
+	int offset = ( 1 << ( shift - 1 ) ) + 2 * IF_INTERNAL_OFFS;
+
+	__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+	__m128_i16 _m128_min = sse_128_vector_i16(0);
+	__m128_i16 _m128_max = sse_128_vector_i16(max_pix_val);
+	for ( y = 0; y < height; y++ )
+	{
+//		for ( x = 0; x < width; x+=8)
+		{
+			__m128_i32 s0_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src0));
+			__m128_i32 s1_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src1));
+
+			__m128_i32 sum0 = sse_128_shift_r_i32(sse_128_add_i32(sse_128_add_i32(s0_0, s1_0), _m128_offset), shift);
+
+			__m128_i16 val = sse128_packs_i32_i16(sum0, sum0);// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate - if computed in 16 bits this overflows the 16 bit range
+			val = sse_128_clip_16(val, _m128_min, _m128_max);
+			sse_64_storel_vector_u(dst, val);
+		}
+		src0 += src0_stride;
+		src1 += src1_stride;
+		dst +=dst_stride;
+	}
+}
+
+
+
+void sse_weighted_average_motion_8xm(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth)
+{
+	int x, y;
+	int max_pix_val = (1<<bit_depth)-1;
+	int shift = IF_INTERNAL_PREC + 1 - bit_depth;
+	int offset = ( 1 << ( shift - 1 ) ) + 2 * IF_INTERNAL_OFFS;
+
+	__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+	__m128_i16 _m128_min = sse_128_vector_i16(0);
+	__m128_i16 _m128_max = sse_128_vector_i16(max_pix_val);
+	for ( y = 0; y < height; y++ )
+	{
+//		for ( x = 0; x < width; x+=8)
+		{
+			__m128_i32 s0_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src0));
+			__m128_i32 s1_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src1));
+			__m128_i32 s0_1 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src0+4));
+			__m128_i32 s1_1 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src1+4));
+
+			__m128_i32 sum0 = sse_128_shift_r_i32(sse_128_add_i32(sse_128_add_i32(s0_0, s1_0), _m128_offset), shift);
+			__m128_i32 sum1 = sse_128_shift_r_i32(sse_128_add_i32(sse_128_add_i32(s0_1, s1_1), _m128_offset), shift);
+			__m128_i16 val = sse128_packs_i32_i16(sum0, sum1);// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate - if computed in 16 bits this overflows the 16 bit range
+			val = sse_128_clip_16(val, _m128_min, _m128_max);
+			sse_128_store_vector_u(dst, val);
+			//		  dst[x] = clip(( ( src0[x] + src1[x] + offset ) >> shiftNum ),0,max_pix_val);
+		}
+		src0 += src0_stride;
+		src1 += src1_stride;
+		dst +=dst_stride;
+	}
+}
+
+void sse_weighted_average_motion_8nxm(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth)
+{
+	int x, y;
+	int max_pix_val = (1<<bit_depth)-1;
+	int shift = IF_INTERNAL_PREC + 1 - bit_depth;
+	int offset = ( 1 << ( shift - 1 ) ) + 2 * IF_INTERNAL_OFFS;
+
+	__m128_i32 _m128_offset = sse_128_vector_i32(offset);
+	__m128_i16 _m128_min = sse_128_vector_i16(0);
+	__m128_i16 _m128_max = sse_128_vector_i16(max_pix_val);
+	for ( y = 0; y < height; y++ )
+	{
+		for ( x = 0; x < width; x+=8)
+		{
+			__m128_i32 s0_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src0+x));
+			__m128_i32 s1_0 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src1+x));
+			__m128_i32 s0_1 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src0+x+4));
+			__m128_i32 s1_1 = sse_128_convert_i16_i32(sse_128_loadlo_vector64(src1+x+4));
+
+			__m128_i32 sum0 = sse_128_shift_r_i32(sse_128_add_i32(sse_128_add_i32(s0_0, s1_0), _m128_offset), shift);
+			__m128_i32 sum1 = sse_128_shift_r_i32(sse_128_add_i32(sse_128_add_i32(s0_1, s1_1), _m128_offset), shift);
+			__m128_i16 val = sse128_packs_i32_i16(sum0, sum1);// in HM val is type short. it is equivalent to packing whithout saturation, and then saturate - if computed in 16 bits this overflows the 16 bit range because of the "+ 2 * IF_INTERNAL_OFFS" of the offset
+			val = sse_128_clip_16(val, _m128_min, _m128_max);
+			sse_128_store_vector_u(dst+x, val);
+		}
+		src0 += src0_stride;
+		src1 += src1_stride;
+		dst +=dst_stride;
+	}
+}
+
+
+
+void sse_weighted_average_motion(int16_t* src0, int src0_stride, int16_t* src1, int src1_stride, int16_t* dst, int dst_stride, int height, int width, int bit_depth)
+{
+	if(width == 4)
+		sse_weighted_average_motion_4xm(src0, src0_stride, src1, src1_stride, dst, dst_stride, height, width, bit_depth);
+	else if(width == 8)
+		sse_weighted_average_motion_8xm(src0, src0_stride, src1, src1_stride, dst, dst_stride, height, width, bit_depth);
+	else
+		sse_weighted_average_motion_8nxm(src0, src0_stride, src1, src1_stride, dst, dst_stride, height, width, bit_depth);
+}

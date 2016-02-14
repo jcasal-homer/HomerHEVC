@@ -199,8 +199,8 @@ uint32_t encode_intra_chroma(henc_thread_t* et, ctu_info_t* ctu, int gcnt, int d
 				curr_part_size_shift = et->max_cu_size_shift-(curr_depth+1);
 				curr_adi_size = 2*2*curr_part_size+1;
 
-				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
-				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd, ch_component);
+				pred_buff = WND_POSITION_2D(int16_t *, et->prediction_wnd[0], ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
+				pred_buff_stride = WND_STRIDE_2D(et->prediction_wnd[0], ch_component);
 				orig_buff = WND_POSITION_2D(int16_t *, et->curr_mbs_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
 				orig_buff_stride = WND_STRIDE_2D(et->curr_mbs_wnd, ch_component);
 				decoded_buff = WND_POSITION_2D(int16_t *, *decoded_wnd, ch_component, curr_part_x, curr_part_y, gcnt, et->ctu_width);
