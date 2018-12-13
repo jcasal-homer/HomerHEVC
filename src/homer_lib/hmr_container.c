@@ -20,7 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
 
-#include <malloc.h>
 #include <memory.h>
 
 #include "hmr_private.h"

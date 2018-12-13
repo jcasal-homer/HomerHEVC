@@ -20,7 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
  *****************************************************************************/
 #include <stdio.h>
-#include	<malloc.h>
 #include	<memory.h>
 #include	<math.h>
 #include	<limits.h>

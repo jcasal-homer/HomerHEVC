@@ -23,7 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 //#include <process.h>
+#if HAVE_MALLOC_H
 #include <malloc.h>
+#endif
 #include <math.h>
 #include <homer_hevc_enc_api.h>
 #include <string.h>

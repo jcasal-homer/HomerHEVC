@@ -23,6 +23,9 @@
 #ifndef __HOMER_HEVC_COMMON_H__
 #define __HOMER_HEVC_COMMON_H__
 
+#if HAVE_MALLOC_H
+#include <malloc.h>
+#endif
 #include "hmr_private.h"
 #include "hmr_container.h"
 

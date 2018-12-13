@@ -22,7 +22,6 @@
 
 #include <math.h>
 #include <memory.h>
-#include <malloc.h>
 
 #include "hmr_common.h"
 #include "hmr_private.h"
