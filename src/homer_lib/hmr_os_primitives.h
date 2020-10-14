@@ -100,8 +100,12 @@ typedef void* hmr_thread_t;
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
-#include <semaphore.h>
 
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
+#include <semaphore.h>
+#endif
 //-----------------------------------------------------------threads---------------------------------------------------
 
 //data alignment
@@ -127,14 +131,38 @@ typedef pthread_mutex_t hmr_mutex;
 #define MUTEX_UNLOCK(mutex)									pthread_mutex_unlock(&mutex)
 
 //-----------------------------------------------------------semaphores---------------------------------------------------
-
-typedef sem_t 	hmr_sem_t;
-typedef sem_t* 	hmr_sem_ptr;
+#ifdef __APPLE__
+typedef dispatch_semaphore_t     hmr_sem_t;
+typedef dispatch_semaphore_t*     hmr_sem_ptr;
+#else
+typedef sem_t     hmr_sem_t;
+typedef sem_t*     hmr_sem_ptr;
+#endif
 
 #define SEM_COPY(src,dst) dst=&src;
-#define SEM_INIT(sem, count, max_count)									sem_init(&sem, 0, count);
-#define SEM_POST(sem)													sem_post(sem);
-#define SEM_WAIT(sem)													sem_wait(sem);
+#ifdef __APPLE__
+#define SEM_INIT(sem, count, max_count)                                  sem = dispatch_semaphore_create(count);
+#define SEM_POST(sem)                                                    dispatch_semaphore_signal(*sem);
+#define SEM_WAIT(sem)                                                     dispatch_semaphore_wait(*sem, DISPATCH_TIME_FOREVER);
+#define SEM_RESET(sem)                                                                                                            \
+{                                                                                                                                \
+    long rc=0;                                                                                                                    \
+    while(rc==0)                                                                                                \
+        rc = dispatch_semaphore_wait(*sem, 0);                                                                                                    \
+}
+#define SEM_DESTROY(sem)
+#else
+#define SEM_INIT(sem, count, max_count)                                  sem_init(&sem, 0, count);
+#define SEM_POST(sem)                                                    sem_post(sem);
+#define SEM_WAIT(sem)                                                    sem_wait(sem);
+#define SEM_RESET(sem)                                                                                                            \
+{                                                                                                                                \
+    int rc=0;                                                                                                                    \
+    while(rc==0 && errno != EAGAIN)                                                                                                \
+        rc = sem_trywait(sem);                                                                                                    \
+}
+#define SEM_DESTROY(sem)                                                sem_destroy(sem);
+#endif
 
 #define SEM_WAIT_MULTIPLE(semaphores, n)								\
 {																		\
@@ -142,15 +170,6 @@ typedef sem_t* 	hmr_sem_ptr;
 	for(nSems=0;nSems<n;nSems++)										\
 		SEM_WAIT(semaphores[nSems]);									\
 }
-
-#define SEM_RESET(sem)																											\
-{																																\
-	int rc=0;																													\
-	while(rc==0 && errno != EAGAIN)																								\
-		rc = sem_trywait(sem);																									\
-}
-
-#define SEM_DESTROY(sem)												sem_destroy(sem);
 
 
 //-----------------------------------------------------------threads---------------------------------------------------
